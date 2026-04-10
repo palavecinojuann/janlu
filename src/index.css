@@ -1,0 +1,39 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Cinzel:wght@400;700&display=swap');
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --font-serif: "Playfair Display", serif;
+  --font-sans: "Inter", sans-serif;
+  --font-cinzel: "Cinzel", serif;
+}
+
+@layer utilities {
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  @media print {
+    body * {
+      visibility: hidden;
+    }
+    .shipping-label, .shipping-label * {
+      visibility: visible;
+    }
+    .shipping-label {
+      position: fixed;
+      left: 0;
+      top: 0;
+      margin: 0;
+      border: 2px solid black;
+    }
+    @page {
+      size: auto;
+      margin: 0;
+    }
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "name": "JANLU aromas y diseño 2.0",
+  "description": "App para gestión de stock, CRM enriquecido, facturación, academia y herramientas avanzadas de costeo y actualización de precios para JANLU aromas y diseño.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}

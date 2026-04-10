@@ -1,0 +1,453 @@
+{
+  "entities": {
+    "StoreSettings": {
+      "title": "StoreSettings",
+      "description": "Global store settings",
+      "type": "object",
+      "properties": {
+        "whatsappNumber": { "type": "string" },
+        "instagramUrl": { "type": "string" },
+        "facebookUrl": { "type": "string" }
+      }
+    },
+    "Product": {
+      "title": "Product",
+      "description": "A product in the catalog",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "category": { "type": "string" },
+        "photoUrl": { "type": "string" },
+        "variants": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "stock": { "type": "number" },
+              "cost": { "type": "number" },
+              "margin": { "type": "number" },
+              "price": { "type": "number" },
+              "recipe": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "rawMaterialId": { "type": "string" },
+                    "quantity": { "type": "number" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "showInCatalog": { "type": "boolean" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "name", "createdAt", "updatedAt"]
+    },
+    "Customer": {
+      "title": "Customer",
+      "description": "A customer",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "surname": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "address": { "type": "string" },
+        "instagram": { "type": "string" },
+        "customerType": { "type": "string", "enum": ["retail", "wholesale"] },
+        "birthDate": { "type": "string" },
+        "lastPurchaseDate": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "customerNumber": { "type": "string" },
+        "registeredAt": { "type": "string" },
+        "discountExpiresAt": { "type": "string" },
+        "welcomeDiscountUsed": { "type": "boolean" },
+        "discountPercentage": { "type": "number" }
+      },
+      "required": ["id", "name", "createdAt"]
+    },
+    "Coupon": {
+      "title": "Coupon",
+      "description": "A discount coupon",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "code": { "type": "string" },
+        "discountPercentage": { "type": "number" },
+        "expiresAt": { "type": "string" },
+        "customerId": { "type": "string" },
+        "isUsed": { "type": "boolean" },
+        "usedBySaleId": { "type": "string" },
+        "usedAt": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "code", "discountPercentage", "expiresAt", "isUsed", "createdAt"]
+    },
+    "Sale": {
+      "title": "Sale",
+      "description": "A sale transaction",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "orderNumber": { "type": "number" },
+        "customerId": { "type": "string" },
+        "customerName": { "type": "string" },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "productId": { "type": "string" },
+              "variantId": { "type": "string" },
+              "productName": { "type": "string" },
+              "variantName": { "type": "string" },
+              "quantity": { "type": "number" },
+              "price": { "type": "number" },
+              "total": { "type": "number" }
+            }
+          }
+        },
+        "totalAmount": { "type": "number" },
+        "amountPaid": { "type": "number" },
+        "discount": { "type": "number" },
+        "paymentPercentage": { "type": "number" },
+        "paymentMethod": { "type": "string" },
+        "date": { "type": "string" },
+        "status": { "type": "string" },
+        "deliveryDate": { "type": "string" },
+        "packagingCost": { "type": "number" },
+        "shippingCost": { "type": "number" },
+        "laborCost": { "type": "number" },
+        "paymentGatewayFee": { "type": "number" },
+        "materialsDeducted": { "type": "boolean" },
+        "receiptUrl": { "type": "string" },
+        "appliedCouponCode": { "type": "string" },
+        "generatedCouponCode": { "type": "string" },
+        "paymentHistory": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "date": { "type": "string" },
+              "amount": { "type": "number" },
+              "method": { "type": "string" },
+              "status": { "type": "string" },
+              "notes": { "type": "string" }
+            }
+          }
+        }
+      },
+      "required": ["id", "customerId", "customerName", "totalAmount", "date"]
+    },
+    "Quote": {
+      "title": "Quote",
+      "description": "A quote for a customer",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "customerId": { "type": "string" },
+        "customerName": { "type": "string" },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "productId": { "type": "string" },
+              "variantId": { "type": "string" },
+              "productName": { "type": "string" },
+              "variantName": { "type": "string" },
+              "quantity": { "type": "number" },
+              "unitPrice": { "type": "number" },
+              "modifier": {
+                "type": "object",
+                "properties": {
+                  "type": { "type": "string" },
+                  "value": { "type": "number" },
+                  "isDiscount": { "type": "boolean" }
+                }
+              },
+              "finalPrice": { "type": "number" }
+            }
+          }
+        },
+        "subtotal": { "type": "number" },
+        "globalModifier": {
+          "type": "object",
+          "properties": {
+            "type": { "type": "string" },
+            "value": { "type": "number" },
+            "isDiscount": { "type": "boolean" }
+          }
+        },
+        "totalAmount": { "type": "number" },
+        "date": { "type": "string" },
+        "validUntil": { "type": "string" }
+      },
+      "required": ["id", "customerId", "customerName", "subtotal", "totalAmount", "date", "validUntil"]
+    },
+    "RawMaterial": {
+      "title": "RawMaterial",
+      "description": "A raw material for products",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "unit": { "type": "string" },
+        "stock": { "type": "number" },
+        "costPerUnit": { "type": "number" },
+        "minStock": { "type": "number" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "name", "unit", "stock", "costPerUnit", "createdAt", "updatedAt"]
+    },
+    "Campaign": {
+      "title": "Campaign",
+      "description": "A marketing campaign",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "discount": { "type": "number" },
+        "expiresAt": { "type": "string" },
+        "isActive": { "type": "boolean" }
+      },
+      "required": ["id", "title", "discount", "expiresAt", "isActive"]
+    },
+    "Offer": {
+      "title": "Offer",
+      "description": "A special offer",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "type": { "type": "string" },
+        "discountPercentage": { "type": "number" },
+        "fixedPrice": { "type": "number" },
+        "productIds": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "imageUrl": { "type": "string" },
+        "expiresAt": { "type": "string" },
+        "validDays": {
+          "type": "array",
+          "items": { "type": "number" }
+        },
+        "startTime": { "type": "string" },
+        "endTime": { "type": "string" },
+        "isActive": { "type": "boolean" }
+      },
+      "required": ["id", "title", "type", "productIds", "isActive"]
+    },
+    "FinancialDocument": {
+      "title": "FinancialDocument",
+      "description": "A financial document",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "transactionId": { "type": "string" },
+        "type": { "type": "string" },
+        "amount": { "type": "number" },
+        "url": { "type": "string" },
+        "date": { "type": "string" },
+        "note": { "type": "string" }
+      },
+      "required": ["id", "transactionId", "type", "amount", "url", "date"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "A user of the system",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "name": { "type": "string" },
+        "level": { "type": "string" },
+        "referralCode": { "type": "string" },
+        "referralPoints": { "type": "number" },
+        "joinedAt": { "type": "string" },
+        "isAcademyStudent": { "type": "boolean" },
+        "academyJoinDate": { "type": "string" },
+        "starterKitPurchased": { "type": "boolean" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Activity": {
+      "title": "Activity",
+      "description": "A scheduled activity or commitment",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "date": { "type": "string" },
+        "time": { "type": "string" },
+        "type": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "title", "date", "time", "type", "status", "createdAt"]
+    },
+    "ProductionOrder": {
+      "title": "ProductionOrder",
+      "description": "An order to produce finished goods from raw materials",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "productId": { "type": "string" },
+        "variantId": { "type": "string" },
+        "productName": { "type": "string" },
+        "variantName": { "type": "string" },
+        "quantity": { "type": "number" },
+        "status": { "type": "string" },
+        "date": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "productId", "variantId", "quantity", "status", "date", "createdAt"]
+    },
+    "Simulation": {
+      "title": "Simulation",
+      "description": "A cost simulation for a product",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "totalCost": { "type": "number" },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "rawMaterialId": { "type": "string" },
+              "rawMaterialName": { "type": "string" },
+              "quantity": { "type": "number" },
+              "unit": { "type": "string" },
+              "cost": { "type": "number" }
+            }
+          }
+        },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "name", "totalCost", "createdAt"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "A log of an action performed in the system",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "action": { "type": "string" },
+        "collection": { "type": "string" },
+        "documentId": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "previousData": { "type": "object" },
+        "newData": { "type": "object" }
+      },
+      "required": ["id", "userId", "action", "collection", "timestamp"]
+    },
+    "Subscriber": {
+      "title": "Subscriber",
+      "description": "A newsletter subscriber",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "email": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "email", "createdAt"]
+    }
+  },
+  "firestore": {
+    "users": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "System users"
+    },
+    "products": {
+      "schema": { "$ref": "#/entities/Product" },
+      "description": "Products catalog"
+    },
+    "customers": {
+      "schema": { "$ref": "#/entities/Customer" },
+      "description": "Customers list"
+    },
+    "sales": {
+      "schema": { "$ref": "#/entities/Sale" },
+      "description": "Sales records"
+    },
+    "quotes": {
+      "schema": { "$ref": "#/entities/Quote" },
+      "description": "Quotes records"
+    },
+    "rawMaterials": {
+      "schema": { "$ref": "#/entities/RawMaterial" },
+      "description": "Raw materials inventory"
+    },
+    "campaigns": {
+      "schema": { "$ref": "#/entities/Campaign" },
+      "description": "Marketing campaigns"
+    },
+    "offers": {
+      "schema": { "$ref": "#/entities/Offer" },
+      "description": "Special offers"
+    },
+    "financialDocs": {
+      "schema": { "$ref": "#/entities/FinancialDocument" },
+      "description": "Financial documents"
+    },
+    "activities": {
+      "schema": { "$ref": "#/entities/Activity" },
+      "description": "Scheduled activities and commitments"
+    },
+    "productionOrders": {
+      "schema": { "$ref": "#/entities/ProductionOrder" },
+      "description": "Production orders for manufacturing goods"
+    },
+    "preAuthorizedAdmins": {
+      "schema": { "type": "object", "properties": { "email": { "type": "string" } } },
+      "description": "Emails of pre-authorized administrators"
+    },
+    "simulations": {
+      "schema": { "$ref": "#/entities/Simulation" },
+      "description": "Cost simulations for products"
+    },
+    "auditLogs": {
+      "schema": { "$ref": "#/entities/AuditLog" },
+      "description": "Audit logs for system actions"
+    },
+    "settings": {
+      "schema": { "$ref": "#/entities/StoreSettings" },
+      "description": "Global store settings"
+    },
+    "coupons": {
+      "schema": { "$ref": "#/entities/Coupon" },
+      "description": "Discount coupons"
+    },
+    "metadata/counters": {
+      "schema": {
+        "type": "object",
+        "properties": {
+          "lastCustomerNumber": { "type": "number" }
+        }
+      },
+      "description": "Global counters for IDs"
+    },
+    "subscribers": {
+      "schema": { "$ref": "#/entities/Subscriber" },
+      "description": "Newsletter subscribers"
+    }
+  }
+}
