@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Product, DashboardMetrics, Customer, Sale, Quote, RawMaterial, FinancialDocument, Activity, ProductionOrder, Campaign, Offer, UserProfile, Simulation, PreAuthorizedAdmin, AuditLog, User, StoreSettings, Coupon, Course } from './types';
 import { v4 as uuidv4 } from 'uuid';
 import { db, auth } from './firebase';
@@ -110,8 +110,12 @@ export function useInventory() {
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [lastSync, setLastSync] = useState<Date>(new Date());
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const hasFetchedNonCritical = useRef(false);
 
-  const refresh = () => setRefreshTrigger(prev => prev + 1);
+  const refresh = () => {
+    hasFetchedNonCritical.current = false;
+    setRefreshTrigger(prev => prev + 1);
+  };
 
   if (error) {
     throw error;
@@ -131,7 +135,7 @@ export function useInventory() {
       if (user) {
         // Optimistic admin grant for the owner to prevent UI flicker
         if (user.email === 'palavecinojuann@gmail.com') {
-          setIsAdmin(true);
+          setIsAdmin(prev => prev !== true ? true : prev);
         }
 
         // Check if user is admin with a timeout for offline/quota resilience
@@ -194,7 +198,7 @@ export function useInventory() {
               const profile = docSnap.data() as UserProfile;
               setUserProfile(profile);
               const adminStatus = profile.role === 'admin' || profile.role === 'collaborator';
-              setIsAdmin(adminStatus);
+              setIsAdmin(prev => prev !== adminStatus ? adminStatus : prev);
               console.log("Admin status updated from profile:", adminStatus, profile.email);
             }
           }, (e) => {
@@ -205,9 +209,9 @@ export function useInventory() {
           console.error("Error checking admin status:", err);
           // Fallback to email check if Firestore fails
           if (user.email === 'palavecinojuann@gmail.com') {
-            setIsAdmin(true);
+            setIsAdmin(prev => prev !== true ? true : prev);
           } else {
-            setIsAdmin(false);
+            setIsAdmin(prev => prev !== false ? false : prev);
           }
         }
 
@@ -240,7 +244,7 @@ export function useInventory() {
         checkCustomer();
 
       } else {
-        setIsAdmin(false);
+        setIsAdmin(prev => prev !== false ? false : prev);
         setUserProfile(null);
       }
       
@@ -263,7 +267,6 @@ export function useInventory() {
 
     const unsubProducts = onSnapshot(query(collection(db, 'products'), limit(200)), (snapshot) => {
       setProducts(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Product)));
-      setLastSync(new Date());
     }, (e) => handlePublicError(e, OperationType.GET, 'products'));
     
     const unsubCampaigns = onSnapshot(collection(db, 'campaigns'), (snapshot) => {
@@ -300,13 +303,22 @@ export function useInventory() {
 
   // Admin Listeners & Static Data Fetching
   useEffect(() => {
-    if (!isAuthReady || !isAdmin) return;
+    if (!isAuthReady || !isAdmin) {
+      hasFetchedNonCritical.current = false;
+      return;
+    }
 
     const handleAdminError = (e: unknown, op: OperationType, path: string) => {
+      console.warn(`[Admin collection error] ${path}:`, e);
+      // Don't set global error for quota issues to avoid infinite re-render loops
+      if (e instanceof Error && e.message.includes('quota')) {
+        return;
+      }
       try {
         handleFirestoreError(e, op, path);
       } catch (err) {
-        setError(err as Error);
+        // Only set error if it's not already the same to avoid loops
+        setError(prev => (prev?.message === (err as Error).message) ? prev : (err as Error));
       }
     };
 
@@ -367,6 +379,9 @@ export function useInventory() {
 
     // 2. STATIC DATA FETCHING (getDocs) - Non-Critical Data
     const fetchNonCriticalData = async () => {
+      if (hasFetchedNonCritical.current) return;
+      hasFetchedNonCritical.current = true;
+      
       console.log("Fetching non-critical static data...");
       try {
         // Audit Logs
@@ -407,7 +422,7 @@ export function useInventory() {
           if (preAuth) {
             const role = preAuth.role || 'admin';
             if (role === 'admin' || role === 'collaborator') {
-              setIsAdmin(true);
+              setIsAdmin(prev => prev !== true ? true : prev);
             }
           }
         }
