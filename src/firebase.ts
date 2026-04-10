@@ -9,11 +9,10 @@ const firebaseConfig = {
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
   firestoreDatabaseId: import.meta.env.VITE_FIRESTORE_DATABASE_ID
 };
 
-// Initialize Firebase SDK
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+// Aquí le decimos que use EXACTAMENTE el depósito que pusiste en Vercel
+export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId); 
 export const auth = getAuth(app);
