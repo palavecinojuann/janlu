@@ -120,6 +120,9 @@ export default function App() {
       
       if (isAdminHash && isAdmin) {
         setIsPublicCatalog(false);
+      } else if (isAdminHash && !currentUser) {
+        setShowAuth(true);
+        setIsPublicCatalog(true);
       } else {
         setIsPublicCatalog(true);
       }
@@ -135,7 +138,7 @@ export default function App() {
       window.removeEventListener('hashchange', handleHashChange);
       window.removeEventListener('popstate', handleHashChange);
     };
-  }, [isAdmin, isAuthReady]);
+  }, [isAdmin, isAuthReady, currentUser]);
 
   const navigateToCatalog = () => {
     window.location.hash = 'catalog';

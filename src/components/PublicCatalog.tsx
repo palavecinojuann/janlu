@@ -433,6 +433,47 @@ const PublicCampaignBanner = ({ campaign }: { campaign: Campaign | null }) => {
 const ProductSlider: React.FC<{ title: string; products: Product[]; isAdminMode: boolean; onEdit: (p: Product) => void; onDelete?: (id: string) => void; onUpdateCart: (p: Product, v: Variant, q: number) => void; activeOffers: Offer[]; activeCampaign: Campaign | null; formatCurrency: (n: number) => string; getEffectivePrice: (p: Product, v: Variant, q: number) => number; formatStock: (s: number) => string; cart: CartItem[]; rawMaterials: RawMaterial[]; storeSettings?: StoreSettings; onProductClick: (p: Product) => void; }> = ({ 
   title, products, isAdminMode, onEdit, onDelete, onUpdateCart, activeOffers, activeCampaign, formatCurrency, getEffectivePrice, formatStock, cart, rawMaterials, storeSettings, onProductClick 
 }) => {
+  const sliderRef = useRef<HTMLDivElement>(null);
+  const isDown = useRef(false);
+  const startX = useRef(0);
+  const scrollLeft = useRef(0);
+
+  const onMouseDown = (e: React.MouseEvent) => {
+    isDown.current = true;
+    const slider = sliderRef.current;
+    if (!slider) return;
+    slider.classList.add('cursor-grabbing');
+    slider.classList.remove('cursor-grab');
+    startX.current = e.pageX - slider.offsetLeft;
+    scrollLeft.current = slider.scrollLeft;
+  };
+
+  const onMouseLeave = () => {
+    isDown.current = false;
+    const slider = sliderRef.current;
+    if (!slider) return;
+    slider.classList.remove('cursor-grabbing');
+    slider.classList.add('cursor-grab');
+  };
+
+  const onMouseUp = () => {
+    isDown.current = false;
+    const slider = sliderRef.current;
+    if (!slider) return;
+    slider.classList.remove('cursor-grabbing');
+    slider.classList.add('cursor-grab');
+  };
+
+  const onMouseMove = (e: React.MouseEvent) => {
+    if (!isDown.current) return;
+    e.preventDefault();
+    const slider = sliderRef.current;
+    if (!slider) return;
+    const x = e.pageX - slider.offsetLeft;
+    const walk = (x - startX.current) * 2; // Velocidad de arrastre
+    slider.scrollLeft = scrollLeft.current - walk;
+  };
+
   if (products.length === 0) return null;
 
   return (
@@ -443,7 +484,14 @@ const ProductSlider: React.FC<{ title: string; products: Product[]; isAdminMode:
         <button className="text-[10px] uppercase tracking-[0.2em] text-stone-400 hover:text-stone-900 transition-colors">Ver todo</button>
       </div>
       <div className="relative">
-        <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory hide-scrollbar pb-4 -mx-4 px-4 sm:mx-0 sm:px-0">
+        <div 
+          ref={sliderRef}
+          className="flex gap-4 overflow-x-auto snap-x snap-mandatory hide-scrollbar pb-4 -mx-4 px-4 sm:mx-0 sm:px-0 cursor-grab select-none"
+          onMouseDown={onMouseDown}
+          onMouseLeave={onMouseLeave}
+          onMouseUp={onMouseUp}
+          onMouseMove={onMouseMove}
+        >
           {products.map((product, index) => (
             <div key={`${product.id}-${index}`} className="min-w-[200px] sm:min-w-[280px] snap-start">
               <ProductCard
@@ -1048,16 +1096,6 @@ export default function PublicCatalog({
               >
                 <Shield size={12} />
                 <span className="hidden sm:inline">{isAdminMode ? 'Admin On' : 'Admin Off'}</span>
-              </button>
-            )}
-            {!currentUser && onLogin && (
-              <button 
-                onClick={onLogin}
-                className="flex items-center gap-1.5 text-sm text-stone-500 hover:text-stone-900 transition-colors"
-                title="Ingresar / Registrarse"
-              >
-                <Lock size={18} />
-                <span className="hidden sm:inline text-xs uppercase tracking-widest font-medium">Ingresar</span>
               </button>
             )}
             {onBackToAdmin && (
