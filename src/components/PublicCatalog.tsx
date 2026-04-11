@@ -5,6 +5,7 @@ import ProductForm from './ProductForm';
 import ProductModal from './ProductModal';
 import { getVariantStock } from '../utils/stockUtils';
 import { roundFinancial } from '../utils/mathUtils';
+import { useDraggableScroll } from '../useDraggableScroll'; // 🔌 AQUÍ CONECTAMOS EL MOTOR
 
 interface PublicCatalogProps {
   products: Product[];
@@ -433,46 +434,8 @@ const PublicCampaignBanner = ({ campaign }: { campaign: Campaign | null }) => {
 const ProductSlider: React.FC<{ title: string; products: Product[]; isAdminMode: boolean; onEdit: (p: Product) => void; onDelete?: (id: string) => void; onUpdateCart: (p: Product, v: Variant, q: number) => void; activeOffers: Offer[]; activeCampaign: Campaign | null; formatCurrency: (n: number) => string; getEffectivePrice: (p: Product, v: Variant, q: number) => number; formatStock: (s: number) => string; cart: CartItem[]; rawMaterials: RawMaterial[]; storeSettings?: StoreSettings; onProductClick: (p: Product) => void; }> = ({ 
   title, products, isAdminMode, onEdit, onDelete, onUpdateCart, activeOffers, activeCampaign, formatCurrency, getEffectivePrice, formatStock, cart, rawMaterials, storeSettings, onProductClick 
 }) => {
-  const sliderRef = useRef<HTMLDivElement>(null);
-  const isDown = useRef(false);
-  const startX = useRef(0);
-  const scrollLeft = useRef(0);
-
-  const onMouseDown = (e: React.MouseEvent) => {
-    isDown.current = true;
-    const slider = sliderRef.current;
-    if (!slider) return;
-    slider.classList.add('cursor-grabbing');
-    slider.classList.remove('cursor-grab');
-    startX.current = e.pageX - slider.offsetLeft;
-    scrollLeft.current = slider.scrollLeft;
-  };
-
-  const onMouseLeave = () => {
-    isDown.current = false;
-    const slider = sliderRef.current;
-    if (!slider) return;
-    slider.classList.remove('cursor-grabbing');
-    slider.classList.add('cursor-grab');
-  };
-
-  const onMouseUp = () => {
-    isDown.current = false;
-    const slider = sliderRef.current;
-    if (!slider) return;
-    slider.classList.remove('cursor-grabbing');
-    slider.classList.add('cursor-grab');
-  };
-
-  const onMouseMove = (e: React.MouseEvent) => {
-    if (!isDown.current) return;
-    e.preventDefault();
-    const slider = sliderRef.current;
-    if (!slider) return;
-    const x = e.pageX - slider.offsetLeft;
-    const walk = (x - startX.current) * 2; // Velocidad de arrastre
-    slider.scrollLeft = scrollLeft.current - walk;
-  };
+  // 🔌 Reemplazamos la lógica vieja por el hook
+  const { ref, onMouseDown, onMouseLeave, onMouseUp, onMouseMove, className, style } = useDraggableScroll();
 
   if (products.length === 0) return null;
 
@@ -485,8 +448,9 @@ const ProductSlider: React.FC<{ title: string; products: Product[]; isAdminMode:
       </div>
       <div className="relative">
         <div 
-          ref={sliderRef}
-          className="flex gap-4 overflow-x-auto snap-x snap-mandatory hide-scrollbar pb-4 -mx-4 px-4 sm:mx-0 sm:px-0 cursor-grab select-none"
+          ref={ref}
+          className={`${className} -mx-4 px-4 sm:mx-0 sm:px-0 select-none hide-scrollbar`}
+          style={style}
           onMouseDown={onMouseDown}
           onMouseLeave={onMouseLeave}
           onMouseUp={onMouseUp}
