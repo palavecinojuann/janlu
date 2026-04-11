@@ -430,4 +430,1929 @@ export function useInventory() {
 
         // Users
         const usersSnap = await getDocs(query(collection(db, 'users'), limit(50)));
-        setUsers(
+        setUsers(usersSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as any as User)));
+
+        // Pre-Authorized Admins
+        const preAuthSnap = await getDocs(collection(db, 'preAuthorizedAdmins'));
+        const preAuths = preAuthSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as any as PreAuthorizedAdmin));
+        setPreAuthorizedAdmins(preAuths);
+
+        // Update isAdmin if current user is in pre-authorized list
+        if (currentUser) {
+          const preAuth = preAuths.find(admin => admin.email === currentUser.email);
+          if (preAuth) {
+            const role = preAuth.role || 'admin';
+            if (role === 'admin' || role === 'collaborator') {
+              setIsAdmin(prev => prev !== true ? true : prev);
+            }
+          }
+        }
+
+        // Financial Docs
+        const financialDocsSnap = await getDocs(query(collection(db, 'financialDocs'), limit(50)));
+        setFinancialDocs(financialDocsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as FinancialDocument)));
+
+        // Activities
+        const activitiesSnap = await getDocs(query(collection(db, 'activities'), limit(50)));
+        setActivities(activitiesSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Activity)));
+
+        // Simulations
+        const simulationsSnap = await getDocs(query(collection(db, 'simulations'), limit(20)));
+        setSimulations(simulationsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Simulation)));
+
+      } catch (e) {
+        console.warn("Error fetching non-critical data (likely quota):", e);
+      }
+    };
+
+    fetchNonCriticalData();
+
+    return () => {
+      unsubCoupons();
+      unsubSalesActive();
+      unsubQuotesActive();
+      unsubOrdersActive();
+    };
+  }, [isAuthReady, isAdmin, refreshTrigger]);
+
+  const logAction = async (action: string, collectionName: string, documentId: string, newData?: unknown, previousData?: unknown) => {
+    if (!currentUser) return;
+    const logId = uuidv4();
+    const log = {
+      id: logId,
+      userId: currentUser.uid,
+      userEmail: currentUser.email,
+      action,
+      collection: collectionName,
+      documentId,
+      timestamp: new Date().toISOString(),
+      newData: newData ? JSON.parse(JSON.stringify(newData)) : null,
+      previousData: previousData ? JSON.parse(JSON.stringify(previousData)) : null,
+    };
+    try {
+      await setDoc(doc(db, 'auditLogs', logId), log);
+    } catch (e) {
+      console.error("Error logging action:", e);
+    }
+  };
+
+  const addProduct = async (product: Product) => {
+    try {
+      const rounded = {
+        ...product,
+        variants: product.variants.map(v => ({
+          ...v,
+          cost: roundFinancial(v.cost),
+          price: roundFinancial(v.price),
+          wholesalePrice: v.wholesalePrice ? roundFinancial(v.wholesalePrice) : undefined
+        }))
+      };
+      const cleaned = cleanObject(rounded);
+      await setDoc(doc(db, 'products', product.id), cleaned);
+      await logAction('create', 'products', product.id, cleaned);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'products');
+    }
+  };
+  const addMultipleProducts = async (newProducts: Product[]) => {
+    if (!isAdmin) {
+      console.warn('User is not admin, cannot import products');
+      return;
+    }
+    console.log(`Starting bulk import of ${newProducts.length} products`);
+    try {
+      // Firestore batches have a limit of 500 operations
+      const BATCH_SIZE = 500;
+      for (let i = 0; i < newProducts.length; i += BATCH_SIZE) {
+        const chunk = newProducts.slice(i, i + BATCH_SIZE);
+        const batch = writeBatch(db);
+        
+        chunk.forEach(product => {
+          const rounded = {
+            ...product,
+            variants: product.variants.map(v => ({
+              ...v,
+              cost: roundFinancial(v.cost),
+              price: roundFinancial(v.price),
+              wholesalePrice: v.wholesalePrice ? roundFinancial(v.wholesalePrice) : undefined
+            }))
+          };
+          batch.set(doc(db, 'products', product.id), cleanObject(rounded));
+        });
+        
+        console.log(`Committing batch of ${chunk.length} products...`);
+        await batch.commit();
+        console.log(`Batch committed successfully`);
+      }
+
+      // Log actions separately (not in batch to avoid hitting limits)
+      for (const p of newProducts) {
+        await logAction('create_batch', 'products', p.id, p);
+      }
+      console.log('Bulk import completed successfully');
+    } catch (error) {
+      console.error('Error in addMultipleProducts:', error);
+      handleFirestoreError(error, OperationType.WRITE, 'products');
+    }
+  };
+  const updateProduct = async (updatedProduct: Product) => {
+    try {
+      const rounded = {
+        ...updatedProduct,
+        variants: updatedProduct.variants.map(v => ({
+          ...v,
+          cost: roundFinancial(v.cost),
+          price: roundFinancial(v.price),
+          wholesalePrice: v.wholesalePrice ? roundFinancial(v.wholesalePrice) : undefined
+        }))
+      };
+      const prev = products.find(p => p.id === updatedProduct.id);
+      const cleaned = cleanObject(rounded);
+      await setDoc(doc(db, 'products', updatedProduct.id), cleaned);
+      await logAction('update', 'products', updatedProduct.id, cleaned, prev);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'products');
+    }
+  };
+  const updateMultipleProducts = async (updatedProducts: Product[]) => {
+    try {
+      const batch = writeBatch(db);
+      updatedProducts.forEach(product => {
+        batch.set(doc(db, 'products', product.id), cleanObject(product));
+      });
+      await batch.commit();
+      for (const p of updatedProducts) {
+        const prev = products.find(old => old.id === p.id);
+        await logAction('update_batch', 'products', p.id, p, prev);
+      }
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'products');
+    }
+  };
+  const deleteProduct = async (id: string) => {
+    console.log('Intentando eliminar producto con ID:', id);
+    try {
+      const prev = products.find(p => p.id === id);
+      console.log('Producto encontrado para eliminar:', prev);
+      
+      // Update linked raw material if it exists
+      const linkedRawMaterial = rawMaterials.find(rm => rm.linkedProductId === id);
+      if (linkedRawMaterial) {
+        await setDoc(doc(db, 'rawMaterials', linkedRawMaterial.id), cleanObject({
+          ...linkedRawMaterial,
+          sellAsProduct: false,
+          linkedProductId: null
+        }));
+      }
+
+      await deleteDoc(doc(db, 'products', id));
+      console.log('Producto eliminado exitosamente de Firestore');
+      await logAction('delete', 'products', id, null, prev);
+    } catch (error) {
+      console.error('Error al eliminar producto en Firestore:', error);
+      handleFirestoreError(error, OperationType.DELETE, 'products');
+    }
+  };
+
+  const addCourse = async (course: Course) => {
+    try {
+      const cleaned = cleanObject(course);
+      await setDoc(doc(db, 'courses', course.id), cleaned);
+      await logAction('create', 'courses', course.id, cleaned);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'courses');
+    }
+  };
+
+  const updateCourse = async (course: Course) => {
+    try {
+      const cleaned = cleanObject(course);
+      await updateDoc(doc(db, 'courses', course.id), cleaned);
+      await logAction('update', 'courses', course.id, cleaned);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'courses');
+    }
+  };
+
+  const deleteCourse = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'courses', id));
+      await logAction('delete', 'courses', id);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, 'courses');
+    }
+  };
+
+  const adjustStock = async (productId: string, variantId: string, quantity: number) => {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+    const updatedProduct = {
+      ...product,
+      variants: product.variants.map(v => {
+        if (v.id === variantId) {
+          return { ...v, stock: v.isFinishedGood !== false ? Math.max(0, v.stock + quantity) : v.stock };
+        }
+        return v;
+      })
+    };
+    try {
+      await setDoc(doc(db, 'products', productId), cleanObject(updatedProduct));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'products');
+    }
+  };
+
+  const addCustomer = async (customer: Customer) => {
+    console.log("Attempting to add customer:", customer);
+    try {
+      // Normalización de datos
+      const normalizeEmail = (e?: string) => e?.trim().toLowerCase() || '';
+      const normalizePhone = (p?: string) => p?.replace(/\D/g, '') || '';
+      
+      const nEmail = normalizeEmail(customer.email);
+      const nPhone = normalizePhone(customer.phone);
+
+      // Escudo Anti-Duplicados
+      const isDuplicate = customers.some(c => 
+        (nEmail && normalizeEmail(c.email) === nEmail) || 
+        (nPhone && normalizePhone(c.phone) === nPhone)
+      );
+
+      if (isDuplicate) {
+        throw new Error('Ya existe un cliente con este email o teléfono.');
+      }
+
+      let finalCustomer = { 
+        ...customer,
+        welcomeDiscountUsed: customer.welcomeDiscountUsed ?? false,
+        discountPercentage: customer.discountPercentage ?? 10,
+        assignedOffers: customer.assignedOffers ?? [],
+        registeredAt: customer.registeredAt || new Date().toISOString(),
+        createdAt: customer.createdAt || new Date().toISOString()
+      };
+
+      // Generate customer number if missing
+      if (!finalCustomer.customerNumber) {
+        console.log("Generating customer number for:", finalCustomer.id);
+        finalCustomer.customerNumber = await generateNextCustomerNumber();
+      }
+
+      // Set discount expiration (7 days from registration)
+      if (!finalCustomer.discountExpiresAt) {
+        const regDate = new Date(finalCustomer.registeredAt);
+        const expDate = new Date(regDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+        finalCustomer.discountExpiresAt = expDate.toISOString();
+      }
+
+      console.log("Final customer object to save:", finalCustomer);
+      const cleaned = cleanObject(finalCustomer);
+      
+      await setDoc(doc(db, 'customers', finalCustomer.id), cleaned);
+      await logAction('create', 'customers', finalCustomer.id, cleaned);
+      console.log("Customer added successfully:", finalCustomer.id);
+    } catch (error) {
+      console.error("Error in addCustomer:", error);
+      handleFirestoreError(error, OperationType.WRITE, 'customers');
+    }
+  };
+  const updateCustomer = async (updated: Customer) => {
+    try {
+      // Normalización de datos
+      const normalizeEmail = (e?: string) => e?.trim().toLowerCase() || '';
+      const normalizePhone = (p?: string) => p?.replace(/\D/g, '') || '';
+      
+      const nEmail = normalizeEmail(updated.email);
+      const nPhone = normalizePhone(updated.phone);
+
+      // Escudo Anti-Duplicados
+      const isDuplicate = customers.some(c => 
+        c.id !== updated.id && (
+          (nEmail && normalizeEmail(c.email) === nEmail) || 
+          (nPhone && normalizePhone(c.phone) === nPhone)
+        )
+      );
+
+      if (isDuplicate) {
+        throw new Error('El email o teléfono ingresado ya pertenece a otro cliente registrado.');
+      }
+
+      console.log("Updating customer:", updated.id);
+      const prev = customers.find(c => c.id === updated.id);
+      const cleaned = cleanObject(updated);
+      await setDoc(doc(db, 'customers', updated.id), cleaned);
+      await logAction('update', 'customers', updated.id, cleaned, prev);
+      console.log("Customer updated successfully:", updated.id);
+    } catch (error) {
+      console.error("Error in updateCustomer:", error);
+      handleFirestoreError(error, OperationType.WRITE, 'customers');
+    }
+  };
+  const deleteCustomer = async (id: string) => {
+    try {
+      const prev = customers.find(c => c.id === id);
+      await deleteDoc(doc(db, 'customers', id));
+      await logAction('delete', 'customers', id, null, prev);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, 'customers');
+    }
+  };
+
+  const addRawMaterial = async (material: RawMaterial) => {
+    try {
+      let linkedProductId = material.linkedProductId;
+      if (material.sellAsProduct) {
+        linkedProductId = uuidv4();
+        const product: Product = {
+          id: linkedProductId,
+          name: material.name,
+          description: material.description || '',
+          category: material.category || 'Insumos',
+          photoUrl: material.photoUrl || '',
+          showInCatalog: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          variants: [{
+            id: uuidv4(),
+            name: material.unit,
+            price: material.price || 0,
+            cost: material.costPerUnit || 0,
+            margin: 0,
+            sku: '',
+            stock: 0,
+            isFinishedGood: false,
+            recipe: [{
+              id: uuidv4(),
+              rawMaterialId: material.id,
+              quantity: toUMB(1, material.unit as Unit),
+              unit: material.baseUnit || UMB_FOR_DIMENSION[material.dimension || (material.unit ? UNIT_DIMENSIONS[material.unit as Unit] : 'units')]
+            }]
+          }]
+        };
+        await setDoc(doc(db, 'products', product.id), cleanObject(product));
+      }
+
+      const rounded = {
+        ...material,
+        linkedProductId,
+        costPerUnit: roundPrecise(material.costPerUnit)
+      };
+      const cleaned = cleanObject(rounded);
+      await setDoc(doc(db, 'rawMaterials', material.id), cleaned);
+      await logAction('create', 'rawMaterials', material.id, cleaned);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'rawMaterials');
+    }
+  };
+  const addMultipleRawMaterials = async (materials: RawMaterial[]) => {
+    try {
+      const batch = writeBatch(db);
+      materials.forEach(material => {
+        const rounded = {
+          ...material,
+          costPerUnit: roundPrecise(material.costPerUnit)
+        };
+        batch.set(doc(db, 'rawMaterials', material.id), cleanObject(rounded));
+      });
+      await batch.commit();
+      for (const m of materials) {
+        await logAction('create_batch', 'rawMaterials', m.id, m);
+      }
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'rawMaterials');
+    }
+  };
+  const updateRawMaterial = async (updated: RawMaterial) => {
+    try {
+      let linkedProductId = updated.linkedProductId;
+      
+      if (updated.sellAsProduct) {
+        if (!linkedProductId) {
+          linkedProductId = uuidv4();
+        }
+        const existingProduct = products.find(p => p.id === linkedProductId);
+        const variantId = existingProduct?.variants[0]?.id || uuidv4();
+
+        const product: Product = {
+          id: linkedProductId,
+          name: updated.name,
+          description: updated.description || '',
+          category: updated.category || 'Insumos',
+          photoUrl: updated.photoUrl || '',
+          showInCatalog: true,
+          createdAt: existingProduct?.createdAt || new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          variants: [{
+            id: variantId,
+            name: updated.unit,
+            price: updated.price || 0,
+            cost: updated.costPerUnit || 0,
+            margin: 0,
+            sku: '',
+            stock: 0,
+            isFinishedGood: false,
+            recipe: [{
+              id: uuidv4(),
+              rawMaterialId: updated.id,
+              quantity: toUMB(1, updated.unit as Unit),
+              unit: updated.baseUnit || UMB_FOR_DIMENSION[updated.dimension || (updated.unit ? UNIT_DIMENSIONS[updated.unit as Unit] : 'units')]
+            }]
+          }]
+        };
+        await setDoc(doc(db, 'products', product.id), cleanObject(product));
+      } else if (linkedProductId) {
+        await deleteDoc(doc(db, 'products', linkedProductId));
+        linkedProductId = undefined;
+      }
+
+      const rounded = {
+        ...updated,
+        linkedProductId,
+        costPerUnit: roundPrecise(updated.costPerUnit)
+      };
+      const prev = rawMaterials.find(m => m.id === updated.id);
+      const cleaned = cleanObject(rounded);
+      await setDoc(doc(db, 'rawMaterials', updated.id), cleaned);
+      await logAction('update', 'rawMaterials', updated.id, cleaned, prev);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'rawMaterials');
+    }
+  };
+  const updateMultipleRawMaterials = async (updatedMaterials: RawMaterial[]) => {
+    try {
+      const batch = writeBatch(db);
+      updatedMaterials.forEach(material => {
+        batch.set(doc(db, 'rawMaterials', material.id), cleanObject(material));
+        if (material.sellAsProduct && material.linkedProductId) {
+          const existingProduct = products.find(p => p.id === material.linkedProductId);
+          if (existingProduct) {
+            const product: Product = {
+              ...existingProduct,
+              name: material.name,
+              description: material.description || '',
+              category: material.category || 'Insumos',
+              photoUrl: material.photoUrl || '',
+              variants: [{
+                ...existingProduct.variants[0],
+                name: material.unit,
+                price: material.price || 0,
+                recipe: [{
+                  rawMaterialId: material.id,
+                  quantity: toUMB(1, material.unit as Unit),
+                  unit: material.baseUnit || UMB_FOR_DIMENSION[material.dimension || (material.unit ? UNIT_DIMENSIONS[material.unit as Unit] : 'units')]
+                }]
+              }]
+            };
+            batch.set(doc(db, 'products', product.id), cleanObject(product));
+          }
+        }
+      });
+      await batch.commit();
+      for (const m of updatedMaterials) {
+        const prev = rawMaterials.find(old => old.id === m.id);
+        await logAction('update_batch', 'rawMaterials', m.id, m, prev);
+      }
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'rawMaterials');
+    }
+  };
+  const deleteRawMaterial = async (id: string) => {
+    try {
+      const prev = rawMaterials.find(m => m.id === id);
+      if (prev?.linkedProductId) {
+        await deleteDoc(doc(db, 'products', prev.linkedProductId));
+      }
+      await deleteDoc(doc(db, 'rawMaterials', id));
+      await logAction('delete', 'rawMaterials', id, null, prev);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, 'rawMaterials');
+    }
+  };
+
+  const restockRawMaterial = async (id: string, quantity: number, newCost?: number) => {
+    const material = rawMaterials.find(m => m.id === id);
+    if (!material) return;
+    const updatedMaterial = {
+      ...material,
+      stock: material.stock + quantity,
+      costPerUnit: newCost || material.costPerUnit,
+      updatedAt: new Date().toISOString()
+    };
+    try {
+      await setDoc(doc(db, 'rawMaterials', id), cleanObject(updatedMaterial));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'rawMaterials');
+    }
+  };
+
+  const addFinancialDoc = async (docData: FinancialDocument) => {
+    try {
+      await setDoc(doc(db, 'financialDocs', docData.id), cleanObject(docData));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'financialDocs');
+    }
+  };
+  const deleteFinancialDoc = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'financialDocs', id));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, 'financialDocs');
+    }
+  };
+
+  const addActivity = async (activity: Omit<Activity, 'id' | 'createdAt'>) => {
+    try {
+      const id = uuidv4();
+      const newActivity: Activity = {
+        ...activity,
+        id,
+        createdAt: new Date().toISOString()
+      };
+      await setDoc(doc(db, 'activities', id), cleanObject(newActivity));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'activities');
+    }
+  };
+
+  const updateActivity = async (activity: Activity) => {
+    try {
+      await setDoc(doc(db, 'activities', activity.id), cleanObject(activity));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `activities/${activity.id}`);
+    }
+  };
+
+  const deleteActivity = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'activities', id));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `activities/${id}`);
+    }
+  };
+
+  const addProductionOrder = async (order: Omit<ProductionOrder, 'id' | 'createdAt' | 'status'>) => {
+    try {
+      const id = uuidv4();
+      const newOrder: ProductionOrder = {
+        ...order,
+        id,
+        status: 'pending',
+        createdAt: new Date().toISOString()
+      };
+      await setDoc(doc(db, 'productionOrders', id), cleanObject(newOrder));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'productionOrders');
+    }
+  };
+
+  const updateProductionOrder = async (order: ProductionOrder) => {
+    const oldOrder = productionOrders.find(o => o.id === order.id);
+    if (!oldOrder) return;
+
+    try {
+      if (oldOrder.status === 'completed' && order.status === 'completed') {
+        // Revert old order stock
+        const oldProduct = products.find(p => p.id === oldOrder.productId);
+        const oldVariant = oldProduct?.variants.find(v => v.id === oldOrder.variantId);
+        
+        let currentMaterials = [...rawMaterials];
+        
+        if (oldProduct && oldVariant) {
+          // Revert product stock (decrease)
+          const updatedOldProduct = {
+            ...oldProduct,
+            variants: oldProduct.variants.map(v => {
+              if (v.id === oldVariant.id) {
+                return { ...v, stock: v.isFinishedGood !== false ? Math.max(0, v.stock - oldOrder.quantity) : v.stock };
+              }
+              return v;
+            })
+          };
+          // Don't save yet, we might update the same product again
+
+          // Revert raw materials (increase)
+          if (oldVariant.recipe) {
+            oldVariant.recipe.forEach(recipeItem => {
+              currentMaterials = currentMaterials.map(m => {
+                if (m.id === recipeItem.rawMaterialId) {
+                  const effectiveUnit = recipeItem.unit || m.baseUnit || UMB_FOR_DIMENSION[m.dimension || (m.unit ? UNIT_DIMENSIONS[m.unit as Unit] : 'units')];
+                  const quantityUMB = toUMB(recipeItem.quantity, effectiveUnit as Unit);
+                  return { ...m, stock: m.stock + (quantityUMB * oldOrder.quantity) };
+                }
+                return m;
+              });
+            });
+          }
+
+          // Apply new order stock
+          const newProduct = products.find(p => p.id === order.productId);
+          const newVariant = newProduct?.variants.find(v => v.id === order.variantId);
+          
+          if (newProduct && newVariant) {
+            // Apply product stock (increase)
+            const productToUpdate = (oldProduct.id === newProduct.id) ? updatedOldProduct : newProduct;
+            
+            const finalNewProduct = {
+              ...productToUpdate,
+              variants: productToUpdate.variants.map(v => {
+                if (v.id === newVariant.id) {
+                  return { ...v, stock: v.isFinishedGood !== false ? v.stock + order.quantity : v.stock };
+                }
+                return v;
+              })
+            };
+            
+            if (oldProduct.id !== newProduct.id) {
+               await setDoc(doc(db, 'products', updatedOldProduct.id), cleanObject(updatedOldProduct));
+            }
+            await setDoc(doc(db, 'products', finalNewProduct.id), cleanObject(finalNewProduct));
+
+            // Apply raw materials (decrease)
+            if (newVariant.recipe) {
+              newVariant.recipe.forEach(recipeItem => {
+                currentMaterials = currentMaterials.map(m => {
+                  if (m.id === recipeItem.rawMaterialId) {
+                    const effectiveUnit = recipeItem.unit || m.baseUnit || UMB_FOR_DIMENSION[m.dimension || (m.unit ? UNIT_DIMENSIONS[m.unit as Unit] : 'units')];
+                    const quantityUMB = toUMB(recipeItem.quantity, effectiveUnit as Unit);
+                    return { ...m, stock: Math.max(0, m.stock - (quantityUMB * order.quantity)) };
+                  }
+                  return m;
+                });
+              });
+            }
+          }
+        }
+        
+        // Save materials
+        for (const material of currentMaterials) {
+          await setDoc(doc(db, 'rawMaterials', material.id), cleanObject(material));
+        }
+      } else if (oldOrder.status === 'completed' && (order.status === 'pending' || order.status === 'cancelled')) {
+        // Revert old order stock, don't apply new stock
+        const oldProduct = products.find(p => p.id === oldOrder.productId);
+        const oldVariant = oldProduct?.variants.find(v => v.id === oldOrder.variantId);
+        
+        let currentMaterials = [...rawMaterials];
+        
+        if (oldProduct && oldVariant) {
+          // Revert product stock (decrease)
+          const updatedOldProduct = {
+            ...oldProduct,
+            variants: oldProduct.variants.map(v => {
+              if (v.id === oldVariant.id) {
+                return { ...v, stock: v.isFinishedGood !== false ? Math.max(0, v.stock - oldOrder.quantity) : v.stock };
+              }
+              return v;
+            })
+          };
+          await setDoc(doc(db, 'products', updatedOldProduct.id), cleanObject(updatedOldProduct));
+
+          // Revert raw materials (increase)
+          if (oldVariant.recipe) {
+            oldVariant.recipe.forEach(recipeItem => {
+              currentMaterials = currentMaterials.map(m => {
+                if (m.id === recipeItem.rawMaterialId) {
+                  const effectiveUnit = recipeItem.unit || m.baseUnit || UMB_FOR_DIMENSION[m.dimension || (m.unit ? UNIT_DIMENSIONS[m.unit as Unit] : 'units')];
+                  const quantityUMB = toUMB(recipeItem.quantity, effectiveUnit as Unit);
+                  return { ...m, stock: m.stock + (quantityUMB * oldOrder.quantity) };
+                }
+                return m;
+              });
+            });
+          }
+        }
+        for (const material of currentMaterials) {
+          await setDoc(doc(db, 'rawMaterials', material.id), material);
+        }
+      } else if ((oldOrder.status === 'pending' || oldOrder.status === 'cancelled') && order.status === 'completed') {
+        // Apply new order stock
+        const newProduct = products.find(p => p.id === order.productId);
+        const newVariant = newProduct?.variants.find(v => v.id === order.variantId);
+        
+        let currentMaterials = [...rawMaterials];
+        
+        if (newProduct && newVariant) {
+          // Check for sufficient raw material stock first
+          if (newVariant.recipe) {
+            for (const recipeItem of newVariant.recipe) {
+              const m = currentMaterials.find(rm => rm.id === recipeItem.rawMaterialId);
+              if (m) {
+                const effectiveUnit = recipeItem.unit || m.baseUnit || UMB_FOR_DIMENSION[m.dimension || (m.unit ? UNIT_DIMENSIONS[m.unit as Unit] : 'units')];
+                const quantityUMB = toUMB(recipeItem.quantity, effectiveUnit as Unit);
+                const totalNeeded = quantityUMB * order.quantity;
+                if (m.stock < totalNeeded) {
+                  throw new Error(`Stock insuficiente de ${m.name}. Se necesitan ${totalNeeded} ${m.baseUnit}, pero solo hay ${m.stock} ${m.baseUnit}.`);
+                }
+              }
+            }
+          }
+
+          // Apply product stock (increase)
+          const updatedNewProduct = {
+            ...newProduct,
+            variants: newProduct.variants.map(v => {
+              if (v.id === newVariant.id) {
+                return { ...v, stock: v.isFinishedGood !== false ? v.stock + order.quantity : v.stock };
+              }
+              return v;
+            })
+          };
+          await setDoc(doc(db, 'products', updatedNewProduct.id), cleanObject(updatedNewProduct));
+
+          // Apply raw materials (decrease)
+          if (newVariant.recipe) {
+            newVariant.recipe.forEach(recipeItem => {
+              currentMaterials = currentMaterials.map(m => {
+                if (m.id === recipeItem.rawMaterialId) {
+                  const effectiveUnit = recipeItem.unit || m.baseUnit || UMB_FOR_DIMENSION[m.dimension || (m.unit ? UNIT_DIMENSIONS[m.unit as Unit] : 'units')];
+                  const quantityUMB = toUMB(recipeItem.quantity, effectiveUnit as Unit);
+                  return { ...m, stock: Math.max(0, m.stock - (quantityUMB * order.quantity)) };
+                }
+                return m;
+              });
+            });
+          }
+        }
+        for (const material of currentMaterials) {
+          await setDoc(doc(db, 'rawMaterials', material.id), material);
+        }
+      } else if (oldOrder.status === 'pending' && order.status === 'pending') {
+        // Just update the order, no stock changes needed for pending orders
+      }
+
+      await setDoc(doc(db, 'productionOrders', order.id), cleanObject(order));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `productionOrders/${order.id}`);
+    }
+  };
+
+  const deleteProductionOrder = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'productionOrders', id));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `productionOrders/${id}`);
+    }
+  };
+
+  const fabricarProducto = async (productId: string, variantId: string, quantity: number) => {
+    const product = products.find(p => p.id === productId);
+    const variant = product?.variants.find(v => v.id === variantId);
+    if (!product || !variant) return;
+
+    try {
+      // 1. Check for sufficient raw material stock first
+      if (variant.recipe) {
+        for (const recipeItem of variant.recipe) {
+          const m = rawMaterials.find(rm => rm.id === recipeItem.rawMaterialId);
+          if (m) {
+            const effectiveUnit = recipeItem.unit || m.baseUnit || UMB_FOR_DIMENSION[m.dimension || (m.unit ? UNIT_DIMENSIONS[m.unit as Unit] : 'units')];
+            const quantityUMB = toUMB(recipeItem.quantity, effectiveUnit as Unit);
+            const totalNeeded = quantityUMB * quantity;
+            if (m.stock < totalNeeded) {
+              throw new Error(`Stock insuficiente de ${m.name}. Se necesitan ${totalNeeded} ${m.baseUnit}, pero solo hay ${m.stock} ${m.baseUnit}.`);
+            }
+          }
+        }
+      }
+
+      // 2. Deduct Raw Materials
+      if (variant.recipe) {
+        let newMaterials = [...rawMaterials];
+        variant.recipe.forEach(recipeItem => {
+          newMaterials = newMaterials.map(m => {
+            if (m.id === recipeItem.rawMaterialId) {
+              const effectiveUnit = recipeItem.unit || m.baseUnit || UMB_FOR_DIMENSION[m.dimension || (m.unit ? UNIT_DIMENSIONS[m.unit as Unit] : 'units')];
+              const quantityToDeductUMB = toUMB(recipeItem.quantity, effectiveUnit as Unit);
+              return { ...m, stock: Math.max(0, m.stock - (quantityToDeductUMB * quantity)) };
+            }
+            return m;
+          });
+        });
+        for (const material of newMaterials) {
+          await setDoc(doc(db, 'rawMaterials', material.id), cleanObject(material));
+        }
+      }
+
+      // 3. Increase Product Stock
+      const updatedProduct = {
+        ...product,
+        variants: product.variants.map(v => {
+          if (v.id === variant.id) {
+            return { ...v, stock: v.isFinishedGood !== false ? v.stock + quantity : v.stock };
+          }
+          return v;
+        })
+      };
+      await setDoc(doc(db, 'products', product.id), cleanObject(updatedProduct));
+
+      // 4. Log Activity
+      await addActivity({
+        title: 'Producción Completada',
+        description: `Se fabricaron ${quantity} unidades de ${product.name} - ${variant.name}`,
+        type: 'inventory',
+        status: 'completed',
+        date: new Date().toISOString().split('T')[0],
+        time: new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+      });
+
+    } catch (error) {
+      console.error("Error al fabricar producto:", error);
+      throw error;
+    }
+  };
+
+  const completeProductionOrder = async (id: string) => {
+    const order = productionOrders.find(o => o.id === id);
+    if (!order || order.status !== 'pending') return;
+
+    const product = products.find(p => p.id === order.productId);
+    const variant = product?.variants.find(v => v.id === order.variantId);
+    if (!product || !variant) return;
+
+    try {
+      // 1. Check for sufficient raw material stock first
+      if (variant.recipe) {
+        for (const recipeItem of variant.recipe) {
+          const m = rawMaterials.find(rm => rm.id === recipeItem.rawMaterialId);
+          if (m) {
+            const effectiveUnit = recipeItem.unit || m.baseUnit || UMB_FOR_DIMENSION[m.dimension || (m.unit ? UNIT_DIMENSIONS[m.unit as Unit] : 'units')];
+            const quantityUMB = toUMB(recipeItem.quantity, effectiveUnit as Unit);
+            const totalNeeded = quantityUMB * order.quantity;
+            if (m.stock < totalNeeded) {
+              throw new Error(`Stock insuficiente de ${m.name}. Se necesitan ${totalNeeded} ${m.baseUnit}, pero solo hay ${m.stock} ${m.baseUnit}.`);
+            }
+          }
+        }
+      }
+
+      // 2. Deduct Raw Materials
+      if (variant.recipe) {
+        let newMaterials = [...rawMaterials];
+        variant.recipe.forEach(recipeItem => {
+          newMaterials = newMaterials.map(m => {
+            if (m.id === recipeItem.rawMaterialId) {
+              const effectiveUnit = recipeItem.unit || m.baseUnit || UMB_FOR_DIMENSION[m.dimension || (m.unit ? UNIT_DIMENSIONS[m.unit as Unit] : 'units')];
+              const quantityToDeductUMB = toUMB(recipeItem.quantity, effectiveUnit as Unit);
+              return { ...m, stock: Math.max(0, m.stock - (quantityToDeductUMB * order.quantity)) };
+            }
+            return m;
+          });
+        });
+        for (const material of newMaterials) {
+          await setDoc(doc(db, 'rawMaterials', material.id), cleanObject(material));
+        }
+      }
+
+      // 3. Increase Product Stock
+      const updatedProduct = {
+        ...product,
+        variants: product.variants.map(v => {
+          if (v.id === variant.id) {
+            return { ...v, stock: v.isFinishedGood !== false ? v.stock + order.quantity : v.stock };
+          }
+          return v;
+        })
+      };
+      await setDoc(doc(db, 'products', updatedProduct.id), cleanObject(updatedProduct));
+
+      // 4. Update Order Status
+      await setDoc(doc(db, 'productionOrders', id), cleanObject({ ...order, status: 'completed' }));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `productionOrders/${id}/complete`);
+    }
+  };
+
+  const saveSimulation = async (simulation: Simulation) => {
+    try {
+      await setDoc(doc(db, 'simulations', simulation.id), cleanObject(simulation));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'simulations');
+    }
+  };
+
+  const deleteSimulation = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'simulations', id));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, 'simulations');
+    }
+  };
+
+  const addPreAuth = async (email: string, role: string = 'admin') => {
+    try {
+      await setDoc(doc(db, 'preAuthorizedAdmins', email), { 
+        email,
+        role,
+        addedAt: new Date().toISOString(),
+        addedBy: currentUser?.email || 'unknown'
+      });
+      
+      // Also update existing user if they have already logged in
+      const existingUser = users.find(u => u.email === email);
+      if (existingUser) {
+        await setDoc(doc(db, 'users', existingUser.uid), { role }, { merge: true });
+        await logAction('update_role', 'users', existingUser.uid, { role }, existingUser);
+      }
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'preAuthorizedAdmins');
+    }
+  };
+
+  const updatePreAuthRole = async (email: string, role: string) => {
+    try {
+      await updateDoc(doc(db, 'preAuthorizedAdmins', email), { role });
+      
+      // Also update existing user if they have already logged in
+      const existingUser = users.find(u => u.email === email);
+      if (existingUser) {
+        await setDoc(doc(db, 'users', existingUser.uid), { role }, { merge: true });
+        await logAction('update_role', 'users', existingUser.uid, { role }, existingUser);
+      }
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, 'preAuthorizedAdmins');
+    }
+  };
+
+  const removePreAuth = async (email: string) => {
+    try {
+      await deleteDoc(doc(db, 'preAuthorizedAdmins', email));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, 'preAuthorizedAdmins');
+    }
+  };
+
+  const generateCoupon = async (customerId?: string, percentage: number = 20, customCode?: string) => {
+    const suffix = uuidv4().substring(0, 6).toUpperCase();
+    const code = customCode ? `${customCode}-${suffix}` : `VUELVE-${percentage}-${suffix}`;
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 30); // 30 days expiry
+
+    const newCoupon: Coupon = {
+      id: uuidv4(),
+      code,
+      discountPercentage: percentage,
+      expiresAt: expiresAt.toISOString(),
+      customerId,
+      isUsed: false,
+      createdAt: new Date().toISOString(),
+    };
+
+    try {
+      await setDoc(doc(db, 'coupons', newCoupon.id), cleanObject(newCoupon));
+      return newCoupon;
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'coupons');
+      return null;
+    }
+  };
+
+  const validateCoupon = async (code: string, customerEmail?: string): Promise<{ valid: boolean; discount?: number; error?: string }> => {
+    console.log("Validating coupon:", code, "for customer:", customerEmail);
+    
+    // 1. Check local state (for admins who have the list)
+    let coupon = coupons.find(c => c.code.toUpperCase() === code.trim().toUpperCase());
+    
+    // 2. If not found in local state, try to fetch directly from Firestore
+    if (!coupon) {
+      console.log("Coupon not found in local state, searching in Firestore...");
+      try {
+        const q = query(collection(db, 'coupons'), where('code', '==', code.trim().toUpperCase()), limit(1));
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+          coupon = { ...querySnapshot.docs[0].data(), id: querySnapshot.docs[0].id } as Coupon;
+          console.log("Found coupon in Firestore:", coupon);
+        } else {
+          // Try case-insensitive (though they should be stored uppercase)
+          const q2 = query(collection(db, 'coupons'), where('code', '==', code.trim()), limit(1));
+          const querySnapshot2 = await getDocs(q2);
+          if (!querySnapshot2.empty) {
+            coupon = { ...querySnapshot2.docs[0].data(), id: querySnapshot2.docs[0].id } as Coupon;
+            console.log("Found coupon in Firestore (case-match):", coupon);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching coupon from Firestore:", error);
+      }
+    }
+
+    if (coupon) {
+      console.log("Found regular coupon:", coupon);
+      if (coupon.isUsed) return { valid: false, error: 'Cupón ya utilizado' };
+      if (new Date(coupon.expiresAt) < new Date()) return { valid: false, error: 'Cupón caducado' };
+      
+      if (coupon.customerId && customerEmail) {
+        // If we are not admin, we might not have the full customers list
+        // But we can check if the customerId matches the current user's UID if logged in
+        if (currentUser && coupon.customerId !== currentUser.uid) {
+           // If it's not the current user, it might still be valid if the email matches
+           // But we'd need to fetch the customer doc to be sure
+           try {
+             const customerDoc = await getDoc(doc(db, 'customers', coupon.customerId));
+             if (customerDoc.exists()) {
+               const customerData = customerDoc.data() as Customer;
+               if (customerData.email.toLowerCase() !== customerEmail.toLowerCase()) {
+                 console.log("Coupon customer mismatch:", customerData.email, "vs", customerEmail);
+                 return { valid: false, error: 'Cupón no pertenece a este cliente' };
+               }
+             }
+           } catch (e) {
+             console.error("Error verifying coupon customer:", e);
+           }
+        } else if (!currentUser) {
+          // Guest user, we definitely need to fetch the customer doc to verify email
+          try {
+            const customerDoc = await getDoc(doc(db, 'customers', coupon.customerId));
+            if (customerDoc.exists()) {
+              const customerData = customerDoc.data() as Customer;
+              if (customerData.email.toLowerCase() !== customerEmail.toLowerCase()) {
+                console.log("Coupon customer mismatch (guest):", customerData.email, "vs", customerEmail);
+                return { valid: false, error: 'Cupón no pertenece a este cliente' };
+              }
+            }
+          } catch (e) {
+            console.error("Error verifying coupon customer for guest:", e);
+          }
+        }
+      }
+      return { valid: true, discount: coupon.discountPercentage };
+    }
+
+    // Check if it's a customer number (Welcome Discount)
+    if (customerEmail) {
+      // Try to find customer in local state
+      let customer = customers.find(c => c.email.toLowerCase() === customerEmail.toLowerCase());
+      
+      // If not in local state, try to fetch from Firestore
+      if (!customer) {
+        try {
+          const q = query(collection(db, 'customers'), where('email', '==', customerEmail.toLowerCase()), limit(1));
+          const querySnapshot = await getDocs(q);
+          if (!querySnapshot.empty) {
+            customer = { ...querySnapshot.docs[0].data(), id: querySnapshot.docs[0].id } as Customer;
+          }
+        } catch (e) {
+          console.error("Error fetching customer for welcome discount:", e);
+        }
+      }
+
+      console.log("Checking welcome discount for customer:", customer?.email, "code:", code, "customerNumber:", customer?.customerNumber);
+      if (customer && customer.customerNumber === code.trim()) {
+        if (customer.welcomeDiscountUsed) return { valid: false, error: 'Descuento de bienvenida ya utilizado' };
+        if (customer.discountExpiresAt && new Date(customer.discountExpiresAt) < new Date()) {
+          return { valid: false, error: 'Descuento de bienvenida caducado' };
+        }
+        return { valid: true, discount: customer.discountPercentage || 10 };
+      }
+    }
+
+    console.log("Coupon not found or invalid");
+    return { valid: false, error: 'Cupón no válido' };
+  };
+
+  const deductRawMaterials = async (saleItems: Sale['items']) => {
+    const batch = writeBatch(db);
+    let newMaterials = [...rawMaterials];
+    let materialsToUpdate = new Set<string>();
+
+    saleItems.forEach(item => {
+      const product = products.find(p => p.id === item.productId);
+      const variant = product?.variants.find(v => v.id === item.variantId);
+      if (variant && variant.recipe && variant.isFinishedGood === false) {
+        variant.recipe.forEach(recipeItem => {
+          newMaterials = newMaterials.map(m => {
+            if (m.id === recipeItem.rawMaterialId) {
+              // Calculate effective unit and convert to UMB
+              const effectiveUnit = recipeItem.unit || m.baseUnit || UMB_FOR_DIMENSION[m.dimension || (m.unit ? UNIT_DIMENSIONS[m.unit as Unit] : 'units')];
+              const quantityUMB = toUMB(recipeItem.quantity, effectiveUnit as Unit);
+              
+              // We need to deduct: quantityUMB * item.quantity
+              const totalToDeduct = quantityUMB * item.quantity;
+              
+              materialsToUpdate.add(m.id);
+              return { ...m, stock: Math.max(0, m.stock - totalToDeduct) };
+            }
+            return m;
+          });
+        });
+      }
+    });
+
+    try {
+      materialsToUpdate.forEach(id => {
+        const material = newMaterials.find(m => m.id === id);
+        if (material) {
+          batch.set(doc(db, 'rawMaterials', id), cleanObject(material));
+        }
+      });
+      await batch.commit();
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'rawMaterials');
+    }
+  };
+
+  const returnRawMaterials = async (saleItems: Sale['items']) => {
+    const batch = writeBatch(db);
+    let newMaterials = [...rawMaterials];
+    let materialsToUpdate = new Set<string>();
+
+    saleItems.forEach(item => {
+      const product = products.find(p => p.id === item.productId);
+      const variant = product?.variants.find(v => v.id === item.variantId);
+      if (variant && variant.recipe && variant.isFinishedGood === false) {
+        variant.recipe.forEach(recipeItem => {
+          newMaterials = newMaterials.map(m => {
+            if (m.id === recipeItem.rawMaterialId) {
+              const effectiveUnit = recipeItem.unit || m.baseUnit || UMB_FOR_DIMENSION[m.dimension || (m.unit ? UNIT_DIMENSIONS[m.unit as Unit] : 'units')];
+              const quantityToReturnUMB = toUMB(recipeItem.quantity, effectiveUnit as Unit);
+              materialsToUpdate.add(m.id);
+              return { ...m, stock: m.stock + (quantityToReturnUMB * item.quantity) };
+            }
+            return m;
+          });
+        });
+      }
+    });
+
+    try {
+      materialsToUpdate.forEach(id => {
+        const material = newMaterials.find(m => m.id === id);
+        if (material) {
+          batch.set(doc(db, 'rawMaterials', id), cleanObject(material));
+        }
+      });
+      await batch.commit();
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'rawMaterials');
+    }
+  };
+
+  const registerSale = async (saleData: Omit<Sale, 'id' | 'date'>) => {
+    const maxOrderNumber = sales.reduce((max, sale) => Math.max(max, sale.orderNumber || 0), 0);
+    
+    // CRM Logic - Normalization
+    const normalizeEmail = (e?: string) => e?.trim().toLowerCase() || '';
+    const normalizePhone = (p?: string) => p?.replace(/\D/g, '') || '';
+    
+    let customerId = saleData.customerId;
+    let customerToUpdate: Customer | null = null;
+    let newCustomer: Customer | null = null;
+
+    if (saleData.isRegistering && saleData.registrationData) {
+      const { firstName, lastName, phone, email, birthDate } = saleData.registrationData;
+      const fullName = `${firstName} ${lastName}`.trim();
+      const nEmail = normalizeEmail(email);
+      const nPhone = normalizePhone(phone);
+      
+      const existingCustomer = customers.find(c => 
+        (nEmail && normalizeEmail(c.email) === nEmail) || 
+        (nPhone && normalizePhone(c.phone) === nPhone)
+      );
+      
+      if (existingCustomer) {
+        customerId = existingCustomer.id;
+        customerToUpdate = {
+          ...existingCustomer,
+          name: fullName,
+          phone: nPhone || existingCustomer.phone,
+          birthDate: birthDate || existingCustomer.birthDate,
+          lastPurchaseDate: new Date().toISOString()
+        };
+      } else {
+        newCustomer = {
+          id: uuidv4(),
+          name: fullName,
+          email: nEmail,
+          phone: nPhone,
+          birthDate: birthDate || '',
+          createdAt: new Date().toISOString(),
+          lastPurchaseDate: new Date().toISOString()
+        };
+        customerId = newCustomer.id;
+      }
+    } else if (!customerId && (saleData.customerEmail || saleData.customerPhone)) {
+      const nEmail = normalizeEmail(saleData.customerEmail);
+      const nPhone = normalizePhone(saleData.customerPhone);
+
+      const existingCustomer = customers.find(c => 
+        (nEmail && normalizeEmail(c.email) === nEmail) || 
+        (nPhone && normalizePhone(c.phone) === nPhone)
+      );
+      
+      if (existingCustomer) {
+        customerId = existingCustomer.id;
+        customerToUpdate = {
+          ...existingCustomer,
+          lastPurchaseDate: new Date().toISOString()
+        };
+      } else {
+        newCustomer = {
+          id: uuidv4(),
+          name: (saleData.customerName || '').trim(),
+          email: nEmail,
+          phone: nPhone,
+          address: (saleData.shippingAddress || '').trim(),
+          createdAt: new Date().toISOString(),
+          lastPurchaseDate: new Date().toISOString()
+        };
+        customerId = newCustomer.id;
+      }
+    } else if (customerId) {
+      const existing = customers.find(c => c.id === customerId);
+      if (existing) {
+        customerToUpdate = {
+          ...existing,
+          lastPurchaseDate: new Date().toISOString()
+        };
+      }
+    }
+
+    const newSale: Sale = {
+      ...saleData,
+      id: uuidv4(),
+      customerId: customerId || '',
+      orderNumber: maxOrderNumber + 1,
+      date: new Date().toISOString(),
+      totalAmount: roundFinancial(saleData.totalAmount),
+      amountPaid: roundFinancial(saleData.amountPaid),
+      discount: roundFinancial(saleData.discount || 0),
+      items: saleData.items.map(item => ({
+        ...item,
+        price: roundFinancial(item.price),
+        total: roundFinancial(item.total || (item.price * item.quantity))
+      })),
+      materialsDeducted: false,
+      paymentHistory: saleData.amountPaid > 0 ? [{
+        date: new Date().toISOString(),
+        amount: roundFinancial(saleData.amountPaid),
+        method: saleData.paymentMethod,
+        status: saleData.paymentStatus || 'verified',
+        notes: saleData.paymentNotes
+      }] : []
+    };
+
+    // Coupon generation logic (pre-calculate if needed)
+    let couponToGenerate: Coupon | null = null;
+    if (saleData.isRegistering) {
+      const nEmail = normalizeEmail(saleData.registrationData?.email);
+      const nPhone = normalizePhone(saleData.registrationData?.phone);
+      const alreadyExisted = customers.some(c => 
+        (nEmail && normalizeEmail(c.email) === nEmail) || 
+        (nPhone && normalizePhone(c.phone) === nPhone)
+      );
+
+      if (!alreadyExisted) {
+        const suffix = uuidv4().substring(0, 6).toUpperCase();
+        couponToGenerate = {
+          id: uuidv4(),
+          code: `BIE15-${suffix}`,
+          discountPercentage: 15,
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          customerId: customerId || '',
+          isUsed: false,
+          createdAt: new Date().toISOString(),
+        };
+        newSale.generatedCouponCode = couponToGenerate.code;
+      }
+    }
+
+    const updatedProducts = products.map(p => {
+      const saleItems = newSale.items.filter(i => i.productId === p.id);
+      if (!saleItems.length) return p;
+      
+      return {
+        ...p,
+        variants: p.variants.map(v => {
+          const item = saleItems.find(i => i.variantId === v.id);
+          if (item && v.isFinishedGood !== false) {
+            return { ...v, stock: Math.max(0, v.stock - item.quantity) };
+          }
+          return v;
+        })
+      };
+    });
+
+    // 1. Pre-transaction reads (Queries)
+    let couponFromQuery: Coupon | null = null;
+    if (newSale.appliedCouponCode) {
+      const normalizedCode = newSale.appliedCouponCode.trim().toUpperCase();
+      const couponInState = coupons.find(c => c.code.toUpperCase() === normalizedCode);
+      if (couponInState) {
+        couponFromQuery = couponInState;
+      } else {
+        const q = query(collection(db, 'coupons'), where('code', '==', normalizedCode), limit(1));
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+          const docSnap = querySnapshot.docs[0];
+          couponFromQuery = { ...docSnap.data(), id: docSnap.id } as Coupon;
+        }
+      }
+    }
+
+    try {
+      await runTransaction(db, async (transaction) => {
+        // --- 1. READS ---
+        
+        // 1.1 Read Coupon
+        let couponDocSnap: DocumentSnapshot | null = null;
+        let couponRef: DocumentReference | null = null;
+        if (couponFromQuery) {
+          couponRef = doc(db, 'coupons', couponFromQuery.id);
+          couponDocSnap = await transaction.get(couponRef);
+          if (!couponDocSnap.exists()) throw new Error("Cupón no existe en DB");
+          if (couponDocSnap.data().isUsed) throw new Error("El cupón ya ha sido utilizado.");
+        }
+
+        // 1.2 Read Raw Materials
+        const materialsToDeduct = new Map<string, number>();
+        const materialDocs = new Map<string, DocumentSnapshot>();
+        if (newSale.status === 'entregado' || newSale.status === 'listo_para_entregar') {
+          newSale.items.forEach(item => {
+            const product = products.find(p => p.id === item.productId);
+            const variant = product?.variants.find(v => v.id === item.variantId);
+            if (variant && variant.recipe && variant.isFinishedGood === false) {
+              variant.recipe.forEach(recipeItem => {
+                const currentDeduction = materialsToDeduct.get(recipeItem.rawMaterialId) || 0;
+                materialsToDeduct.set(recipeItem.rawMaterialId, currentDeduction + (recipeItem.quantity * item.quantity));
+              });
+            }
+          });
+
+          for (const materialId of materialsToDeduct.keys()) {
+            const materialRef = doc(db, 'rawMaterials', materialId);
+            const docSnap = await transaction.get(materialRef);
+            if (!docSnap.exists()) throw new Error(`Materia prima no encontrada: ${materialId}`);
+            materialDocs.set(materialId, docSnap);
+          }
+        }
+
+        // 1.3 Read Course Quotas
+        const courseDocs = new Map<string, DocumentSnapshot>();
+        for (const item of newSale.items) {
+          if (item.isCourse && item.courseId) {
+            const courseRef = doc(db, 'courses', item.courseId);
+            const docSnap = await transaction.get(courseRef);
+            if (docSnap.exists()) {
+              courseDocs.set(item.courseId, docSnap);
+            }
+          }
+        }
+
+        // --- 2. WRITES ---
+
+        // 2.1 Handle Coupon Burn
+        if (couponDocSnap && couponRef) {
+          transaction.update(couponRef, { 
+            isUsed: true, 
+            usedBySaleId: newSale.id,
+            usedAt: new Date().toISOString()
+          });
+        } else if (newSale.appliedCouponCode) {
+          // Check if it was a welcome discount (customer number)
+          if (newCustomer && newCustomer.customerNumber === newSale.appliedCouponCode) {
+            newCustomer.welcomeDiscountUsed = true;
+          } else if (customerToUpdate && customerToUpdate.customerNumber === newSale.appliedCouponCode) {
+            customerToUpdate.welcomeDiscountUsed = true;
+          } else if (newSale.customerId) {
+            const customer = customers.find(c => c.id === newSale.customerId);
+            if (customer && customer.customerNumber === newSale.appliedCouponCode) {
+              if (customer.welcomeDiscountUsed) throw new Error("El descuento de bienvenida ya ha sido utilizado.");
+              transaction.update(doc(db, 'customers', customer.id), { 
+                welcomeDiscountUsed: true 
+              });
+            }
+          }
+        }
+
+        // 2.2 Handle Customer
+        if (newCustomer) {
+          transaction.set(doc(db, 'customers', newCustomer.id), cleanObject(newCustomer));
+        } else if (customerToUpdate) {
+          transaction.set(doc(db, 'customers', customerToUpdate.id), cleanObject(customerToUpdate));
+        }
+
+        // 2.3 Handle Raw Materials
+        if (newSale.status === 'entregado' || newSale.status === 'listo_para_entregar') {
+          for (const [materialId, totalToDeduct] of materialsToDeduct.entries()) {
+            const materialDoc = materialDocs.get(materialId)!;
+            const materialData = materialDoc.data() as RawMaterial;
+            
+            const effectiveUnit = materialData.baseUnit || UMB_FOR_DIMENSION[materialData.dimension || (materialData.unit ? UNIT_DIMENSIONS[materialData.unit as Unit] : 'units')];
+            const quantityUMB = toUMB(totalToDeduct, effectiveUnit as Unit);
+            
+            if (materialData.stock < quantityUMB) {
+              throw new Error(`Stock insuficiente para materia prima: ${materialData.name}`);
+            }
+            
+            transaction.update(doc(db, 'rawMaterials', materialId), { stock: materialData.stock - quantityUMB });
+          }
+          newSale.materialsDeducted = true;
+        }
+
+        // 2.4 Handle Products
+        for (const product of updatedProducts) {
+          if (newSale.items.some(i => i.productId === product.id)) {
+            transaction.set(doc(db, 'products', product.id), cleanObject(product));
+          }
+        }
+
+        // 2.5 Handle New Coupon
+        if (couponToGenerate) {
+          transaction.set(doc(db, 'coupons', couponToGenerate.id), cleanObject(couponToGenerate));
+        }
+
+        // 2.6 Handle Course Enrollment
+        for (const item of newSale.items) {
+          if (item.isCourse && item.courseId) {
+            const courseDoc = courseDocs.get(item.courseId);
+            if (courseDoc && courseDoc.exists()) {
+              const currentEnrolled = courseDoc.data().enrolledCount || 0;
+              const maxQuota = courseDoc.data().maxQuota || 0;
+              if (currentEnrolled + item.quantity > maxQuota) {
+                throw new Error(`Cupo insuficiente para el curso: ${item.productName}`);
+              }
+              transaction.update(doc(db, 'courses', item.courseId), { enrolledCount: currentEnrolled + item.quantity });
+            }
+          }
+        }
+
+        // 2.7 Handle Sale (Final Write)
+        transaction.set(doc(db, 'sales', newSale.id), cleanObject(newSale));
+      });
+
+      // Post-transaction logic (no longer need deductRawMaterials here)
+      return newSale.id;
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'sales');
+    }
+  };
+
+  const updateSale = async (updatedSale: Sale) => {
+    const roundedSale = {
+      ...updatedSale,
+      totalAmount: roundFinancial(updatedSale.totalAmount),
+      amountPaid: roundFinancial(updatedSale.amountPaid),
+      discount: roundFinancial(updatedSale.discount || 0),
+      items: updatedSale.items.map(item => ({
+        ...item,
+        price: roundFinancial(item.price),
+        total: roundFinancial(item.total)
+      })),
+      paymentHistory: updatedSale.paymentHistory?.map(p => ({
+        ...p,
+        amount: roundFinancial(p.amount)
+      }))
+    };
+    const s = sales.find(sale => sale.id === roundedSale.id);
+    if (s) {
+      const wasDeducted = s.materialsDeducted;
+      const shouldBeDeducted = roundedSale.status === 'entregado' || roundedSale.status === 'listo_para_entregar';
+      
+      try {
+        if (roundedSale.status === 'cancelado' && s.status !== 'cancelado') {
+          await runTransaction(db, async (transaction) => {
+            // --- 1. READS ---
+            
+            // 1.1 Read Products
+            const productDocs = new Map<string, DocumentSnapshot>();
+            for (const item of roundedSale.items) {
+              if (!productDocs.has(item.productId)) {
+                const productRef = doc(db, 'products', item.productId);
+                const docSnap = await transaction.get(productRef);
+                if (!docSnap.exists()) throw new Error(`Producto no encontrado: ${item.productId}`);
+                productDocs.set(item.productId, docSnap);
+              }
+            }
+
+            // 1.2 Read Raw Materials
+            const materialsToReturn = new Map<string, number>();
+            const materialDocs = new Map<string, DocumentSnapshot>();
+            if (wasDeducted) {
+              roundedSale.items.forEach(item => {
+                const product = products.find(p => p.id === item.productId);
+                const variant = product?.variants.find(v => v.id === item.variantId);
+                if (variant && variant.recipe && variant.isFinishedGood === false) {
+                  variant.recipe.forEach(recipeItem => {
+                    const currentReturn = materialsToReturn.get(recipeItem.rawMaterialId) || 0;
+                    materialsToReturn.set(recipeItem.rawMaterialId, currentReturn + (recipeItem.quantity * item.quantity));
+                  });
+                }
+              });
+
+              for (const materialId of materialsToReturn.keys()) {
+                const materialRef = doc(db, 'rawMaterials', materialId);
+                const docSnap = await transaction.get(materialRef);
+                if (!docSnap.exists()) throw new Error(`Materia prima no encontrada: ${materialId}`);
+                materialDocs.set(materialId, docSnap);
+              }
+            }
+
+            // 1.3 Read Course Quotas
+            const courseDocs = new Map<string, DocumentSnapshot>();
+            for (const item of roundedSale.items) {
+              if (item.isCourse && item.courseId) {
+                const courseRef = doc(db, 'courses', item.courseId);
+                const docSnap = await transaction.get(courseRef);
+                if (docSnap.exists()) {
+                  courseDocs.set(item.courseId, docSnap);
+                }
+              }
+            }
+
+            // --- 2. WRITES ---
+
+            // 2.1 Return product stock
+            const productsToUpdate = new Map<string, Product>();
+            for (const item of roundedSale.items) {
+              const productDoc = productDocs.get(item.productId)!;
+              let productData = productsToUpdate.get(item.productId) || (productDoc.data() as Product);
+              const variant = productData.variants.find(v => v.id === item.variantId);
+              
+              if (variant && variant.isFinishedGood !== false) {
+                const updatedVariants = productData.variants.map(v => 
+                  v.id === item.variantId ? { ...v, stock: v.stock + item.quantity } : v
+                );
+                productData = { ...productData, variants: updatedVariants };
+                productsToUpdate.set(item.productId, productData);
+              }
+            }
+            for (const [productId, productData] of productsToUpdate.entries()) {
+              transaction.update(doc(db, 'products', productId), { variants: productData.variants });
+            }
+
+            // 2.2 Return raw materials
+            if (wasDeducted) {
+              for (const [materialId, totalToReturn] of materialsToReturn.entries()) {
+                const materialDoc = materialDocs.get(materialId)!;
+                const materialData = materialDoc.data() as RawMaterial;
+                
+                const effectiveUnit = materialData.baseUnit || UMB_FOR_DIMENSION[materialData.dimension || (materialData.unit ? UNIT_DIMENSIONS[materialData.unit as Unit] : 'units')];
+                const quantityUMB = toUMB(totalToReturn, effectiveUnit as Unit);
+                
+                transaction.update(doc(db, 'rawMaterials', materialId), { stock: materialData.stock + quantityUMB });
+              }
+              roundedSale.materialsDeducted = false;
+            }
+
+            // 2.3 Return course quotas
+            for (const item of roundedSale.items) {
+              if (item.isCourse && item.courseId) {
+                const courseDoc = courseDocs.get(item.courseId);
+                if (courseDoc && courseDoc.exists()) {
+                  const currentEnrolled = courseDoc.data().enrolledCount || 0;
+                  transaction.update(doc(db, 'courses', item.courseId), { enrolledCount: Math.max(0, currentEnrolled - item.quantity) });
+                }
+              }
+            }
+            
+            // 2.4 Update Sale (Final Write)
+            transaction.set(doc(db, 'sales', roundedSale.id), cleanObject(roundedSale));
+          });
+        } else if (!wasDeducted && shouldBeDeducted && roundedSale.status !== 'cancelado') {
+          await deductRawMaterials(roundedSale.items);
+          roundedSale.materialsDeducted = true;
+          await setDoc(doc(db, 'sales', roundedSale.id), cleanObject(roundedSale));
+        } else {
+          await setDoc(doc(db, 'sales', roundedSale.id), cleanObject(roundedSale));
+        }
+      } catch (error) {
+        handleFirestoreError(error, OperationType.WRITE, 'sales');
+      }
+    }
+  };
+
+  const addQuote = async (quoteData: Omit<Quote, 'id' | 'date'>) => {
+    const maxQuoteNumber = quotes.reduce((max, quote) => Math.max(max, quote.quoteNumber || 0), 0);
+    const newQuote: Quote = {
+      ...quoteData,
+      id: uuidv4(),
+      quoteNumber: maxQuoteNumber + 1,
+      date: new Date().toISOString(),
+    };
+    try {
+      await setDoc(doc(db, 'quotes', newQuote.id), cleanObject(newQuote));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'quotes');
+    }
+  };
+
+  const deleteQuote = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'quotes', id));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, 'quotes');
+    }
+  };
+
+  const approveQuote = async (quote: Quote) => {
+    if (!isAdmin) return;
+    
+    try {
+      const saleData: Omit<Sale, 'id' | 'date'> = {
+        customerId: quote.customerId,
+        customerName: quote.customerName,
+        items: quote.items.map(item => ({
+          id: uuidv4(),
+          productId: item.productId,
+          variantId: item.variantId,
+          productName: item.productName,
+          variantName: item.variantName,
+          quantity: item.quantity,
+          price: item.unitPrice || (item.quantity > 0 ? item.finalPrice / item.quantity : 0),
+          total: roundFinancial(item.finalPrice)
+        })),
+        totalAmount: quote.totalAmount,
+        amountPaid: 0,
+        paymentPercentage: 0,
+        paymentMethod: 'efectivo',
+        status: 'nuevo',
+        paymentStatus: 'pending',
+        balanceDue: quote.totalAmount,
+        discount: quote.subtotal - quote.totalAmount > 0 ? roundFinancial(quote.subtotal - quote.totalAmount) : 0
+      };
+
+      const saleId = await registerSale(saleData);
+      await deleteQuote(quote.id);
+      await logAction('approve_quote', 'quotes', quote.id, { saleId: saleId || 'new' }, quote);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'sales');
+    }
+  };
+
+  // Logic for Levels
+  const calculateLevel = (monthlySalesCount: number) => {
+    if (monthlySalesCount >= 50) return 'platino';
+    if (monthlySalesCount >= 30) return 'oro';
+    if (monthlySalesCount >= 10) return 'plata';
+    return 'bronce';
+  };
+
+  const getLevelDiscount = (level: string) => {
+    switch (level) {
+      case 'platino': return 25;
+      case 'oro': return 15;
+      case 'plata': return 10;
+      default: return 5;
+    }
+  };
+
+  // Logic for Starter Kit
+  const purchaseStarterKit = async () => {
+    const kitItems = [
+      { rawMaterialId: 'cera-id', quantity: 5 },
+      { rawMaterialId: 'pabilo-id', quantity: 50 },
+      { rawMaterialId: 'esencia-id', quantity: 10 },
+    ];
+
+    const updatedMaterials = rawMaterials.map(m => {
+      const kitItem = kitItems.find(ki => ki.rawMaterialId === m.id);
+      if (kitItem) {
+        return { ...m, stock: Math.max(0, m.stock - kitItem.quantity) };
+      }
+      return m;
+    });
+
+    try {
+      for (const material of updatedMaterials) {
+        if (kitItems.some(ki => ki.rawMaterialId === material.id)) {
+          await setDoc(doc(db, 'rawMaterials', material.id), material);
+        }
+      }
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'rawMaterials');
+    }
+
+    setUserProfile((prev: UserProfile | null) => prev ? { ...prev, starterKitPurchased: true } : null);
+  };
+
+  const addCampaign = async (campaign: Campaign) => {
+    try {
+      await setDoc(doc(db, 'campaigns', campaign.id), campaign);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'campaigns');
+    }
+  };
+  const deleteCampaign = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'campaigns', id));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, 'campaigns');
+    }
+  };
+
+  const addOffer = async (offer: Offer) => {
+    try {
+      await setDoc(doc(db, 'offers', offer.id), offer);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'offers');
+    }
+  };
+  const updateOffer = async (updated: Offer) => {
+    try {
+      await setDoc(doc(db, 'offers', updated.id), updated);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'offers');
+    }
+  };
+  const deleteOffer = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'offers', id));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, 'offers');
+    }
+  };
+
+  const addSubscriber = async (email: string) => {
+    try {
+      const subscriberId = uuidv4();
+      await setDoc(doc(db, 'subscribers', subscriberId), {
+        id: subscriberId,
+        email,
+        createdAt: new Date().toISOString()
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'subscribers');
+    }
+  };
+
+  const updateCoupon = async (updated: Coupon) => {
+    try {
+      await setDoc(doc(db, 'coupons', updated.id), cleanObject(updated));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'coupons');
+    }
+  };
+
+  const deleteCoupon = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'coupons', id));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, 'coupons');
+    }
+  };
+
+  const metrics = useMemo(() => {
+    // 1. Pre-calculate variant data for fast lookup and stock totals
+    const variantDataMap = new Map<string, { cost: number; price: number; stock: number }>();
+    let totalStock = 0;
+    let totalValueCost = 0;
+    let totalValuePrice = 0;
+    let lowStockItems = 0;
+
+    products.forEach(p => {
+      p.variants.forEach(v => {
+        const stock = getVariantStock(v, rawMaterials);
+        variantDataMap.set(v.id, { cost: v.cost, price: v.price, stock });
+        
+        totalStock += stock;
+        totalValueCost += v.cost * stock;
+        totalValuePrice += v.price * stock;
+        if (stock > 0 && stock <= 5) lowStockItems++;
+      });
+    });
+
+    // 2. Filter and process sales in a single pass
+    const validSales = sales.filter(s => s.status !== 'cancelado');
+    
+    let grossProfit = 0;
+    let netProfit = 0;
+    let totalRevenue = 0;
+    let totalPendingPayment = 0;
+    const revenueByMethod = { efectivo: 0, transferencia: 0, tarjeta: 0, mixto: 0 };
+
+    validSales.forEach(sale => {
+      let saleCost = 0;
+      sale.items.forEach(item => {
+        const data = variantDataMap.get(item.variantId);
+        if (data) {
+          saleCost += data.cost * item.quantity;
+        }
+      });
+
+      const additionalCosts = 
+        (sale.packagingCost || 0) + 
+        (sale.shippingCost || 0) + 
+        (sale.laborCost || 0) + 
+        (sale.paymentGatewayFee || 0);
+
+      const saleGrossProfit = sale.totalAmount - saleCost;
+      grossProfit += saleGrossProfit;
+      netProfit += (saleGrossProfit - additionalCosts);
+      totalRevenue += sale.amountPaid;
+      totalPendingPayment += (sale.totalAmount - sale.amountPaid);
+
+      // Map payment methods to metrics categories
+      const method = sale.paymentMethod === 'efectivo' || !sale.paymentMethod ? 'efectivo' : 
+                     sale.paymentMethod === 'transferencia' ? 'transferencia' :
+                     sale.paymentMethod === 'tarjeta' ? 'tarjeta' :
+                     sale.paymentMethod === 'mixto' ? 'mixto' : 'efectivo';
+      
+      if (method in revenueByMethod) {
+        revenueByMethod[method as keyof typeof revenueByMethod] += sale.amountPaid;
+      }
+    });
+
+    // 3. Projected revenue from valid quotes
+    const now = new Date();
+    const projectedRevenue = quotes
+      .filter(q => new Date(q.validUntil) >= now)
+      .reduce((acc, q) => acc + q.totalAmount, 0);
+
+    return {
+      totalProducts: products.length,
+      totalStock,
+      totalValueCost,
+      totalValuePrice,
+      stockProfit: totalValuePrice - totalValueCost,
+      lowStockItems,
+      totalSales: validSales.length,
+      totalRevenue,
+      totalPendingPayment,
+      projectedRevenue,
+      grossProfit,
+      netProfit,
+      revenueByMethod
+    };
+  }, [products, rawMaterials, sales, quotes]);
+
+  const updateUserRole = async (uid: string, newRole: string) => {
+    try {
+      const prev = users.find(u => u.uid === uid);
+      await setDoc(doc(db, 'users', uid), { role: newRole }, { merge: true });
+      await logAction('update_role', 'users', uid, { role: newRole }, prev);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'users');
+    }
+  };
+
+  const clearAuditLogs = async () => {
+    if (!isAdmin) return;
+    try {
+      const batch = writeBatch(db);
+      auditLogs.forEach(log => {
+        batch.delete(doc(db, 'auditLogs', log.id));
+      });
+      await batch.commit();
+      await logAction('clear_logs', 'auditLogs', 'all');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, 'auditLogs');
+    }
+  };
+
+  const updateStoreSettings = async (newSettings: StoreSettings) => {
+    if (!isAdmin) return;
+    console.log("Updating store settings in Firestore:", newSettings);
+    try {
+      const cleaned = cleanObject(newSettings);
+      console.log("Cleaned settings for Firestore:", cleaned);
+      await setDoc(doc(db, 'settings', 'global'), cleaned);
+      await logAction('update', 'settings', 'global', newSettings, storeSettings);
+    } catch (error) {
+      console.error("Error updating store settings:", error);
+      handleFirestoreError(error, OperationType.WRITE, 'settings');
+    }
+  };
+
+  return {
+    products, addProduct, addMultipleProducts, updateProduct, deleteProduct, adjustStock,
+    courses, addCourse, updateCourse, deleteCourse,
+    customers, addCustomer, updateCustomer, deleteCustomer,
+    sales, registerSale, updateSale,
+    coupons, generateCoupon, validateCoupon, updateCoupon, deleteCoupon,
+    quotes, addQuote, deleteQuote, approveQuote,
+    rawMaterials, addRawMaterial, addMultipleRawMaterials, updateRawMaterial, deleteRawMaterial, restockRawMaterial,
+    financialDocs, addFinancialDoc, deleteFinancialDoc,
+    activities, addActivity, updateActivity, deleteActivity,
+    campaigns, addCampaign, deleteCampaign,
+    offers, addOffer, updateOffer, deleteOffer,
+    addSubscriber,
+    userProfile, setUserProfile,
+    purchaseStarterKit, getLevelDiscount, calculateLevel,
+    metrics,
+    currentUser,
+    isAdmin,
+    users,
+    updateUserRole,
+    isSettingsLoaded,
+    isAuthReady,
+    lastSync,
+    refresh,
+    productionOrders,
+    addProductionOrder,
+    updateProductionOrder,
+    deleteProductionOrder,
+    completeProductionOrder,
+    fabricarProducto,
+    simulations,
+    saveSimulation,
+    deleteSimulation,
+    updateMultipleProducts,
+    updateMultipleRawMaterials,
+    preAuthorizedAdmins,
+    addPreAuth,
+    updatePreAuthRole,
+    removePreAuth,
+    auditLogs,
+    clearAuditLogs,
+    storeSettings,
+    updateStoreSettings
+  };
+}
