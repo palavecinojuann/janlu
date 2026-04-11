@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, enableMultiTabIndexedDbPersistence } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -13,6 +13,19 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-// Aquí le decimos que use EXACTAMENTE el depósito que pusiste en Vercel
+
+// Inicializamos la base de datos
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId); 
 export const auth = getAuth(app);
+
+// 🛡️ ESCUDO DE AHORRO: Activamos la caché local
+// Esto evita que Firebase gaste lecturas si el usuario ya tiene los datos en su PC
+enableMultiTabIndexedDbPersistence(db).catch((err) => {
+  if (err.code === 'failed-precondition') {
+    // Probablemente hay muchas pestañas abiertas al mismo tiempo
+    console.warn('La persistencia de Firestore falló: múltiples pestañas abiertas.');
+  } else if (err.code === 'unimplemented') {
+    // El navegador es muy viejo y no soporta esto
+    console.warn('El navegador no soporta persistencia offline.');
+  }
+});
