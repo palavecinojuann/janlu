@@ -1601,7 +1601,7 @@ export default function PublicCatalog({
                     </div>
                     <div>
                       <p className="text-[10px] uppercase tracking-widest text-stone-400">Email</p>
-                      <p className="text-stone-900 font-medium">hola@janluvelas.com</p>
+                      <p className="text-stone-900 font-medium">{storeSettings?.email || 'No configurado'}</p>
                     </div>
                   </div>
 
