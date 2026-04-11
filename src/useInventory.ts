@@ -257,13 +257,17 @@ export function useInventory() {
     };
   }, []);
 
-  // Public Listeners
+// Public Listeners
   useEffect(() => {
     if (!isAuthReady) return;
 
     const handlePublicError = (e: unknown, op: OperationType, path: string) => {
       console.warn(`[Public collection error] ${path}:`, e);
     };
+
+    const unsubRawMaterials = onSnapshot(query(collection(db, 'rawMaterials'), limit(100)), (snapshot) => {
+      setRawMaterials(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as RawMaterial)));
+    }, (e) => handlePublicError(e, OperationType.GET, 'rawMaterials'));
 
     const unsubProducts = onSnapshot(query(collection(db, 'products'), limit(200)), (snapshot) => {
       setProducts(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Product)));
@@ -293,6 +297,7 @@ export function useInventory() {
     });
 
     return () => {
+      unsubRawMaterials();
       unsubProducts();
       unsubCampaigns();
       unsubOffers();
@@ -333,10 +338,6 @@ export function useInventory() {
     const unsubCoupons = onSnapshot(collection(db, 'coupons'), (snapshot) => {
       setCoupons(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Coupon)));
     }, (e) => handleAdminError(e, OperationType.GET, 'coupons'));
-
-    const unsubRawMaterials = onSnapshot(query(collection(db, 'rawMaterials'), limit(100)), (snapshot) => {
-      setRawMaterials(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as RawMaterial)));
-    }, (e) => handleAdminError(e, OperationType.GET, 'rawMaterials'));
 
     const salesCache = { recent: [] as Sale[], active: [] as Sale[] };
     const updateSales = () => {
@@ -448,7 +449,6 @@ export function useInventory() {
 
     return () => {
       unsubCoupons();
-      unsubRawMaterials();
       unsubSalesActive();
       unsubQuotesActive();
       unsubOrdersActive();
