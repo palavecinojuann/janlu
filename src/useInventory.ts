@@ -261,7 +261,7 @@ export function useInventory() {
     };
   }, []);
 
-// Public Listeners
+  // Public Listeners
   useEffect(() => {
     if (!isAuthReady) return;
 
@@ -269,7 +269,6 @@ export function useInventory() {
       console.warn(`[Public collection error] ${path}:`, e);
     };
 
-    // 🛡️ Listener de Materias Primas con filtro
     const unsubRawMaterials = onSnapshot(query(collection(db, 'rawMaterials'), limit(100)), (snapshot) => {
       const newData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as RawMaterial));
       const newDataString = JSON.stringify(newData);
@@ -281,7 +280,6 @@ export function useInventory() {
       }
     }, (e) => handlePublicError(e, OperationType.GET, 'rawMaterials'));
 
-    // 🛡️ Listener de Productos con filtro
     const unsubProducts = onSnapshot(query(collection(db, 'products'), limit(200)), (snapshot) => {
       const newData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Product));
       const newDataString = JSON.stringify(newData);
@@ -335,14 +333,12 @@ export function useInventory() {
 
     const handleAdminError = (e: unknown, op: OperationType, path: string) => {
       console.warn(`[Admin collection error] ${path}:`, e);
-      // Don't set global error for quota issues to avoid infinite re-render loops
       if (e instanceof Error && e.message.includes('quota')) {
         return;
       }
       try {
         handleFirestoreError(e, op, path);
       } catch (err) {
-        // Only set error if it's not already the same to avoid loops
         setError(prev => (prev?.message === (err as Error).message) ? prev : (err as Error));
       }
     };
@@ -354,7 +350,6 @@ export function useInventory() {
     const thirtyDaysAgoISO = thirtyDaysAgo.toISOString();
     const todayStr = now.toISOString().split('T')[0];
 
-    // 1. REAL-TIME LISTENERS (onSnapshot) - Critical Data
     const unsubCoupons = onSnapshot(collection(db, 'coupons'), (snapshot) => {
       setCoupons(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Coupon)));
     }, (e) => handleAdminError(e, OperationType.GET, 'coupons'));
@@ -398,46 +393,37 @@ export function useInventory() {
       updateOrders();
     }, (e) => handleAdminError(e, OperationType.GET, 'orders_active'));
 
-    // 2. STATIC DATA FETCHING (getDocs) - Non-Critical Data
     const fetchNonCriticalData = async () => {
       if (hasFetchedNonCritical.current) return;
       hasFetchedNonCritical.current = true;
       
       console.log("Fetching non-critical static data...");
       try {
-        // Audit Logs
         const auditLogsSnap = await getDocs(query(collection(db, 'auditLogs'), orderBy('timestamp', 'desc'), limit(50)));
         setAuditLogs(auditLogsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as AuditLog)));
 
-        // Customers
         const customersSnap = await getDocs(query(collection(db, 'customers'), limit(50)));
         setCustomers(customersSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Customer)));
 
-        // Recent Sales
         const salesRecentSnap = await getDocs(query(collection(db, 'sales'), where('date', '>=', thirtyDaysAgoStr), orderBy('date', 'desc'), limit(50)));
         salesCache.recent = salesRecentSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Sale));
         updateSales();
 
-        // Recent Quotes
         const quotesRecentSnap = await getDocs(query(collection(db, 'quotes'), where('date', '>=', thirtyDaysAgoStr), orderBy('date', 'desc'), limit(50)));
         quotesCache.recent = quotesRecentSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Quote));
         updateQuotes();
 
-        // Recent Production Orders
         const ordersRecentSnap = await getDocs(query(collection(db, 'productionOrders'), where('createdAt', '>=', thirtyDaysAgoISO), orderBy('createdAt', 'desc'), limit(50)));
         ordersCache.recent = ordersRecentSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as ProductionOrder));
         updateOrders();
 
-        // Users
         const usersSnap = await getDocs(query(collection(db, 'users'), limit(50)));
         setUsers(usersSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as any as User)));
 
-        // Pre-Authorized Admins
         const preAuthSnap = await getDocs(collection(db, 'preAuthorizedAdmins'));
         const preAuths = preAuthSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as any as PreAuthorizedAdmin));
         setPreAuthorizedAdmins(preAuths);
 
-        // Update isAdmin if current user is in pre-authorized list
         if (currentUser) {
           const preAuth = preAuths.find(admin => admin.email === currentUser.email);
           if (preAuth) {
@@ -448,15 +434,12 @@ export function useInventory() {
           }
         }
 
-        // Financial Docs
         const financialDocsSnap = await getDocs(query(collection(db, 'financialDocs'), limit(50)));
         setFinancialDocs(financialDocsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as FinancialDocument)));
 
-        // Activities
         const activitiesSnap = await getDocs(query(collection(db, 'activities'), limit(50)));
         setActivities(activitiesSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Activity)));
 
-        // Simulations
         const simulationsSnap = await getDocs(query(collection(db, 'simulations'), limit(20)));
         setSimulations(simulationsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Simulation)));
 
@@ -521,7 +504,6 @@ export function useInventory() {
     }
     console.log(`Starting bulk import of ${newProducts.length} products`);
     try {
-      // Firestore batches have a limit of 500 operations
       const BATCH_SIZE = 500;
       for (let i = 0; i < newProducts.length; i += BATCH_SIZE) {
         const chunk = newProducts.slice(i, i + BATCH_SIZE);
@@ -545,7 +527,6 @@ export function useInventory() {
         console.log(`Batch committed successfully`);
       }
 
-      // Log actions separately (not in batch to avoid hitting limits)
       for (const p of newProducts) {
         await logAction('create_batch', 'products', p.id, p);
       }
@@ -595,7 +576,6 @@ export function useInventory() {
       const prev = products.find(p => p.id === id);
       console.log('Producto encontrado para eliminar:', prev);
       
-      // Update linked raw material if it exists
       const linkedRawMaterial = rawMaterials.find(rm => rm.linkedProductId === id);
       if (linkedRawMaterial) {
         await setDoc(doc(db, 'rawMaterials', linkedRawMaterial.id), cleanObject({
@@ -665,14 +645,12 @@ export function useInventory() {
   const addCustomer = async (customer: Customer) => {
     console.log("Attempting to add customer:", customer);
     try {
-      // Normalización de datos
       const normalizeEmail = (e?: string) => e?.trim().toLowerCase() || '';
       const normalizePhone = (p?: string) => p?.replace(/\D/g, '') || '';
       
       const nEmail = normalizeEmail(customer.email);
       const nPhone = normalizePhone(customer.phone);
 
-      // Escudo Anti-Duplicados
       const isDuplicate = customers.some(c => 
         (nEmail && normalizeEmail(c.email) === nEmail) || 
         (nPhone && normalizePhone(c.phone) === nPhone)
@@ -691,13 +669,11 @@ export function useInventory() {
         createdAt: customer.createdAt || new Date().toISOString()
       };
 
-      // Generate customer number if missing
       if (!finalCustomer.customerNumber) {
         console.log("Generating customer number for:", finalCustomer.id);
         finalCustomer.customerNumber = await generateNextCustomerNumber();
       }
 
-      // Set discount expiration (7 days from registration)
       if (!finalCustomer.discountExpiresAt) {
         const regDate = new Date(finalCustomer.registeredAt);
         const expDate = new Date(regDate.getTime() + 7 * 24 * 60 * 60 * 1000);
@@ -717,14 +693,12 @@ export function useInventory() {
   };
   const updateCustomer = async (updated: Customer) => {
     try {
-      // Normalización de datos
       const normalizeEmail = (e?: string) => e?.trim().toLowerCase() || '';
       const normalizePhone = (p?: string) => p?.replace(/\D/g, '') || '';
       
       const nEmail = normalizeEmail(updated.email);
       const nPhone = normalizePhone(updated.phone);
 
-      // Escudo Anti-Duplicados
       const isDuplicate = customers.some(c => 
         c.id !== updated.id && (
           (nEmail && normalizeEmail(c.email) === nEmail) || 
@@ -1027,7 +1001,6 @@ export function useInventory() {
               return v;
             })
           };
-          // Don't save yet, we might update the same product again
 
           // Revert raw materials (increase)
           if (oldVariant.recipe) {
@@ -1585,7 +1558,7 @@ export function useInventory() {
     }
   };
 
-  // 🚀 LÓGICA DE CONTADOR GLOBAL (AI STUDIO) APLICADA
+  // 🚀 FUNCIÓN REGISTER SALE ACTUALIZADA (CONTADOR GLOBAL + TELÉFONO)
   const registerSale = async (saleData: Omit<Sale, 'id' | 'date'>) => {
     let nextOrderNumber = 1000;
     try {
@@ -1615,7 +1588,8 @@ export function useInventory() {
     const normalizeEmail = (e?: string) => e?.trim().toLowerCase() || '';
     const normalizePhone = (p?: string) => p?.replace(/\D/g, '') || '';
     
-    let customerId = saleData.customerId;
+    // 🚨 Ignorar la palabra 'guest' para forzar el guardado de los datos reales
+    let customerId = saleData.customerId === 'guest' ? '' : saleData.customerId;
     let customerToUpdate: Customer | null = null;
     let newCustomer: Customer | null = null;
 
@@ -1664,6 +1638,8 @@ export function useInventory() {
         customerId = existingCustomer.id;
         customerToUpdate = {
           ...existingCustomer,
+          // 🚨 Guardar el teléfono ingresado si su perfil estaba vacío
+          phone: existingCustomer.phone || nPhone,
           lastPurchaseDate: new Date().toISOString()
         };
       } else {
@@ -1671,6 +1647,7 @@ export function useInventory() {
           id: uuidv4(),
           name: (saleData.customerName || '').trim(),
           email: nEmail,
+          // 🚨 Asegurar la creación de un nuevo cliente con su teléfono
           phone: nPhone,
           address: (saleData.shippingAddress || '').trim(),
           createdAt: new Date().toISOString(),
@@ -1683,6 +1660,8 @@ export function useInventory() {
       if (existing) {
         customerToUpdate = {
           ...existing,
+          // 🚨 Si es un usuario logueado pero sin teléfono, actualizamos su perfil
+          phone: existing.phone || normalizePhone(saleData.customerPhone),
           lastPurchaseDate: new Date().toISOString()
         };
       }
@@ -1692,7 +1671,9 @@ export function useInventory() {
       ...saleData,
       id: uuidv4(),
       customerId: customerId || '',
-      orderNumber: nextOrderNumber, // <--- NÚMERO SEGURO APLICADO AQUÍ
+      // 🚨 Asegurar que la venta también guarde explícitamente el teléfono
+      customerPhone: saleData.customerPhone || newCustomer?.phone || customerToUpdate?.phone || '',
+      orderNumber: nextOrderNumber,
       date: new Date().toISOString(),
       totalAmount: roundFinancial(saleData.totalAmount),
       amountPaid: roundFinancial(saleData.amountPaid),
@@ -1849,7 +1830,7 @@ export function useInventory() {
         if (newCustomer) {
           transaction.set(doc(db, 'customers', newCustomer.id), cleanObject(newCustomer));
         } else if (customerToUpdate) {
-          transaction.set(doc(db, 'customers', customerToUpdate.id), cleanObject(customerToUpdate));
+          transaction.update(doc(db, 'customers', customerToUpdate.id), cleanObject(customerToUpdate));
         }
 
         // 2.3 Handle Raw Materials
@@ -1873,7 +1854,7 @@ export function useInventory() {
         // 2.4 Handle Products
         for (const product of updatedProducts) {
           if (newSale.items.some(i => i.productId === product.id)) {
-            transaction.set(doc(db, 'products', product.id), cleanObject(product));
+            transaction.update(doc(db, 'products', product.id), { variants: product.variants });
           }
         }
 
