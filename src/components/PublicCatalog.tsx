@@ -601,7 +601,6 @@ export default function PublicCatalog({
   const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number } | null>(null);
   const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
 
-  // 🎁 Estado para el nuevo cupón generado
   const [generatedCoupon, setGeneratedCoupon] = useState<{code: string, expiry: string} | null>(null);
 
   const [isRegistering, setIsRegistering] = useState(false);
@@ -897,12 +896,11 @@ export default function PublicCatalog({
     setCheckoutError(null);
 
     try {
-      // 🎁 Lógica del Generador de Cupones Únicos
       let newCouponInfo = null;
       if (isRegistering) {
         const shortCode = 'JLU-' + Math.random().toString(36).substring(2, 6).toUpperCase();
         const expiryDate = new Date();
-        expiryDate.setDate(expiryDate.getDate() + 30); // 30 días de validez
+        expiryDate.setDate(expiryDate.getDate() + 30);
         
         newCouponInfo = {
           code: shortCode,
@@ -957,7 +955,6 @@ export default function PublicCatalog({
         onRegisterSale(newSale);
       }
 
-      // Generar mensaje de WhatsApp
       let message = `Hola Janlu Velas, mi nombre es ${customerDetails.name}. Quiero hacer el siguiente pedido:\n\n`;
       
       cart.forEach(item => {
@@ -990,7 +987,6 @@ export default function PublicCatalog({
         message += `Email de contacto: ${customerDetails.email}\n`;
       }
       
-      // 🎁 Agregar info del cupón al WhatsApp para el Admin
       if (newCouponInfo) {
         message += `\n🎉 Me registré en la comunidad. Mi código de regalo generado es: ${newCouponInfo.code} (Válido hasta: ${newCouponInfo.expiry})`;
       }
@@ -2289,6 +2285,7 @@ export default function PublicCatalog({
         </a>
       )}
 
+      {/* Componente Modal Actualizado para que el botón confirme y cierre */}
       {selectedProduct && (
         <ProductModal
           product={selectedProduct}
