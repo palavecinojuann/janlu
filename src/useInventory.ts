@@ -1822,8 +1822,15 @@ export function useInventory() {
         transaction.set(doc(db, 'sales', newSale.id), cleanObject(newSale));
       });
 
+     transaction.set(doc(db, 'sales', newSale.id), cleanObject(newSale));
+      });
+
+      // 🚨 Devolvemos un objeto con el ID y el cupón para que el carrito lo muestre
       return { 
         id: newSale.id, 
+        generatedCoupon: couponToGenerate ? { code: couponToGenerate.code, expiry: new Date(couponToGenerate.expiresAt).toLocaleDateString('es-AR') } : null 
+      };
+    } catch (error) { 
         generatedCoupon: couponToGenerate ? { code: couponToGenerate.code, expiry: new Date(couponToGenerate.expiresAt).toLocaleDateString('es-AR') } : null 
       };
     } catch (error) {
