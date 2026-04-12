@@ -884,6 +884,7 @@ export default function PublicCatalog({
 
     setIsSubmitting(true);
     setCheckoutError(null);
+    setGeneratedCoupon(null); // 🚨 LIMPIEZA: Borramos cualquier cupón fantasma de pruebas anteriores
 
     try {
       const saleItems = cart.map(item => {
@@ -931,17 +932,17 @@ export default function PublicCatalog({
       let serverGeneratedCoupon = null;
 
       if (onRegisterSale) {
-        // Obtenemos la respuesta del servidor (que nos dirá si realmente se generó un cupón)
+        // Obtenemos la VERDADERA respuesta del servidor
         const saleResult = await onRegisterSale(newSaleData as any);
         
-        // Si el servidor (useInventory) decidió crear un cupón, lo atrapamos aquí
+        // Si el servidor (useInventory) decidió crear un cupón de verdad, lo atrapamos
         if (saleResult && typeof saleResult === 'object' && saleResult.generatedCoupon) {
            serverGeneratedCoupon = saleResult.generatedCoupon;
            setGeneratedCoupon(serverGeneratedCoupon);
         }
       }
 
-      let message = `Hola Janlu Velas, mi nombre es ${customerDetails.name}. Quiero hacer el siguiente pedido:\n\n`;
+      let message = `Hola Janlu Velas, mi nombre es ${customerDetails.name}.\nQuiero hacer el siguiente pedido:\n\n`;
       
       cart.forEach(item => {
         if (item.course) {
@@ -951,7 +952,7 @@ export default function PublicCatalog({
           message += `${item.quantity}x ${item.product.name} (${item.variant.name}) - ${formatCurrency(effectivePrice * item.quantity)}\n`;
         }
       });
-      
+
       if (appliedCoupon) {
         message += `\nSubtotal: ${formatCurrency(cartTotal)}\n`;
         if (stackingPolicy === 'best_offer') {
@@ -968,20 +969,21 @@ export default function PublicCatalog({
         paymentMethod === 'efectivo' ? `Efectivo ${storeSettings?.cashDiscountPercentage ? `(${storeSettings.cashDiscountPercentage}% de descuento)` : ''}` :
         paymentMethod === 'mercadopago' ? 'Mercado Pago' : 'Acordar con el vendedor'
       }\n`;
-      
+
       if (deliveryMethod === 'envio') {
         message += `Email de contacto: ${customerDetails.email}\n`;
       }
       
-      if (newCouponInfo) {
-        message += `\n🎉 Me registré en la comunidad. Mi código de regalo generado es: ${newCouponInfo.code} (Válido hasta: ${newCouponInfo.expiry})`;
+      // 🚨 CORRECCIÓN: Solo agregamos el mensaje de WhatsApp si el SERVIDOR confirmó el cupón
+      if (serverGeneratedCoupon) {
+        message += `\n🎉 Me registré en la comunidad.\nMi código de regalo generado es: ${serverGeneratedCoupon.code} (Válido hasta: ${serverGeneratedCoupon.expiry})`;
       }
 
       message += `\n\nMe comunico para coordinar el pago y la entrega.`;
-      
+
       const encodedMessage = encodeURIComponent(message);
       const whatsappNumber = storeSettings?.whatsappNumber ? storeSettings.whatsappNumber.replace(/[^0-9]/g, '') : '';
-      
+
       if (whatsappNumber) {
         window.open(`https://api.whatsapp.com/send?phone=${whatsappNumber}&text=${encodedMessage}`, '_blank');
       }
