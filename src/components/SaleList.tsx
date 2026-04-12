@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Sale, Product, Customer, SaleStatus, StoreSettings } from '../types';
 import { ShoppingCart, Plus, Printer, Eye, X, FileText, Link as LinkIcon, MessageCircle, AlertTriangle, CheckCircle, Search, Upload, Loader2, CreditCard, Calendar, Clock } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
@@ -19,8 +19,16 @@ interface SaleListProps {
 }
 
 export default function SaleList({ sales, products, customers, storeSettings, onNewSale, onUpdateSale, onAttachReceipt, initialStatusFilter }: SaleListProps) {
+  // 🚀 OPTIMISTIC UI: Creamos una copia local de las ventas para que reaccione al instante
+  const [localSales, setLocalSales] = useState<Sale[]>(sales);
+
+  // Mantenemos sincronizada la copia local con la base de datos principal
+  useEffect(() => {
+    setLocalSales(sales);
+  }, [sales]);
+
   const [previewSaleId, setPreviewSaleId] = useState<string | null>(null);
-  const saleToPreview = sales.find(s => s.id === previewSaleId) || null;
+  const saleToPreview = localSales.find(s => s.id === previewSaleId) || null;
   const [attachingReceiptId, setAttachingReceiptId] = useState<string | null>(null);
   const [receiptUrl, setReceiptUrl] = useState('');
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
@@ -54,13 +62,17 @@ export default function SaleList({ sales, products, customers, storeSettings, on
 
   const handleUpdateDelivery = () => {
     if (!editingDeliverySaleId || !onUpdateSale) return;
-    const sale = sales.find(s => s.id === editingDeliverySaleId);
+    const sale = localSales.find(s => s.id === editingDeliverySaleId);
     if (sale) {
-      onUpdateSale({
+      const updatedSale = {
         ...sale,
         deliveryDate: editDeliveryDate,
         deliveryTimeRange: editDeliveryTimeRange
-      });
+      };
+      
+      // 🚀 Actualización Optimista: Lo mostramos instantáneamente en pantalla
+      setLocalSales(prev => prev.map(s => s.id === sale.id ? updatedSale : s));
+      onUpdateSale(updatedSale);
       setEditingDeliverySaleId(null);
     }
   };
@@ -72,8 +84,9 @@ export default function SaleList({ sales, products, customers, storeSettings, on
     setPreviewSaleId(sale.id);
   };
 
+  // Usamos localSales en lugar de sales para que la vista cambie al instante
   const filteredSales = useMemo(() => {
-    return sales.filter(sale => {
+    return localSales.filter(sale => {
     const searchLower = searchTerm.toLowerCase();
     const orderMatch = sale.orderNumber?.toString().includes(searchLower);
     const customerMatch = sale.customerName?.toLowerCase().includes(searchLower);
@@ -136,7 +149,7 @@ export default function SaleList({ sales, products, customers, storeSettings, on
 
     return matchesSearch && matchesDate && matchesStatus && matchesPaymentStatus && matchesDeliveryTimeframe;
     });
-  }, [sales, searchTerm, dateFrom, dateTo, statusFilter, paymentStatusFilter, deliveryTimeframeFilter]);
+  }, [localSales, searchTerm, dateFrom, dateTo, statusFilter, paymentStatusFilter, deliveryTimeframeFilter]);
 
   const handleAttachReceipt = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -189,13 +202,16 @@ export default function SaleList({ sales, products, customers, storeSettings, on
   const handleRejectPayment = (e: React.FormEvent) => {
     e.preventDefault();
     if (rejectingSaleId && onUpdateSale) {
-      const sale = sales.find(s => s.id === rejectingSaleId);
+      const sale = localSales.find(s => s.id === rejectingSaleId);
       if (sale) {
-        onUpdateSale({
+        const updatedSale = {
           ...sale,
-          paymentStatus: 'rejected',
+          paymentStatus: 'rejected' as any,
           rejectionReason: rejectionReason
-        });
+        };
+        // 🚀 Actualización Optimista
+        setLocalSales(prev => prev.map(s => s.id === sale.id ? updatedSale : s));
+        onUpdateSale(updatedSale);
       }
       setRejectingSaleId(null);
       setRejectionReason('');
@@ -204,12 +220,15 @@ export default function SaleList({ sales, products, customers, storeSettings, on
 
   const handleCancelSale = () => {
     if (cancellingSaleId && onUpdateSale) {
-      const sale = sales.find(s => s.id === cancellingSaleId);
+      const sale = localSales.find(s => s.id === cancellingSaleId);
       if (sale) {
-        onUpdateSale({
+        const updatedSale = {
           ...sale,
-          status: 'cancelado',
-        });
+          status: 'cancelado' as SaleStatus,
+        };
+        // 🚀 Actualización Optimista
+        setLocalSales(prev => prev.map(s => s.id === sale.id ? updatedSale : s));
+        onUpdateSale(updatedSale);
       }
       setCancellingSaleId(null);
     }
@@ -222,19 +241,10 @@ export default function SaleList({ sales, products, customers, storeSettings, on
     maximumFractionDigits: 2
   }).format(value);
 
-  React.useEffect(() => {
-    if (editingPaymentSaleId) {
-      const sale = sales.find(s => s.id === editingPaymentSaleId);
-      if (sale) {
-        // Removed automatic sync to allow manual adjustment logic
-      }
-    }
-  }, [editingPaymentSaleId, sales]);
-
   const handleEditPaymentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (editingPaymentSaleId && onUpdateSale) {
-      const sale = sales.find(s => s.id === editingPaymentSaleId);
+      const sale = localSales.find(s => s.id === editingPaymentSaleId);
       if (sale) {
         const amountAdded = editAmountPaid - sale.amountPaid;
         const newHistory = [...(sale.paymentHistory || [])];
@@ -249,7 +259,7 @@ export default function SaleList({ sales, products, customers, storeSettings, on
           });
         }
 
-        onUpdateSale({
+        const updatedSale = {
           ...sale,
           paymentPercentage: editPaymentPercentage,
           paymentMethod: editPaymentMethod as any,
@@ -257,7 +267,11 @@ export default function SaleList({ sales, products, customers, storeSettings, on
           amountPaid: editAmountPaid,
           paymentNotes: editPaymentNotes,
           paymentHistory: newHistory
-        });
+        };
+        
+        // 🚀 Actualización Optimista
+        setLocalSales(prev => prev.map(s => s.id === sale.id ? updatedSale : s));
+        onUpdateSale(updatedSale);
       }
       setEditingPaymentSaleId(null);
     }
@@ -479,6 +493,7 @@ export default function SaleList({ sales, products, customers, storeSettings, on
                       efectivo: 'Efectivo',
                       transferencia: 'Transferencia',
                       tarjeta: 'Tarjeta',
+                      qr: 'QR',
                       transfer_full: 'Transferencia (100%)',
                       transfer_partial: 'Transferencia (Seña)',
                       on_pickup: 'Abonar al retirar',
@@ -646,13 +661,17 @@ export default function SaleList({ sales, products, customers, storeSettings, on
                               onChange={(e) => {
                                 const newStatus = e.target.value as SaleStatus;
                                 let newPaymentStatus = sale.paymentStatus;
-                                // Auto-verify payment if moving from 'nuevo' to something else (optional logic, but keeping it safe)
+                                
                                 if (sale.status === 'nuevo' && newStatus !== 'nuevo' && newStatus !== 'cancelado') {
                                   if (newPaymentStatus !== 'rejected') {
                                     newPaymentStatus = 'verified';
                                   }
                                 }
-                                onUpdateSale({ ...sale, status: newStatus, paymentStatus: newPaymentStatus });
+                                
+                                const updatedSale = { ...sale, status: newStatus, paymentStatus: newPaymentStatus };
+                                // 🚀 Actualización Optimista: Cambia color al instante
+                                setLocalSales(prev => prev.map(s => s.id === sale.id ? updatedSale : s));
+                                onUpdateSale(updatedSale);
                               }}
                               className={`text-xs font-medium rounded-full px-2.5 py-1 border-none cursor-pointer focus:ring-2 focus:ring-indigo-500 outline-none ${statusColors[saleStatus]} dark:bg-stone-800 dark:text-stone-200`}
                             >
@@ -1207,7 +1226,7 @@ export default function SaleList({ sales, products, customers, storeSettings, on
                       onChange={(e) => {
                         const newPercentage = Number(e.target.value);
                         setEditPaymentPercentage(newPercentage);
-                        const sale = sales.find(s => s.id === editingPaymentSaleId);
+                        const sale = localSales.find(s => s.id === editingPaymentSaleId);
                         if (sale) {
                           const newAmount = (sale.totalAmount * newPercentage) / 100;
                           setEditAmountPaid(newAmount);
@@ -1235,7 +1254,7 @@ export default function SaleList({ sales, products, customers, storeSettings, on
                             setAdjustmentAmount(adj);
                             const newTotal = originalAmountPaid + adj;
                             setEditAmountPaid(newTotal);
-                            const sale = sales.find(s => s.id === editingPaymentSaleId);
+                            const sale = localSales.find(s => s.id === editingPaymentSaleId);
                             if (sale) {
                               setEditPaymentPercentage(sale.totalAmount > 0 ? (newTotal / sale.totalAmount) * 100 : 100);
                             }
@@ -1260,7 +1279,7 @@ export default function SaleList({ sales, products, customers, storeSettings, on
                             const total = Number(e.target.value);
                             setEditAmountPaid(total);
                             setAdjustmentAmount(total - originalAmountPaid);
-                            const sale = sales.find(s => s.id === editingPaymentSaleId);
+                            const sale = localSales.find(s => s.id === editingPaymentSaleId);
                             if (sale) {
                               setEditPaymentPercentage(sale.totalAmount > 0 ? (total / sale.totalAmount) * 100 : 100);
                             }
@@ -1274,7 +1293,7 @@ export default function SaleList({ sales, products, customers, storeSettings, on
                 <div className="flex justify-between text-sm">
                   <span className="text-stone-500 dark:text-stone-400">Total de la venta:</span>
                   <span className="font-medium text-stone-900 dark:text-stone-100">
-                    {sales.find(s => s.id === editingPaymentSaleId)?.totalAmount ? formatCurrency(sales.find(s => s.id === editingPaymentSaleId)!.totalAmount) : '$0'}
+                    {localSales.find(s => s.id === editingPaymentSaleId)?.totalAmount ? formatCurrency(localSales.find(s => s.id === editingPaymentSaleId)!.totalAmount) : '$0'}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
