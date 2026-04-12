@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Product, RawMaterial, Offer, Variant, Campaign, Sale, SaleStatus, StoreSettings, Course } from '../types';
-import { Search, Filter, Wind, Droplet, Flame, ShoppingBag, Instagram, Facebook, Phone, Lock, Unlock, Plus, Edit2, Trash2, X, Tag, Clock, Calendar, ShoppingCart, Minus, ChevronRight, AlertTriangle, Package, LayoutDashboard, ArrowRightLeft, Upload, CheckCircle, Timer, Zap, LogOut, Loader2, Gift, Shield, Music2, ShieldCheck, Truck, Mail, MapPin, GraduationCap } from 'lucide-react';
+import { Search, Filter, Wind, Droplet, Flame, ShoppingBag, Instagram, Facebook, Phone, Lock, Unlock, Plus, Edit2, Trash2, X, Tag, Clock, Calendar, ShoppingCart, Minus, ChevronRight, ChevronLeft, AlertTriangle, Package, LayoutDashboard, ArrowRightLeft, Upload, CheckCircle, Timer, Zap, LogOut, Loader2, Gift, Shield, Music2, ShieldCheck, Truck, Mail, MapPin, GraduationCap } from 'lucide-react';
 import ProductForm from './ProductForm';
 import ProductModal from './ProductModal';
 import { getVariantStock } from '../utils/stockUtils';
@@ -434,19 +434,37 @@ const PublicCampaignBanner = ({ campaign }: { campaign: Campaign | null }) => {
 const ProductSlider: React.FC<{ title: string; products: Product[]; isAdminMode: boolean; onEdit: (p: Product) => void; onDelete?: (id: string) => void; onUpdateCart: (p: Product, v: Variant, q: number) => void; activeOffers: Offer[]; activeCampaign: Campaign | null; formatCurrency: (n: number) => string; getEffectivePrice: (p: Product, v: Variant, q: number) => number; formatStock: (s: number) => string; cart: CartItem[]; rawMaterials: RawMaterial[]; storeSettings?: StoreSettings; onProductClick: (p: Product) => void; }> = ({ 
   title, products, isAdminMode, onEdit, onDelete, onUpdateCart, activeOffers, activeCampaign, formatCurrency, getEffectivePrice, formatStock, cart, rawMaterials, storeSettings, onProductClick 
 }) => {
-  // 🔌 Reemplazamos la lógica vieja por el hook
   const { ref, onMouseDown, onMouseLeave, onMouseUp, onMouseMove, className, style } = useDraggableScroll();
+
+  // 🔌 Nuevo motor de desplazamiento para botones (Solo PC)
+  const handleScroll = (direction: 'left' | 'right') => {
+    if (ref.current) {
+      const scrollAmount = direction === 'left' ? -400 : 400; 
+      ref.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+    }
+  };
 
   if (products.length === 0) return null;
 
   return (
-    <div className="mb-12">
+    <div className="mb-12 group"> {/* Contenedor con 'group' para efectos de hover */}
       <div className="flex items-center justify-between mb-6 px-4 sm:px-0">
         <h2 className="text-xl sm:text-2xl font-serif text-stone-900 tracking-tight">{title}</h2>
         <div className="h-px flex-1 bg-stone-100 mx-6 hidden sm:block"></div>
         <button className="text-[10px] uppercase tracking-[0.2em] text-stone-400 hover:text-stone-900 transition-colors">Ver todo</button>
       </div>
+      
       <div className="relative">
+        {/* Flecha Izquierda - Flotante, solo PC (md) */}
+        <button
+          onClick={() => handleScroll('left')}
+          className="hidden md:flex absolute -left-5 top-[40%] -translate-y-1/2 z-20 w-12 h-12 bg-white/95 backdrop-blur-sm border border-stone-100 shadow-xl rounded-full items-center justify-center text-stone-400 hover:text-stone-900 hover:scale-110 transition-all opacity-0 group-hover:opacity-100"
+          aria-label="Desplazar a la izquierda"
+        >
+          <ChevronLeft size={24} strokeWidth={1.5} />
+        </button>
+
+        {/* Contenedor de Productos */}
         <div 
           ref={ref}
           className={`${className} -mx-4 px-4 sm:mx-0 sm:px-0 select-none hide-scrollbar`}
@@ -477,6 +495,15 @@ const ProductSlider: React.FC<{ title: string; products: Product[]; isAdminMode:
             </div>
           ))}
         </div>
+
+        {/* Flecha Derecha - Flotante, solo PC (md) */}
+        <button
+          onClick={() => handleScroll('right')}
+          className="hidden md:flex absolute -right-5 top-[40%] -translate-y-1/2 z-20 w-12 h-12 bg-white/95 backdrop-blur-sm border border-stone-100 shadow-xl rounded-full items-center justify-center text-stone-400 hover:text-stone-900 hover:scale-110 transition-all opacity-0 group-hover:opacity-100"
+          aria-label="Desplazar a la derecha"
+        >
+          <ChevronRight size={24} strokeWidth={1.5} />
+        </button>
       </div>
     </div>
   );
