@@ -147,7 +147,7 @@ export default function App() {
     setIsPublicCatalog(false);
   };
 
-  // 🚀 LÓGICA DE NUMERACIÓN CORRELATIVA CORREGIDA
+  // 🚀 LÓGICA DE NUMERACIÓN CORRELATIVA CORREGIDA (Y RETORNANDO DATOS AL CARRITO)
   const handleSmartRegisterSale = async (saleData: any) => {
     // Buscamos con lupa el número de pedido más alto que ya existe
     const currentSales = sales || [];
@@ -159,11 +159,13 @@ export default function App() {
     // Si no hay ventas o el máximo es 0, empezamos en 1000. Si no, máximo + 1.
     const nextOrderNumber = maxOrderNumber < 1000 ? 1000 : maxOrderNumber + 1;
 
-    // Ejecutamos el registro oficial con el nuevo número
-    await registerSale({
+    // Ejecutamos el registro oficial con el nuevo número Y DEVOLVEMOS EL RESULTADO
+    const result = await registerSale({
       ...saleData,
       orderNumber: nextOrderNumber
     });
+    
+    return result; // 🚨 ESTO ES VITAL PARA QUE EL CARRITO RECIBA EL CUPÓN O SEPA QUE YA EXISTÍAS
   };
 
   useEffect(() => {
