@@ -1558,7 +1558,7 @@ export function useInventory() {
     }
   };
 
-// 🚀 LÓGICA DE REGISTRO DE VENTA (100% TRANSACCIONAL, LECTURA DIRECTA DE BD)
+// 🚀 LÓGICA DE REGISTRO DE VENTA (DESCUENTO INMEDIATO EN TODOS LOS ESTADOS EXCEPTO CANCELADO)
   const registerSale = async (saleData: Omit<Sale, 'id' | 'date'>) => {
     let nextOrderNumber = 1000;
     try {
@@ -1654,6 +1654,9 @@ export function useInventory() {
       }
     }
 
+    // 🚨 LA REGLA DE ORO: Si no nace cancelado, se debe descontar el stock
+    const shouldBeDeducted = saleData.status !== 'cancelado';
+
     const newSale: Sale = {
       ...saleData,
       id: uuidv4(),
@@ -1665,7 +1668,7 @@ export function useInventory() {
       amountPaid: roundFinancial(saleData.amountPaid),
       discount: roundFinancial(saleData.discount || 0),
       items: saleData.items.map(item => ({ ...item, price: roundFinancial(item.price), total: roundFinancial(item.total || (item.price * item.quantity)) })),
-      materialsDeducted: false,
+      materialsDeducted: shouldBeDeducted, // <-- Guardamos la bandera
       paymentHistory: saleData.amountPaid > 0 ? [{ date: new Date().toISOString(), amount: roundFinancial(saleData.amountPaid), method: saleData.paymentMethod, status: saleData.paymentStatus || 'verified', notes: saleData.paymentNotes }] : []
     };
 
@@ -1712,21 +1715,22 @@ export function useInventory() {
 
         const materialsToDeduct = new Map<string, number>();
         const materialDocs = new Map<string, DocumentSnapshot>();
-        
-        // 🚨 AQUÍ ESTÁ LA MAGIA: LEEMOS LOS PRODUCTOS DIRECTO DE FIRESTORE, NO DE LA MEMORIA LOCAL
         const productDocs = new Map<string, DocumentSnapshot>();
-        for (const item of newSale.items) {
-          if (!productDocs.has(item.productId)) {
-            const productRef = doc(db, 'products', item.productId);
-            const docSnap = await transaction.get(productRef);
-            if (!docSnap.exists()) {
-               throw new Error(`Producto no encontrado: ${item.productId}`);
-            }
-            productDocs.set(item.productId, docSnap);
-          }
-        }
+        const courseDocs = new Map<string, DocumentSnapshot>();
 
-        if (newSale.status !== 'cancelado') {
+        // Solo leemos los productos de Firestore si realmente vamos a descontar stock
+        if (shouldBeDeducted) {
+          for (const item of newSale.items) {
+            if (!productDocs.has(item.productId)) {
+              const productRef = doc(db, 'products', item.productId);
+              const docSnap = await transaction.get(productRef);
+              if (!docSnap.exists()) {
+                 throw new Error(`Producto no encontrado: ${item.productId}`);
+              }
+              productDocs.set(item.productId, docSnap);
+            }
+          }
+
           newSale.items.forEach(item => {
             const productDoc = productDocs.get(item.productId);
             const product = productDoc?.data() as Product;
@@ -1747,20 +1751,19 @@ export function useInventory() {
             }
             materialDocs.set(materialId, docSnap);
           }
-        }
 
-        const courseDocs = new Map<string, DocumentSnapshot>();
-        for (const item of newSale.items) {
-          if (item.isCourse && item.courseId) {
-            const courseRef = doc(db, 'courses', item.courseId);
-            const docSnap = await transaction.get(courseRef);
-            if (docSnap.exists()) {
-               courseDocs.set(item.courseId, docSnap);
+          for (const item of newSale.items) {
+            if (item.isCourse && item.courseId) {
+              const courseRef = doc(db, 'courses', item.courseId);
+              const docSnap = await transaction.get(courseRef);
+              if (docSnap.exists()) {
+                 courseDocs.set(item.courseId, docSnap);
+              }
             }
           }
         }
 
-        // ESCRITURAS
+        // ESCRITURAS DE USUARIO Y CUPONES
         if (couponDocSnap && couponRef) {
           transaction.update(couponRef, { isUsed: true, usedBySaleId: newSale.id, usedAt: new Date().toISOString() });
         } else if (newSale.appliedCouponCode) {
@@ -1785,7 +1788,12 @@ export function useInventory() {
           transaction.update(doc(db, 'customers', customerToUpdate.id), cleanObject(customerToUpdate));
         }
 
-        if (newSale.status === 'entregado' || newSale.status === 'listo_para_entregar') {
+        if (couponToGenerate) {
+          transaction.set(doc(db, 'coupons', couponToGenerate.id), cleanObject(couponToGenerate));
+        }
+
+        // ESCRITURAS DE STOCK
+        if (shouldBeDeducted) {
           for (const [materialId, totalToDeduct] of materialsToDeduct.entries()) {
             const materialDoc = materialDocs.get(materialId)!;
             const materialData = materialDoc.data() as RawMaterial;
@@ -1796,49 +1804,44 @@ export function useInventory() {
             }
             transaction.update(doc(db, 'rawMaterials', materialId), { stock: materialData.stock - quantityUMB });
           }
-          newSale.materialsDeducted = true;
-        }
 
-        // 🚨 ESCRITURA DE STOCK BASADA EN DB
-        const productsToUpdate = new Map<string, Product>();
-        for (const item of newSale.items) {
-          const productDoc = productDocs.get(item.productId)!;
-          let productData = productsToUpdate.get(item.productId) || (productDoc.data() as Product);
-          const variant = productData.variants.find(v => v.id === item.variantId);
-          
-          if (variant && variant.isFinishedGood !== false) {
-            const updatedVariants = productData.variants.map(v => {
-              if (v.id === item.variantId) {
-                return { ...v, stock: Math.max(0, v.stock - item.quantity) };
-              }
-              return v;
-            });
-            productData = { ...productData, variants: updatedVariants };
-            productsToUpdate.set(item.productId, productData);
+          const productsToUpdate = new Map<string, Product>();
+          for (const item of newSale.items) {
+            const productDoc = productDocs.get(item.productId)!;
+            let productData = productsToUpdate.get(item.productId) || (productDoc.data() as Product);
+            const variant = productData.variants.find(v => v.id === item.variantId);
+            
+            if (variant && variant.isFinishedGood !== false) {
+              const updatedVariants = productData.variants.map(v => {
+                if (v.id === item.variantId) {
+                  return { ...v, stock: Math.max(0, v.stock - item.quantity) };
+                }
+                return v;
+              });
+              productData = { ...productData, variants: updatedVariants };
+              productsToUpdate.set(item.productId, productData);
+            }
           }
-        }
-        for (const [productId, productData] of productsToUpdate.entries()) {
-          transaction.update(doc(db, 'products', productId), { variants: productData.variants });
-        }
+          for (const [productId, productData] of productsToUpdate.entries()) {
+            transaction.update(doc(db, 'products', productId), { variants: productData.variants });
+          }
 
-        if (couponToGenerate) {
-          transaction.set(doc(db, 'coupons', couponToGenerate.id), cleanObject(couponToGenerate));
-        }
-
-        for (const item of newSale.items) {
-          if (item.isCourse && item.courseId) {
-            const courseDoc = courseDocs.get(item.courseId);
-            if (courseDoc && courseDoc.exists()) {
-              const currentEnrolled = courseDoc.data().enrolledCount || 0;
-              const maxQuota = courseDoc.data().maxQuota || 0;
-              if (currentEnrolled + item.quantity > maxQuota) {
-                 throw new Error(`Cupo insuficiente para el curso: ${item.productName}`);
+          for (const item of newSale.items) {
+            if (item.isCourse && item.courseId) {
+              const courseDoc = courseDocs.get(item.courseId);
+              if (courseDoc && courseDoc.exists()) {
+                const currentEnrolled = courseDoc.data().enrolledCount || 0;
+                const maxQuota = courseDoc.data().maxQuota || 0;
+                if (currentEnrolled + item.quantity > maxQuota) {
+                   throw new Error(`Cupo insuficiente para el curso: ${item.productName}`);
+                }
+                transaction.update(doc(db, 'courses', item.courseId), { enrolledCount: currentEnrolled + item.quantity });
               }
-              transaction.update(doc(db, 'courses', item.courseId), { enrolledCount: currentEnrolled + item.quantity });
             }
           }
         }
 
+        // GUARDADO FINAL DE LA VENTA
         transaction.set(doc(db, 'sales', newSale.id), cleanObject(newSale));
       });
 
@@ -1849,7 +1852,7 @@ export function useInventory() {
     }
   };
 
-  // 🚀 LÓGICA DE UPDATE SALE (100% TRANSACCIONAL)
+  // 🚀 LÓGICA DE UPDATE SALE (SOLO RECALCULA STOCK SI HAY CAMBIO ENTRE CANCELADO/ACTIVO)
   const updateSale = async (updatedSale: Sale) => {
     const roundedSale = {
       ...updatedSale,
@@ -1860,245 +1863,121 @@ export function useInventory() {
       paymentHistory: updatedSale.paymentHistory?.map(p => ({ ...p, amount: roundFinancial(p.amount) }))
     };
     const s = sales.find(sale => sale.id === roundedSale.id);
-    if (s) {
-      const wasDeducted = s.materialsDeducted;
-      const shouldBeDeducted = roundedSale.status !== 'cancelado';
-      
-      try {
-        if (roundedSale.status === 'cancelado' && s.status !== 'cancelado') {
-          await runTransaction(db, async (transaction) => {
-            const productDocs = new Map<string, DocumentSnapshot>();
-            for (const item of roundedSale.items) {
-              if (!productDocs.has(item.productId)) {
-                const productRef = doc(db, 'products', item.productId);
-                const docSnap = await transaction.get(productRef);
-                if (!docSnap.exists()) {
-                   throw new Error(`Producto no encontrado: ${item.productId}`);
-                }
-                productDocs.set(item.productId, docSnap);
-              }
-            }
+    if (!s) {
+      return;
+    }
 
-            const materialsToReturn = new Map<string, number>();
-            const materialDocs = new Map<string, DocumentSnapshot>();
-            if (wasDeducted) {
-              roundedSale.items.forEach(item => {
-                const productDoc = productDocs.get(item.productId);
-                const product = productDoc?.data() as Product;
-                const variant = product?.variants.find(v => v.id === item.variantId);
-                if (variant && variant.recipe && variant.isFinishedGood === false) {
-                  variant.recipe.forEach(recipeItem => {
-                    const currentReturn = materialsToReturn.get(recipeItem.rawMaterialId) || 0;
-                    materialsToReturn.set(recipeItem.rawMaterialId, currentReturn + (recipeItem.quantity * item.quantity));
-                  });
-                }
-              });
+    const wasDeducted = s.materialsDeducted === true;
+    const shouldBeDeducted = roundedSale.status !== 'cancelado'; // Descuenta si es presupuesto, nuevo, en preparacion, etc.
+    const needsStockUpdate = wasDeducted !== shouldBeDeducted; // Solo altera stock si hay diferencia (ej. lo cancelas, o lo des-cancelas)
 
-              for (const materialId of materialsToReturn.keys()) {
-                const materialRef = doc(db, 'rawMaterials', materialId);
-                const docSnap = await transaction.get(materialRef);
-                if (!docSnap.exists()) {
-                   throw new Error(`Materia prima no encontrada: ${materialId}`);
-                }
-                materialDocs.set(materialId, docSnap);
-              }
-            }
-
-            const courseDocs = new Map<string, DocumentSnapshot>();
-            for (const item of roundedSale.items) {
-              if (item.isCourse && item.courseId) {
-                const courseRef = doc(db, 'courses', item.courseId);
-                const docSnap = await transaction.get(courseRef);
-                if (docSnap.exists()) {
-                   courseDocs.set(item.courseId, docSnap);
-                }
-              }
-            }
-
-            const productsToUpdate = new Map<string, Product>();
-            for (const item of roundedSale.items) {
-              const productDoc = productDocs.get(item.productId)!;
-              let productData = productsToUpdate.get(item.productId) || (productDoc.data() as Product);
-              const variant = productData.variants.find(v => v.id === item.variantId);
-              if (variant && variant.isFinishedGood !== false) {
-                const updatedVariants = productData.variants.map(v => {
-                  if (v.id === item.variantId) {
-                    return { ...v, stock: v.stock + item.quantity };
-                  }
-                  return v;
-                });
-                productData = { ...productData, variants: updatedVariants };
-                productsToUpdate.set(item.productId, productData);
-              }
-            }
-            for (const [productId, productData] of productsToUpdate.entries()) {
-              transaction.update(doc(db, 'products', productId), { variants: productData.variants });
-            }
-
-            if (wasDeducted) {
-              for (const [materialId, totalToReturn] of materialsToReturn.entries()) {
-                const materialDoc = materialDocs.get(materialId)!;
-                const materialData = materialDoc.data() as RawMaterial;
-                const effectiveUnit = materialData.baseUnit || UMB_FOR_DIMENSION[materialData.dimension || (materialData.unit ? UNIT_DIMENSIONS[materialData.unit as Unit] : 'units')];
-                const quantityUMB = toUMB(totalToReturn, effectiveUnit as Unit);
-                transaction.update(doc(db, 'rawMaterials', materialId), { stock: materialData.stock + quantityUMB });
-              }
-              roundedSale.materialsDeducted = false;
-            }
-
-            for (const item of roundedSale.items) {
-              if (item.isCourse && item.courseId) {
-                const courseDoc = courseDocs.get(item.courseId);
-                if (courseDoc && courseDoc.exists()) {
-                  const currentEnrolled = courseDoc.data().enrolledCount || 0;
-                  transaction.update(doc(db, 'courses', item.courseId), { enrolledCount: Math.max(0, currentEnrolled - item.quantity) });
-                }
-              }
-            }
-            transaction.set(doc(db, 'sales', roundedSale.id), cleanObject(roundedSale));
-          });
-        } else if (s.status === 'cancelado' && roundedSale.status !== 'cancelado') {
-          await runTransaction(db, async (transaction) => {
-            const productDocs = new Map<string, DocumentSnapshot>();
-            for (const item of roundedSale.items) {
-              if (!productDocs.has(item.productId)) {
-                const productRef = doc(db, 'products', item.productId);
-                const docSnap = await transaction.get(productRef);
-                if (!docSnap.exists()) {
-                   throw new Error(`Producto no encontrado: ${item.productId}`);
-                }
-                productDocs.set(item.productId, docSnap);
-              }
-            }
-
-            const materialsToDeduct = new Map<string, number>();
-            const materialDocs = new Map<string, DocumentSnapshot>();
-            if (shouldBeDeducted) {
-              roundedSale.items.forEach(item => {
-                const productDoc = productDocs.get(item.productId);
-                const product = productDoc?.data() as Product;
-                const variant = product?.variants.find(v => v.id === item.variantId);
-                if (variant && variant.recipe && variant.isFinishedGood === false) {
-                  variant.recipe.forEach(recipeItem => {
-                    const currentDeduction = materialsToDeduct.get(recipeItem.rawMaterialId) || 0;
-                    materialsToDeduct.set(recipeItem.rawMaterialId, currentDeduction + (recipeItem.quantity * item.quantity));
-                  });
-                }
-              });
-
-              for (const materialId of materialsToDeduct.keys()) {
-                const materialRef = doc(db, 'rawMaterials', materialId);
-                const docSnap = await transaction.get(materialRef);
-                if (!docSnap.exists()) {
-                   throw new Error(`Materia prima no encontrada: ${materialId}`);
-                }
-                materialDocs.set(materialId, docSnap);
-              }
-            }
-
-            const courseDocs = new Map<string, DocumentSnapshot>();
-            for (const item of roundedSale.items) {
-              if (item.isCourse && item.courseId) {
-                const courseRef = doc(db, 'courses', item.courseId);
-                const docSnap = await transaction.get(courseRef);
-                if (docSnap.exists()) {
-                   courseDocs.set(item.courseId, docSnap);
-                }
-              }
-            }
-
-            const productsToUpdate = new Map<string, Product>();
-            for (const item of roundedSale.items) {
-              const productDoc = productDocs.get(item.productId)!;
-              let productData = productsToUpdate.get(item.productId) || (productDoc.data() as Product);
-              const variant = productData.variants.find(v => v.id === item.variantId);
-              if (variant && variant.isFinishedGood !== false) {
-                const updatedVariants = productData.variants.map(v => {
-                  if (v.id === item.variantId) {
-                    return { ...v, stock: Math.max(0, v.stock - item.quantity) };
-                  }
-                  return v;
-                });
-                productData = { ...productData, variants: updatedVariants };
-                productsToUpdate.set(item.productId, productData);
-              }
-            }
-            for (const [productId, productData] of productsToUpdate.entries()) {
-              transaction.update(doc(db, 'products', productId), { variants: productData.variants });
-            }
-
-            if (shouldBeDeducted) {
-              for (const [materialId, totalToDeduct] of materialsToDeduct.entries()) {
-                const materialDoc = materialDocs.get(materialId)!;
-                const materialData = materialDoc.data() as RawMaterial;
-                const effectiveUnit = materialData.baseUnit || UMB_FOR_DIMENSION[materialData.dimension || (materialData.unit ? UNIT_DIMENSIONS[materialData.unit as Unit] : 'units')];
-                const quantityUMB = toUMB(totalToDeduct, effectiveUnit as Unit);
-                transaction.update(doc(db, 'rawMaterials', materialId), { stock: materialData.stock - quantityUMB });
-              }
-              roundedSale.materialsDeducted = true;
-            }
-
-            for (const item of roundedSale.items) {
-              if (item.isCourse && item.courseId) {
-                const courseDoc = courseDocs.get(item.courseId);
-                if (courseDoc && courseDoc.exists()) {
-                  const currentEnrolled = courseDoc.data().enrolledCount || 0;
-                  transaction.update(doc(db, 'courses', item.courseId), { enrolledCount: currentEnrolled + item.quantity });
-                }
-              }
-            }
-            transaction.set(doc(db, 'sales', roundedSale.id), cleanObject(roundedSale));
-          });
-        } else if (!wasDeducted && shouldBeDeducted && roundedSale.status !== 'cancelado') {
-          await runTransaction(db, async (transaction) => {
-            const productDocs = new Map<string, DocumentSnapshot>();
-            for (const item of roundedSale.items) {
-              if (!productDocs.has(item.productId)) {
-                const productRef = doc(db, 'products', item.productId);
-                const docSnap = await transaction.get(productRef);
-                productDocs.set(item.productId, docSnap);
-              }
-            }
-
-            const materialsToDeduct = new Map<string, number>();
-            const materialDocs = new Map<string, DocumentSnapshot>();
-            roundedSale.items.forEach(item => {
-              const productDoc = productDocs.get(item.productId);
-              const product = productDoc?.data() as Product;
-              const variant = product?.variants.find(v => v.id === item.variantId);
-              if (variant && variant.recipe && variant.isFinishedGood === false) {
-                variant.recipe.forEach(recipeItem => {
-                  const currentDeduction = materialsToDeduct.get(recipeItem.rawMaterialId) || 0;
-                  materialsToDeduct.set(recipeItem.rawMaterialId, currentDeduction + (recipeItem.quantity * item.quantity));
-                });
-              }
-            });
-
-            for (const materialId of materialsToDeduct.keys()) {
-              const materialRef = doc(db, 'rawMaterials', materialId);
-              const docSnap = await transaction.get(materialRef);
+    try {
+      if (needsStockUpdate) {
+        await runTransaction(db, async (transaction) => {
+          // LECTURAS (Solo porque el stock cambiará)
+          const productDocs = new Map<string, DocumentSnapshot>();
+          for (const item of roundedSale.items) {
+            if (!productDocs.has(item.productId)) {
+              const productRef = doc(db, 'products', item.productId);
+              const docSnap = await transaction.get(productRef);
               if (!docSnap.exists()) {
-                 throw new Error(`Materia prima no encontrada: ${materialId}`);
+                 throw new Error(`Producto no encontrado: ${item.productId}`);
               }
-              materialDocs.set(materialId, docSnap);
+              productDocs.set(item.productId, docSnap);
             }
+          }
 
-            for (const [materialId, totalToDeduct] of materialsToDeduct.entries()) {
-              const materialDoc = materialDocs.get(materialId)!;
-              const materialData = materialDoc.data() as RawMaterial;
-              const effectiveUnit = materialData.baseUnit || UMB_FOR_DIMENSION[materialData.dimension || (materialData.unit ? UNIT_DIMENSIONS[materialData.unit as Unit] : 'units')];
-              const quantityUMB = toUMB(totalToDeduct, effectiveUnit as Unit);
-              transaction.update(doc(db, 'rawMaterials', materialId), { stock: materialData.stock - quantityUMB });
+          const materialDocs = new Map<string, DocumentSnapshot>();
+          const materialsToModify = new Map<string, number>();
+
+          roundedSale.items.forEach(item => {
+            const productDoc = productDocs.get(item.productId);
+            const product = productDoc?.data() as Product;
+            const variant = product?.variants.find(v => v.id === item.variantId);
+            if (variant && variant.recipe && variant.isFinishedGood === false) {
+              variant.recipe.forEach(recipeItem => {
+                const currentAmount = materialsToModify.get(recipeItem.rawMaterialId) || 0;
+                materialsToModify.set(recipeItem.rawMaterialId, currentAmount + (recipeItem.quantity * item.quantity));
+              });
             }
-            roundedSale.materialsDeducted = true;
-            transaction.set(doc(db, 'sales', roundedSale.id), cleanObject(roundedSale));
           });
-        } else {
-          await setDoc(doc(db, 'sales', roundedSale.id), cleanObject(roundedSale));
-        }
-      } catch (error) {
-        handleFirestoreError(error, OperationType.WRITE, 'sales');
+
+          for (const materialId of materialsToModify.keys()) {
+            const materialRef = doc(db, 'rawMaterials', materialId);
+            const docSnap = await transaction.get(materialRef);
+            if (!docSnap.exists()) {
+               throw new Error(`Materia prima no encontrada: ${materialId}`);
+            }
+            materialDocs.set(materialId, docSnap);
+          }
+
+          const courseDocs = new Map<string, DocumentSnapshot>();
+          for (const item of roundedSale.items) {
+            if (item.isCourse && item.courseId) {
+              const courseRef = doc(db, 'courses', item.courseId);
+              const docSnap = await transaction.get(courseRef);
+              if (docSnap.exists()) {
+                 courseDocs.set(item.courseId, docSnap);
+              }
+            }
+          }
+
+          // ESCRITURAS (Añadir o Restar dependiendo de shouldBeDeducted)
+          const productsToUpdate = new Map<string, Product>();
+          for (const item of roundedSale.items) {
+            const productDoc = productDocs.get(item.productId)!;
+            let productData = productsToUpdate.get(item.productId) || (productDoc.data() as Product);
+            const variant = productData.variants.find(v => v.id === item.variantId);
+            
+            if (variant && variant.isFinishedGood !== false) {
+              const updatedVariants = productData.variants.map(v => {
+                if (v.id === item.variantId) {
+                  // Si debemos descontar restamos. Si no, significa que se canceló, devolvemos el stock.
+                  const newStock = shouldBeDeducted ? Math.max(0, v.stock - item.quantity) : v.stock + item.quantity;
+                  return { ...v, stock: newStock };
+                }
+                return v;
+              });
+              productData = { ...productData, variants: updatedVariants };
+              productsToUpdate.set(item.productId, productData);
+            }
+          }
+
+          for (const [productId, productData] of productsToUpdate.entries()) {
+            transaction.update(doc(db, 'products', productId), { variants: productData.variants });
+          }
+
+          for (const [materialId, amount] of materialsToModify.entries()) {
+            const materialDoc = materialDocs.get(materialId)!;
+            const materialData = materialDoc.data() as RawMaterial;
+            const effectiveUnit = materialData.baseUnit || UMB_FOR_DIMENSION[materialData.dimension || (materialData.unit ? UNIT_DIMENSIONS[materialData.unit as Unit] : 'units')];
+            const quantityUMB = toUMB(amount, effectiveUnit as Unit);
+            
+            const newStock = shouldBeDeducted ? Math.max(0, materialData.stock - quantityUMB) : materialData.stock + quantityUMB;
+            transaction.update(doc(db, 'rawMaterials', materialId), { stock: newStock });
+          }
+
+          for (const item of roundedSale.items) {
+            if (item.isCourse && item.courseId) {
+              const courseDoc = courseDocs.get(item.courseId);
+              if (courseDoc && courseDoc.exists()) {
+                const currentEnrolled = courseDoc.data().enrolledCount || 0;
+                const newEnrolled = shouldBeDeducted ? currentEnrolled + item.quantity : Math.max(0, currentEnrolled - item.quantity);
+                transaction.update(doc(db, 'courses', item.courseId), { enrolledCount: newEnrolled });
+              }
+            }
+          }
+
+          roundedSale.materialsDeducted = shouldBeDeducted;
+          transaction.set(doc(db, 'sales', roundedSale.id), cleanObject(roundedSale));
+        });
+      } else {
+        // No hay necesidad de alterar el stock (ej. pasaste de 'Nuevo' a 'En preparación').
+        // Simplemente guardamos la actualización de la tarjeta de venta directamente.
+        await setDoc(doc(db, 'sales', roundedSale.id), cleanObject(roundedSale));
       }
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'sales');
     }
   };
 
