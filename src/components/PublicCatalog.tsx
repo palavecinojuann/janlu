@@ -886,19 +886,6 @@ export default function PublicCatalog({
     setCheckoutError(null);
 
     try {
-      let newCouponInfo = null;
-      if (isRegistering) {
-        const shortCode = 'JLU-' + Math.random().toString(36).substring(2, 6).toUpperCase();
-        const expiryDate = new Date();
-        expiryDate.setDate(expiryDate.getDate() + 30);
-        
-        newCouponInfo = {
-          code: shortCode,
-          expiry: expiryDate.toLocaleDateString('es-AR')
-        };
-        setGeneratedCoupon(newCouponInfo);
-      }
-
       const saleItems = cart.map(item => {
         if (item.course) {
           return {
@@ -922,7 +909,6 @@ export default function PublicCatalog({
         };
       });
 
-      // 🎯 INTERVENCIÓN: No enviamos orderNumber aquí para que handleSmartRegisterSale lo asigne en App.tsx
       const newSaleData = {
         customerId: 'guest',
         customerName: isRegistering ? `${registrationData.firstName} ${registrationData.lastName}` : customerDetails.name,
@@ -939,12 +925,20 @@ export default function PublicCatalog({
         balanceDue: finalTotal,
         appliedCouponCode: appliedCoupon?.code,
         isRegistering,
-        registrationData: isRegistering ? { ...registrationData, generatedCoupon: newCouponInfo } : undefined
+        registrationData: isRegistering ? { ...registrationData } : undefined
       };
 
+      let serverGeneratedCoupon = null;
+
       if (onRegisterSale) {
-        // Usamos await para asegurarnos que se procese antes de mostrar éxito
-        await onRegisterSale(newSaleData as any);
+        // Obtenemos la respuesta del servidor (que nos dirá si realmente se generó un cupón)
+        const saleResult = await onRegisterSale(newSaleData as any);
+        
+        // Si el servidor (useInventory) decidió crear un cupón, lo atrapamos aquí
+        if (saleResult && typeof saleResult === 'object' && saleResult.generatedCoupon) {
+           serverGeneratedCoupon = saleResult.generatedCoupon;
+           setGeneratedCoupon(serverGeneratedCoupon);
+        }
       }
 
       let message = `Hola Janlu Velas, mi nombre es ${customerDetails.name}. Quiero hacer el siguiente pedido:\n\n`;
