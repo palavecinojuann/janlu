@@ -1586,7 +1586,34 @@ export function useInventory() {
   };
 
   const registerSale = async (saleData: Omit<Sale, 'id' | 'date'>) => {
-    const maxOrderNumber = sales.reduce((max, sale) => Math.max(max, sale.orderNumber || 0), 0);
+   const registerSale = async (saleData: Omit<Sale, 'id' | 'date'>) => {
+    // 1. Obtenemos el correlativo de forma segura mediante una Transacción
+    let nextOrderNumber = 1000;
+    try {
+      const counterRef = doc(db, 'metadata', 'counters');
+      nextOrderNumber = await runTransaction(db, async (transaction) => {
+        const counterDoc = await transaction.get(counterRef);
+        let newOrderNumber = 1000;
+        
+        if (counterDoc.exists() && counterDoc.data().lastOrderNumber) {
+          newOrderNumber = counterDoc.data().lastOrderNumber + 1;
+        } else {
+          // Fallback al máximo local si el contador no existe (solo útil la primera vez para admins)
+          const localMax = sales.reduce((max, sale) => Math.max(max, sale.orderNumber || 0), 0);
+          newOrderNumber = Math.max(1000, localMax + 1);
+        }
+        
+        transaction.set(counterRef, { lastOrderNumber: newOrderNumber }, { merge: true });
+        return newOrderNumber;
+      });
+    } catch (error) {
+      console.warn("No se pudo obtener el correlativo de Firestore, usando fallback local", error);
+      const localMax = sales.reduce((max, sale) => Math.max(max, sale.orderNumber || 0), 0);
+      nextOrderNumber = Math.max(1000, localMax + 1);
+    }
+    
+    // CRM Logic - Normalization
+    const normalizeEmail = (e?: string) => e?.trim().toLowerCase() || '';
     
     // CRM Logic - Normalization
     const normalizeEmail = (e?: string) => e?.trim().toLowerCase() || '';
@@ -1669,7 +1696,7 @@ export function useInventory() {
       ...saleData,
       id: uuidv4(),
       customerId: customerId || '',
-      orderNumber: maxOrderNumber + 1,
+      orderNumber: nextOrderNumber,
       date: new Date().toISOString(),
       totalAmount: roundFinancial(saleData.totalAmount),
       amountPaid: roundFinancial(saleData.amountPaid),
