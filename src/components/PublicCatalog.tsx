@@ -228,7 +228,6 @@ const ProductCard: React.FC<ProductCardProps> = ({
           </div>
         )}
 
-        {/* Quick Add Button Overlay */}
         {!isOutOfStock && (
           <div className="absolute bottom-0 left-0 right-0 p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out z-20">
             {quantityInCart === 0 ? (
@@ -287,7 +286,6 @@ const ProductCard: React.FC<ProductCardProps> = ({
           </div>
         )}
 
-        {/* Variant Selector */}
         {product.variants.length > 1 && (
           <div className="flex flex-wrap gap-1 mb-3 mt-1" onClick={(e) => e.stopPropagation()}>
             {product.variants.map(v => {
@@ -321,7 +319,6 @@ const ProductCard: React.FC<ProductCardProps> = ({
           </div>
         )}
 
-        {/* In Cart Indicator */}
         {quantityInCart > 0 && (
           <div className="text-[10px] text-stone-500 font-medium mb-2 flex items-center gap-1">
             <span>🛍️</span> {quantityInCart} en tu carrito
@@ -884,13 +881,6 @@ export default function PublicCatalog({
       setCheckoutError('Por favor ingresa tu email para el envío.');
       return;
     }
-    if (isRegistering) {
-      const { firstName, lastName, phone, email, birthDate } = registrationData;
-      if (!firstName.trim() || !lastName.trim() || !phone.trim() || !email.trim() || !birthDate.trim()) {
-        setCheckoutError('Por favor completa todos los campos de registro para obtener tu cupón.');
-        return;
-      }
-    }
 
     setIsSubmitting(true);
     setCheckoutError(null);
@@ -932,7 +922,8 @@ export default function PublicCatalog({
         };
       });
 
-      const newSale: Omit<Sale, 'id' | 'date'> = {
+      // 🎯 INTERVENCIÓN: No enviamos orderNumber aquí para que handleSmartRegisterSale lo asigne en App.tsx
+      const newSaleData = {
         customerId: 'guest',
         customerName: isRegistering ? `${registrationData.firstName} ${registrationData.lastName}` : customerDetails.name,
         customerEmail: isRegistering ? registrationData.email : customerDetails.email,
@@ -943,8 +934,8 @@ export default function PublicCatalog({
         amountPaid: 0,
         paymentPercentage: 0,
         paymentMethod: paymentMethod,
-        status: 'presupuesto',
-        paymentStatus: 'pending',
+        status: 'presupuesto' as SaleStatus,
+        paymentStatus: 'pending' as any,
         balanceDue: finalTotal,
         appliedCouponCode: appliedCoupon?.code,
         isRegistering,
@@ -952,7 +943,8 @@ export default function PublicCatalog({
       };
 
       if (onRegisterSale) {
-        onRegisterSale(newSale);
+        // Usamos await para asegurarnos que se procese antes de mostrar éxito
+        await onRegisterSale(newSaleData as any);
       }
 
       let message = `Hola Janlu Velas, mi nombre es ${customerDetails.name}. Quiero hacer el siguiente pedido:\n\n`;
@@ -998,8 +990,6 @@ export default function PublicCatalog({
       
       if (whatsappNumber) {
         window.open(`https://api.whatsapp.com/send?phone=${whatsappNumber}&text=${encodedMessage}`, '_blank');
-      } else {
-        console.warn("No WhatsApp number configured in settings.");
       }
 
       setCheckoutStep('success');
@@ -1760,7 +1750,7 @@ export default function PublicCatalog({
                   if (checkoutStep === 'success') {
                     setCheckoutStep('cart');
                   }
-                  setGeneratedCoupon(null); // Reseteamos el cupón al cerrar
+                  setGeneratedCoupon(null);
                 }}
                 className="p-2 text-stone-400 hover:text-stone-600 bg-stone-50 rounded-full"
               >
@@ -1933,9 +1923,6 @@ export default function PublicCatalog({
                         className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
                         placeholder="Ej. +54 9 11 1234 5678"
                       />
-                      <p className="text-xs text-stone-500 mt-2">
-                        Usaremos este número para enviarte el presupuesto final y coordinar la entrega.
-                      </p>
                     </div>
                   )}
 
@@ -2045,13 +2032,10 @@ export default function PublicCatalog({
                         className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
                         placeholder="Ej. juan@email.com"
                       />
-                      <p className="text-xs text-stone-500 mt-2">
-                        Ingresa tu email para recibir las actualizaciones y el estado de tu envío.
-                      </p>
                     </div>
                   )}
 
-                  {/* Banner de Registro y Fidelización */}
+                  {/* Banner de Registro */}
                   <div className="mt-8 border-t border-stone-100 pt-6">
                     <div className={`p-5 rounded-2xl border-2 transition-all duration-300 ${
                       isRegistering 
@@ -2163,7 +2147,6 @@ export default function PublicCatalog({
                     Gracias por tu compra. Hemos recibido tu pedido y nos pondremos en contacto contigo pronto por WhatsApp.
                   </p>
 
-                  {/* 🎁 TARJETA VIP DE CUPÓN GENERADO */}
                   {generatedCoupon && (
                     <div className="bg-stone-900 text-white p-6 rounded-2xl shadow-xl shadow-stone-900/20 w-full max-w-sm animate-in zoom-in-95 duration-500">
                       <div className="flex justify-center mb-2 text-amber-400">
@@ -2272,7 +2255,6 @@ export default function PublicCatalog({
         </div>
       )}
 
-      {/* Floating WhatsApp Button */}
       {storeSettings?.whatsappNumber && (
         <a
           href={`https://wa.me/${storeSettings.whatsappNumber.replace(/\D/g, '')}`}
@@ -2285,7 +2267,6 @@ export default function PublicCatalog({
         </a>
       )}
 
-      {/* Componente Modal Actualizado para que el botón confirme y cierre */}
       {selectedProduct && (
         <ProductModal
           product={selectedProduct}
@@ -2303,7 +2284,6 @@ export default function PublicCatalog({
         />
       )}
 
-      {/* Modal de Confirmación */}
       {confirmAction && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-2xl max-w-sm w-full p-6 border border-stone-200 dark:border-stone-800">
