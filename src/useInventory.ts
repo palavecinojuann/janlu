@@ -1585,9 +1585,8 @@ export function useInventory() {
     }
   };
 
+  // 🚀 LÓGICA DE CONTADOR GLOBAL (AI STUDIO) APLICADA
   const registerSale = async (saleData: Omit<Sale, 'id' | 'date'>) => {
-   const registerSale = async (saleData: Omit<Sale, 'id' | 'date'>) => {
-    // 1. Obtenemos el correlativo de forma segura mediante una Transacción
     let nextOrderNumber = 1000;
     try {
       const counterRef = doc(db, 'metadata', 'counters');
@@ -1595,10 +1594,10 @@ export function useInventory() {
         const counterDoc = await transaction.get(counterRef);
         let newOrderNumber = 1000;
         
-        if (counterDoc.exists() && counterDoc.data().lastOrderNumber) {
+        if (counterDoc.exists() && typeof counterDoc.data().lastOrderNumber === 'number') {
           newOrderNumber = counterDoc.data().lastOrderNumber + 1;
         } else {
-          // Fallback al máximo local si el contador no existe (solo útil la primera vez para admins)
+          // Fallback al máximo local si el contador no existe
           const localMax = sales.reduce((max, sale) => Math.max(max, sale.orderNumber || 0), 0);
           newOrderNumber = Math.max(1000, localMax + 1);
         }
@@ -1611,9 +1610,6 @@ export function useInventory() {
       const localMax = sales.reduce((max, sale) => Math.max(max, sale.orderNumber || 0), 0);
       nextOrderNumber = Math.max(1000, localMax + 1);
     }
-    
-    // CRM Logic - Normalization
-    const normalizeEmail = (e?: string) => e?.trim().toLowerCase() || '';
     
     // CRM Logic - Normalization
     const normalizeEmail = (e?: string) => e?.trim().toLowerCase() || '';
@@ -1696,7 +1692,7 @@ export function useInventory() {
       ...saleData,
       id: uuidv4(),
       customerId: customerId || '',
-      orderNumber: nextOrderNumber,
+      orderNumber: nextOrderNumber, // <--- NÚMERO SEGURO APLICADO AQUÍ
       date: new Date().toISOString(),
       totalAmount: roundFinancial(saleData.totalAmount),
       amountPaid: roundFinancial(saleData.amountPaid),
