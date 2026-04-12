@@ -43,12 +43,10 @@ export default function ProductModal({
     product.variants.find(v => getVariantStock(v, rawMaterials) > 0) || product.variants[0] || null
   );
 
-  // Reset localVariant when product changes
   useEffect(() => {
     setLocalVariant(product.variants.find(v => getVariantStock(v, rawMaterials) > 0) || product.variants[0] || null);
   }, [product, rawMaterials]);
 
-  // Handle escape key to close modal
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -63,13 +61,10 @@ export default function ProductModal({
     };
   }, [isOpen, onClose]);
 
-  // Lock scroll on body when modal is open
   useEffect(() => {
     if (!isOpen) return;
-
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-
     return () => {
       document.body.style.overflow = originalOverflow;
     };
@@ -99,16 +94,13 @@ export default function ProductModal({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-0 sm:p-4 md:p-6 lg:p-8">
-      {/* Background Overlay */}
       <div 
         className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       />
       
-      {/* Modal Container */}
       <div className="relative bg-white w-full max-w-[1000px] h-[100dvh] sm:h-[85vh] sm:min-h-[600px] sm:rounded-[32px] shadow-2xl overflow-hidden flex flex-col md:flex-row z-10 animate-in fade-in zoom-in-95 duration-300">
         
-        {/* Close Button */}
         <button 
           onClick={onClose}
           className="absolute top-4 right-4 md:top-6 md:right-6 z-30 p-2 bg-white/90 backdrop-blur-md rounded-full text-stone-400 hover:text-stone-900 shadow-sm transition-all hover:rotate-90 hover:bg-white"
@@ -117,7 +109,6 @@ export default function ProductModal({
           <X size={24} />
         </button>
 
-        {/* --- LEFT COLUMN: Image Section --- */}
         <div className="w-full md:w-[50%] h-[40vh] md:h-full bg-stone-50 relative flex-shrink-0 border-b md:border-b-0 md:border-r border-stone-100">
           {product.photoUrl ? (
             <img 
@@ -142,7 +133,6 @@ export default function ProductModal({
           )}
         </div>
 
-        {/* --- RIGHT COLUMN: Content Section --- */}
         <div className="flex-1 p-6 md:p-10 lg:p-12 overflow-y-auto flex flex-col bg-white">
           <div className="mb-8">
             <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-3 block">
@@ -238,15 +228,6 @@ export default function ProductModal({
             )}
 
             <div className="flex flex-col gap-4">
-              {quantityInCart > 0 && (
-                <div className="flex items-center justify-center md:justify-start gap-2 bg-emerald-50 text-emerald-700 py-2 px-4 rounded-xl border border-emerald-100">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                  <span className="text-[10px] font-bold uppercase tracking-widest">
-                    Ya tienes {quantityInCart} en tu carrito
-                  </span>
-                </div>
-              )}
-
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
                 <div className="flex flex-col gap-1 w-full sm:w-auto">
                   <div className="flex items-center border-2 border-stone-200 rounded-2xl overflow-hidden h-14 bg-white">
@@ -283,18 +264,22 @@ export default function ProductModal({
                   disabled={isOutOfStock || !localVariant}
                   onClick={() => {
                     if (localVariant) {
-                      onUpdateCart(product, localVariant, quantityInCart + 1);
+                      // Si no había agregado nada, agrega 1 por cortesía.
+                      if (quantityInCart === 0) {
+                        onUpdateCart(product, localVariant, 1);
+                      }
+                      // Y ahora simplemente cierra el modal.
+                      onClose();
                     }
                   }}
                   className="flex-1 h-14 bg-stone-900 text-white font-bold uppercase tracking-[0.2em] text-xs hover:bg-stone-800 rounded-2xl transition-all shadow-xl shadow-stone-900/10 disabled:opacity-50 disabled:grayscale flex items-center justify-center gap-2"
                 >
                   <ShoppingBag size={16} />
-                  Agregar al carrito
+                  {quantityInCart === 0 ? 'Agregar al carrito' : 'Confirmar y Volver'}
                 </button>
               </div>
             </div>
 
-            {/* Lógica de Nota Destacada */}
             {(product.customNote || storeSettings?.productModalNotice) && (
               <div className="mt-8 pt-6 border-t border-stone-100 bg-stone-50/50 -mx-6 md:-mx-10 lg:-mx-12 px-6 md:px-10 lg:px-12 -mb-6 md:-mb-10 lg:-mb-12 pb-6 md:pb-10 lg:pb-12">
                 <div className="flex gap-3 text-stone-500 max-w-md">
