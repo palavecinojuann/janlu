@@ -436,7 +436,6 @@ const ProductSlider: React.FC<{ title: string; products: Product[]; isAdminMode:
 }) => {
   const { ref, onMouseDown, onMouseLeave, onMouseUp, onMouseMove, className, style } = useDraggableScroll();
 
-  // 🔌 Nuevo motor de desplazamiento para botones (Solo PC)
   const handleScroll = (direction: 'left' | 'right') => {
     if (ref.current) {
       const scrollAmount = direction === 'left' ? -400 : 400; 
@@ -447,7 +446,7 @@ const ProductSlider: React.FC<{ title: string; products: Product[]; isAdminMode:
   if (products.length === 0) return null;
 
   return (
-    <div className="mb-12 group"> {/* Contenedor con 'group' para efectos de hover */}
+    <div className="mb-12 group/slider">
       <div className="flex items-center justify-between mb-6 px-4 sm:px-0">
         <h2 className="text-xl sm:text-2xl font-serif text-stone-900 tracking-tight">{title}</h2>
         <div className="h-px flex-1 bg-stone-100 mx-6 hidden sm:block"></div>
@@ -455,19 +454,19 @@ const ProductSlider: React.FC<{ title: string; products: Product[]; isAdminMode:
       </div>
       
       <div className="relative">
-        {/* Flecha Izquierda - Flotante, solo PC (md) */}
+        {/* Flecha Izquierda */}
         <button
           onClick={() => handleScroll('left')}
-          className="hidden md:flex absolute -left-5 top-[40%] -translate-y-1/2 z-20 w-12 h-12 bg-white/95 backdrop-blur-sm border border-stone-100 shadow-xl rounded-full items-center justify-center text-stone-400 hover:text-stone-900 hover:scale-110 transition-all opacity-0 group-hover:opacity-100"
+          className="hidden md:flex absolute -left-5 top-[45%] -translate-y-1/2 z-20 w-12 h-12 bg-white/95 backdrop-blur-sm border border-stone-100 shadow-xl rounded-full items-center justify-center text-stone-400 hover:text-stone-900 hover:scale-110 transition-all opacity-0 group-hover/slider:opacity-100"
           aria-label="Desplazar a la izquierda"
         >
           <ChevronLeft size={24} strokeWidth={1.5} />
         </button>
 
-        {/* Contenedor de Productos */}
+        {/* Contenedor de Productos - py-6 da aire para que el zoom no se corte */}
         <div 
           ref={ref}
-          className={`${className} -mx-4 px-4 sm:mx-0 sm:px-0 select-none hide-scrollbar`}
+          className={`${className} flex flex-nowrap gap-6 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 py-6 select-none hide-scrollbar snap-x snap-mandatory`}
           style={style}
           onMouseDown={onMouseDown}
           onMouseLeave={onMouseLeave}
@@ -475,7 +474,11 @@ const ProductSlider: React.FC<{ title: string; products: Product[]; isAdminMode:
           onMouseMove={onMouseMove}
         >
           {products.map((product, index) => (
-            <div key={`${product.id}-${index}`} className="min-w-[200px] sm:min-w-[280px] snap-start">
+            /* AQUÍ ESTÁ EL TRUCO: flex-none para tamaño fijo y hover:scale para el zoom */
+            <div 
+              key={`${product.id}-${index}`} 
+              className="flex-none w-[200px] sm:w-[280px] snap-start transition-all duration-500 ease-out hover:scale-[1.04] hover:z-10"
+            >
               <ProductCard
                 product={product}
                 isAdminMode={isAdminMode}
@@ -496,10 +499,10 @@ const ProductSlider: React.FC<{ title: string; products: Product[]; isAdminMode:
           ))}
         </div>
 
-        {/* Flecha Derecha - Flotante, solo PC (md) */}
+        {/* Flecha Derecha */}
         <button
           onClick={() => handleScroll('right')}
-          className="hidden md:flex absolute -right-5 top-[40%] -translate-y-1/2 z-20 w-12 h-12 bg-white/95 backdrop-blur-sm border border-stone-100 shadow-xl rounded-full items-center justify-center text-stone-400 hover:text-stone-900 hover:scale-110 transition-all opacity-0 group-hover:opacity-100"
+          className="hidden md:flex absolute -right-5 top-[45%] -translate-y-1/2 z-20 w-12 h-12 bg-white/95 backdrop-blur-sm border border-stone-100 shadow-xl rounded-full items-center justify-center text-stone-400 hover:text-stone-900 hover:scale-110 transition-all opacity-0 group-hover/slider:opacity-100"
           aria-label="Desplazar a la derecha"
         >
           <ChevronRight size={24} strokeWidth={1.5} />
