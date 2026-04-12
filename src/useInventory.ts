@@ -1558,7 +1558,7 @@ export function useInventory() {
     }
   };
 
-  // 🚀 FUNCIÓN REGISTER SALE ACTUALIZADA (CONTADOR GLOBAL + TELÉFONO)
+  // 🚀 FUNCIÓN REGISTER SALE (ANTI-DUPLICADOS + CONTADOR GLOBAL + TELÉFONO)
   const registerSale = async (saleData: Omit<Sale, 'id' | 'date'>) => {
     let nextOrderNumber = 1000;
     try {
@@ -1566,15 +1566,12 @@ export function useInventory() {
       nextOrderNumber = await runTransaction(db, async (transaction) => {
         const counterDoc = await transaction.get(counterRef);
         let newOrderNumber = 1000;
-        
         if (counterDoc.exists() && typeof counterDoc.data().lastOrderNumber === 'number') {
           newOrderNumber = counterDoc.data().lastOrderNumber + 1;
         } else {
-          // Fallback al máximo local si el contador no existe
           const localMax = sales.reduce((max, sale) => Math.max(max, sale.orderNumber || 0), 0);
           newOrderNumber = Math.max(1000, localMax + 1);
         }
-        
         transaction.set(counterRef, { lastOrderNumber: newOrderNumber }, { merge: true });
         return newOrderNumber;
       });
@@ -1584,33 +1581,52 @@ export function useInventory() {
       nextOrderNumber = Math.max(1000, localMax + 1);
     }
     
-    // CRM Logic - Normalization
     const normalizeEmail = (e?: string) => e?.trim().toLowerCase() || '';
     const normalizePhone = (p?: string) => p?.replace(/\D/g, '') || '';
     
-    // 🚨 Ignorar la palabra 'guest' para forzar el guardado de los datos reales
     let customerId = saleData.customerId === 'guest' ? '' : saleData.customerId;
     let customerToUpdate: Customer | null = null;
     let newCustomer: Customer | null = null;
+    let existingCustomer: Customer | undefined = undefined;
 
+    const inputEmail = saleData.registrationData?.email || saleData.customerEmail;
+    const inputPhone = saleData.registrationData?.phone || saleData.customerPhone;
+    const nEmail = normalizeEmail(inputEmail);
+    const nPhone = normalizePhone(inputPhone);
+
+    // 🚨 1. BÚSQUEDA ANTI-DUPLICADOS (Local + Firestore)
+    existingCustomer = customers.find(c => 
+      (nEmail && normalizeEmail(c.email) === nEmail) || 
+      (nPhone && normalizePhone(c.phone) === nPhone)
+    );
+
+    if (!existingCustomer && (nEmail || nPhone)) {
+      try {
+        if (nEmail) {
+          const snap = await getDocs(query(collection(db, 'customers'), where('email', '==', nEmail), limit(1)));
+          if (!snap.empty) existingCustomer = { ...snap.docs[0].data(), id: snap.docs[0].id } as Customer;
+        }
+        if (!existingCustomer && nPhone) {
+          const snap = await getDocs(query(collection(db, 'customers'), where('phone', '==', nPhone), limit(1)));
+          if (!snap.empty) existingCustomer = { ...snap.docs[0].data(), id: snap.docs[0].id } as Customer;
+        }
+      } catch (e) {
+        console.warn("Error buscando cliente en DB (verifica reglas Firestore):", e);
+      }
+    }
+
+    // 2. LÓGICA DE CREACIÓN/ACTUALIZACIÓN DE CLIENTE
     if (saleData.isRegistering && saleData.registrationData) {
       const { firstName, lastName, phone, email, birthDate } = saleData.registrationData;
       const fullName = `${firstName} ${lastName}`.trim();
-      const nEmail = normalizeEmail(email);
-      const nPhone = normalizePhone(phone);
-      
-      const existingCustomer = customers.find(c => 
-        (nEmail && normalizeEmail(c.email) === nEmail) || 
-        (nPhone && normalizePhone(c.phone) === nPhone)
-      );
       
       if (existingCustomer) {
         customerId = existingCustomer.id;
         customerToUpdate = {
           ...existingCustomer,
           name: fullName,
-          phone: nPhone || existingCustomer.phone,
-          birthDate: birthDate || existingCustomer.birthDate,
+          phone: normalizePhone(phone) || existingCustomer.phone || '',
+          birthDate: birthDate || existingCustomer.birthDate || '',
           lastPurchaseDate: new Date().toISOString()
         };
       } else {
@@ -1625,20 +1641,11 @@ export function useInventory() {
         };
         customerId = newCustomer.id;
       }
-    } else if (!customerId && (saleData.customerEmail || saleData.customerPhone)) {
-      const nEmail = normalizeEmail(saleData.customerEmail);
-      const nPhone = normalizePhone(saleData.customerPhone);
-
-      const existingCustomer = customers.find(c => 
-        (nEmail && normalizeEmail(c.email) === nEmail) || 
-        (nPhone && normalizePhone(c.phone) === nPhone)
-      );
-      
+    } else if (!customerId && (nEmail || nPhone)) {
       if (existingCustomer) {
         customerId = existingCustomer.id;
         customerToUpdate = {
           ...existingCustomer,
-          // 🚨 Guardar el teléfono ingresado si su perfil estaba vacío
           phone: existingCustomer.phone || nPhone,
           lastPurchaseDate: new Date().toISOString()
         };
@@ -1647,7 +1654,6 @@ export function useInventory() {
           id: uuidv4(),
           name: (saleData.customerName || '').trim(),
           email: nEmail,
-          // 🚨 Asegurar la creación de un nuevo cliente con su teléfono
           phone: nPhone,
           address: (saleData.shippingAddress || '').trim(),
           createdAt: new Date().toISOString(),
@@ -1656,22 +1662,21 @@ export function useInventory() {
         customerId = newCustomer.id;
       }
     } else if (customerId) {
-      const existing = customers.find(c => c.id === customerId);
+      const existing = existingCustomer || customers.find(c => c.id === customerId);
       if (existing) {
         customerToUpdate = {
           ...existing,
-          // 🚨 Si es un usuario logueado pero sin teléfono, actualizamos su perfil
-          phone: existing.phone || normalizePhone(saleData.customerPhone),
+          phone: existing.phone || nPhone,
           lastPurchaseDate: new Date().toISOString()
         };
       }
     }
 
+    // 3. CREACIÓN DE LA VENTA
     const newSale: Sale = {
       ...saleData,
       id: uuidv4(),
       customerId: customerId || '',
-      // 🚨 Asegurar que la venta también guarde explícitamente el teléfono
       customerPhone: saleData.customerPhone || newCustomer?.phone || customerToUpdate?.phone || '',
       orderNumber: nextOrderNumber,
       date: new Date().toISOString(),
@@ -1693,16 +1698,10 @@ export function useInventory() {
       }] : []
     };
 
-    // Coupon generation logic (pre-calculate if needed)
+    // 4. GENERACIÓN DE CUPÓN DE BIENVENIDA (Solo si es nuevo de verdad)
     let couponToGenerate: Coupon | null = null;
     if (saleData.isRegistering) {
-      const nEmail = normalizeEmail(saleData.registrationData?.email);
-      const nPhone = normalizePhone(saleData.registrationData?.phone);
-      const alreadyExisted = customers.some(c => 
-        (nEmail && normalizeEmail(c.email) === nEmail) || 
-        (nPhone && normalizePhone(c.phone) === nPhone)
-      );
-
+      const alreadyExisted = !!existingCustomer;
       if (!alreadyExisted) {
         const suffix = uuidv4().substring(0, 6).toUpperCase();
         couponToGenerate = {
@@ -1718,23 +1717,20 @@ export function useInventory() {
       }
     }
 
+    // Deducción optimista local
     const updatedProducts = products.map(p => {
       const saleItems = newSale.items.filter(i => i.productId === p.id);
       if (!saleItems.length) return p;
-      
       return {
         ...p,
         variants: p.variants.map(v => {
           const item = saleItems.find(i => i.variantId === v.id);
-          if (item && v.isFinishedGood !== false) {
-            return { ...v, stock: Math.max(0, v.stock - item.quantity) };
-          }
+          if (item && v.isFinishedGood !== false) return { ...v, stock: Math.max(0, v.stock - item.quantity) };
           return v;
         })
       };
     });
 
-    // 1. Pre-transaction reads (Queries)
     let couponFromQuery: Coupon | null = null;
     if (newSale.appliedCouponCode) {
       const normalizedCode = newSale.appliedCouponCode.trim().toUpperCase();
@@ -1744,18 +1740,12 @@ export function useInventory() {
       } else {
         const q = query(collection(db, 'coupons'), where('code', '==', normalizedCode), limit(1));
         const querySnapshot = await getDocs(q);
-        if (!querySnapshot.empty) {
-          const docSnap = querySnapshot.docs[0];
-          couponFromQuery = { ...docSnap.data(), id: docSnap.id } as Coupon;
-        }
+        if (!querySnapshot.empty) couponFromQuery = { ...querySnapshot.docs[0].data(), id: querySnapshot.docs[0].id } as Coupon;
       }
     }
 
     try {
       await runTransaction(db, async (transaction) => {
-        // --- 1. READS ---
-        
-        // 1.1 Read Coupon
         let couponDocSnap: DocumentSnapshot | null = null;
         let couponRef: DocumentReference | null = null;
         if (couponFromQuery) {
@@ -1765,7 +1755,6 @@ export function useInventory() {
           if (couponDocSnap.data().isUsed) throw new Error("El cupón ya ha sido utilizado.");
         }
 
-        // 1.2 Read Raw Materials
         const materialsToDeduct = new Map<string, number>();
         const materialDocs = new Map<string, DocumentSnapshot>();
         if (newSale.status === 'entregado' || newSale.status === 'listo_para_entregar') {
@@ -1788,104 +1777,77 @@ export function useInventory() {
           }
         }
 
-        // 1.3 Read Course Quotas
         const courseDocs = new Map<string, DocumentSnapshot>();
         for (const item of newSale.items) {
           if (item.isCourse && item.courseId) {
             const courseRef = doc(db, 'courses', item.courseId);
             const docSnap = await transaction.get(courseRef);
-            if (docSnap.exists()) {
-              courseDocs.set(item.courseId, docSnap);
-            }
+            if (docSnap.exists()) courseDocs.set(item.courseId, docSnap);
           }
         }
 
-        // --- 2. WRITES ---
-
-        // 2.1 Handle Coupon Burn
+        // Writes
         if (couponDocSnap && couponRef) {
-          transaction.update(couponRef, { 
-            isUsed: true, 
-            usedBySaleId: newSale.id,
-            usedAt: new Date().toISOString()
-          });
+          transaction.update(couponRef, { isUsed: true, usedBySaleId: newSale.id, usedAt: new Date().toISOString() });
         } else if (newSale.appliedCouponCode) {
-          // Check if it was a welcome discount (customer number)
-          if (newCustomer && newCustomer.customerNumber === newSale.appliedCouponCode) {
-            newCustomer.welcomeDiscountUsed = true;
-          } else if (customerToUpdate && customerToUpdate.customerNumber === newSale.appliedCouponCode) {
-            customerToUpdate.welcomeDiscountUsed = true;
-          } else if (newSale.customerId) {
-            const customer = customers.find(c => c.id === newSale.customerId);
+          if (newCustomer && newCustomer.customerNumber === newSale.appliedCouponCode) newCustomer.welcomeDiscountUsed = true;
+          else if (customerToUpdate && customerToUpdate.customerNumber === newSale.appliedCouponCode) customerToUpdate.welcomeDiscountUsed = true;
+          else if (newSale.customerId) {
+            const customer = existingCustomer || customers.find(c => c.id === newSale.customerId);
             if (customer && customer.customerNumber === newSale.appliedCouponCode) {
               if (customer.welcomeDiscountUsed) throw new Error("El descuento de bienvenida ya ha sido utilizado.");
-              transaction.update(doc(db, 'customers', customer.id), { 
-                welcomeDiscountUsed: true 
-              });
+              transaction.update(doc(db, 'customers', customer.id), { welcomeDiscountUsed: true });
             }
           }
         }
 
-        // 2.2 Handle Customer
         if (newCustomer) {
           transaction.set(doc(db, 'customers', newCustomer.id), cleanObject(newCustomer));
         } else if (customerToUpdate) {
           transaction.update(doc(db, 'customers', customerToUpdate.id), cleanObject(customerToUpdate));
         }
 
-        // 2.3 Handle Raw Materials
         if (newSale.status === 'entregado' || newSale.status === 'listo_para_entregar') {
           for (const [materialId, totalToDeduct] of materialsToDeduct.entries()) {
             const materialDoc = materialDocs.get(materialId)!;
             const materialData = materialDoc.data() as RawMaterial;
-            
             const effectiveUnit = materialData.baseUnit || UMB_FOR_DIMENSION[materialData.dimension || (materialData.unit ? UNIT_DIMENSIONS[materialData.unit as Unit] : 'units')];
             const quantityUMB = toUMB(totalToDeduct, effectiveUnit as Unit);
-            
-            if (materialData.stock < quantityUMB) {
-              throw new Error(`Stock insuficiente para materia prima: ${materialData.name}`);
-            }
-            
+            if (materialData.stock < quantityUMB) throw new Error(`Stock insuficiente para materia prima: ${materialData.name}`);
             transaction.update(doc(db, 'rawMaterials', materialId), { stock: materialData.stock - quantityUMB });
           }
           newSale.materialsDeducted = true;
         }
 
-        // 2.4 Handle Products
         for (const product of updatedProducts) {
           if (newSale.items.some(i => i.productId === product.id)) {
             transaction.update(doc(db, 'products', product.id), { variants: product.variants });
           }
         }
 
-        // 2.5 Handle New Coupon
         if (couponToGenerate) {
           transaction.set(doc(db, 'coupons', couponToGenerate.id), cleanObject(couponToGenerate));
         }
 
-        // 2.6 Handle Course Enrollment
         for (const item of newSale.items) {
           if (item.isCourse && item.courseId) {
             const courseDoc = courseDocs.get(item.courseId);
             if (courseDoc && courseDoc.exists()) {
               const currentEnrolled = courseDoc.data().enrolledCount || 0;
               const maxQuota = courseDoc.data().maxQuota || 0;
-              if (currentEnrolled + item.quantity > maxQuota) {
-                throw new Error(`Cupo insuficiente para el curso: ${item.productName}`);
-              }
+              if (currentEnrolled + item.quantity > maxQuota) throw new Error(`Cupo insuficiente para el curso: ${item.productName}`);
               transaction.update(doc(db, 'courses', item.courseId), { enrolledCount: currentEnrolled + item.quantity });
             }
           }
         }
 
-        // 2.7 Handle Sale (Final Write)
         transaction.set(doc(db, 'sales', newSale.id), cleanObject(newSale));
       });
 
-      // Post-transaction logic (no longer need deductRawMaterials here)
       return newSale.id;
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'sales');
+      return undefined;
     }
   };
 
