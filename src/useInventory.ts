@@ -1726,7 +1726,7 @@ export function useInventory() {
           }
         }
 
-        if (newSale.status === 'entregado' || newSale.status === 'listo_para_entregar') {
+        if (newSale.status !== 'cancelado') {
           newSale.items.forEach(item => {
             const productDoc = productDocs.get(item.productId);
             const product = productDoc?.data() as Product;
@@ -1862,7 +1862,7 @@ export function useInventory() {
     const s = sales.find(sale => sale.id === roundedSale.id);
     if (s) {
       const wasDeducted = s.materialsDeducted;
-      const shouldBeDeducted = roundedSale.status === 'entregado' || roundedSale.status === 'listo_para_entregar';
+      const shouldBeDeducted = roundedSale.status !== 'cancelado';
       
       try {
         if (roundedSale.status === 'cancelado' && s.status !== 'cancelado') {
