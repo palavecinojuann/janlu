@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Product, Variant, Offer, Campaign, RawMaterial, StoreSettings, Course } from '../types';
-import { X, Minus, Plus, Flame, Tag, Package, RotateCcw, Info, ChevronRight, Sparkles } from 'lucide-react';
+import { X, Minus, Plus, Flame, Info, ShoppingBag } from 'lucide-react';
 import { getVariantStock } from '../utils/stockUtils';
 
 interface CartItem {
@@ -118,7 +118,6 @@ export default function ProductModal({
         </button>
 
         {/* --- LEFT COLUMN: Image Section --- */}
-        {/* Usamos w-[50%] fijo en PC y h-full con object-cover para que sea un papel tapiz perfecto */}
         <div className="w-full md:w-[50%] h-[40vh] md:h-full bg-stone-50 relative flex-shrink-0 border-b md:border-b-0 md:border-r border-stone-100">
           {product.photoUrl ? (
             <img 
@@ -144,7 +143,6 @@ export default function ProductModal({
         </div>
 
         {/* --- RIGHT COLUMN: Content Section --- */}
-        {/* Usamos flex-1 para que ocupe el resto del espacio y overflow-y-auto para scroll interno */}
         <div className="flex-1 p-6 md:p-10 lg:p-12 overflow-y-auto flex flex-col bg-white">
           <div className="mb-8">
             <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-3 block">
