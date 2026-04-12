@@ -115,7 +115,6 @@ export default function App() {
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash;
-      // Only allow leaving the catalog if there's an admin hash AND the user is an admin
       const isAdminHash = hash && hash !== '' && hash !== '#catalog' && !hash.startsWith('#catalog?');
       
       if (isAdminHash && isAdmin) {
@@ -130,8 +129,6 @@ export default function App() {
 
     window.addEventListener('hashchange', handleHashChange);
     window.addEventListener('popstate', handleHashChange);
-    
-    // Run on mount to sync if user is already admin and coming from a direct link
     if (isAuthReady) handleHashChange();
 
     return () => {
@@ -146,12 +143,27 @@ export default function App() {
   };
 
   const navigateToAdmin = () => {
-    if (!isAdmin) {
-      console.warn("Acceso denegado: Se requiere rol de administrador.");
-      return;
-    }
+    if (!isAdmin) return;
     window.location.hash = 'dashboard';
     setIsPublicCatalog(false);
+  };
+
+  // 🚀 LÓGICA DE NUMERACIÓN CORRELATIVA (PEDIDO #1000+)
+  const handleSmartRegisterSale = async (saleData: any) => {
+    // Buscamos el número de pedido más alto que ya existe en la base de datos local
+    const maxOrderNumber = sales.reduce((max, sale) => {
+      const currentNum = sale.orderNumber || 0;
+      return currentNum > max ? currentNum : max;
+    }, 0);
+
+    // Si no hay ventas, empezamos en 1000. Si hay, sumamos 1 al máximo.
+    const nextOrderNumber = maxOrderNumber === 0 ? 1000 : maxOrderNumber + 1;
+
+    // Registramos la venta con su nuevo número oficial
+    await registerSale({
+      ...saleData,
+      orderNumber: nextOrderNumber
+    });
   };
 
   useEffect(() => {
@@ -170,10 +182,8 @@ export default function App() {
     );
   }
 
-  // Main render logic
   return (
     <>
-      {/* Auth Modal */}
       {showAuth && !currentUser && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-[#f4e9d3] dark:bg-stone-900 rounded-2xl shadow-2xl max-w-md w-full p-8 relative animate-in fade-in zoom-in duration-200">
@@ -183,12 +193,10 @@ export default function App() {
             >
               <X size={24} />
             </button>
-            
             <div className="flex flex-col items-center justify-center mb-8">
               <h1 className="text-4xl font-cinzel font-bold text-stone-900 dark:text-white leading-none tracking-normal">JANLU</h1>
               <p className="font-lato text-[10px] uppercase tracking-[0.4em] text-stone-500 dark:text-stone-400 mt-2">Aromas & Diseño</p>
             </div>
-            
             {authMode === 'login' ? (
               <LoginForm onSwitchToRegister={() => setAuthMode('register')} />
             ) : (
@@ -198,10 +206,8 @@ export default function App() {
         </div>
       )}
 
-      {/* Admin Dashboard View */}
       {currentUser && isAdmin && !isPublicCatalog ? (
         <div className="flex min-h-screen lg:h-screen bg-[#f4e9d3] dark:bg-stone-900 text-stone-900 dark:text-stone-100 font-sans print:block print:h-auto print:bg-white">
-          {/* Mobile Sidebar Overlay */}
           {isMobileMenuOpen && (
             <div 
               className="fixed inset-0 bg-black/50 z-40 lg:hidden print:hidden"
@@ -214,10 +220,7 @@ export default function App() {
               <div className="w-full max-w-md p-4">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-white text-lg font-medium">Escanear Código</h3>
-                  <button 
-                    onClick={() => setIsScanning(false)}
-                    className="text-white/70 hover:text-white p-2"
-                  >
+                  <button onClick={() => setIsScanning(false)} className="text-white/70 hover:text-white p-2">
                     <X size={24} />
                   </button>
                 </div>
@@ -245,7 +248,6 @@ export default function App() {
             </div>
           )}
 
-          {/* Sidebar */}
           <aside className={`fixed inset-y-0 left-0 z-50 transform ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 lg:relative lg:translate-x-0 lg:z-0 print:hidden`}>
             <JanluSidebar 
               currentView={currentView}
@@ -261,9 +263,7 @@ export default function App() {
             />
           </aside>
 
-          {/* Main Content */}
           <main className="flex-1 flex flex-col min-w-0 overflow-visible lg:overflow-hidden print:overflow-visible print:block">
-            {/* Mobile Header */}
             <header className="lg:hidden flex items-center justify-between h-16 px-4 bg-white dark:bg-stone-950 border-b border-stone-200 dark:border-stone-800 print:hidden shrink-0">
               <button className="text-stone-500 dark:text-stone-400" onClick={() => setIsMobileMenuOpen(true)}>
                 <Menu size={24} />
@@ -331,7 +331,6 @@ export default function App() {
                   />
                 )}
 
-                {/* Other views... (omitted for brevity in this chunk but they should remain) */}
                 {currentView === 'sales' && <SaleList sales={sales} products={products} customers={customers} storeSettings={storeSettings} onNewSale={() => setCurrentView('new-sale')} onUpdateSale={updateSale} onAttachReceipt={(id, url) => updateSale({...sales.find(s=>s.id===id)!, receiptUrl: url})} initialStatusFilter={saleStatusFilter} />}
                 {currentView === 'quotes' && <QuoteList quotes={quotes} products={products} customers={customers} onNewQuote={() => setCurrentView('new-quote')} onDelete={deleteQuote} onApprove={approveQuote} />}
                 {currentView === 'customers' && <CustomerList customers={customers} sales={sales} offers={offers} onAdd={addCustomer} onUpdate={updateCustomer} onDelete={deleteCustomer} />}
@@ -350,7 +349,7 @@ export default function App() {
                 {currentView === 'finance' && <FinanceView financialDocs={financialDocs} sales={sales} onAddDoc={addFinancialDoc} onDeleteDoc={deleteFinancialDoc} />}
                 {currentView === 'stats' && <StatsView sales={sales} quotes={quotes} financialDocs={financialDocs} products={products} />}
                 {currentView === 'dispatch' && <DispatchView sales={sales} customers={customers} />}
-                {currentView === 'new-sale' && <SaleForm products={products} rawMaterials={rawMaterials} customers={customers} offers={offers} campaigns={campaigns} storeSettings={storeSettings} courses={courses} onSave={(s)=>{registerSale(s); setCurrentView('sales');}} onCancel={()=>setCurrentView('sales')} onValidateCoupon={validateCoupon} />}
+                {currentView === 'new-sale' && <SaleForm products={products} rawMaterials={rawMaterials} customers={customers} offers={offers} campaigns={campaigns} storeSettings={storeSettings} courses={courses} onSave={(s)=>{handleSmartRegisterSale(s); setCurrentView('sales');}} onCancel={()=>setCurrentView('sales')} onValidateCoupon={validateCoupon} />}
                 {currentView === 'new-quote' && <QuoteForm products={products} customers={customers} offers={offers} campaigns={campaigns} storeSettings={storeSettings} onSave={(q)=>{addQuote(q); setCurrentView('quotes');}} onCancel={()=>setCurrentView('quotes')} />}
                 {(currentView === 'add-product' || currentView === 'edit-product') && <ProductForm product={currentView === 'edit-product' ? products.find(p=>p.id===editingProductId) : undefined} rawMaterials={rawMaterials} onSave={async(p)=>{if(currentView==='edit-product') await updateProduct(p); else await addProduct(p); setCurrentView('inventory');}} onCancel={()=>setCurrentView('inventory')} />}
                 {currentView === 'edit-raw-material' && editingRawMaterialId && <RawMaterialForm initialData={rawMaterials.find(m=>m.id===editingRawMaterialId)} products={products} onSave={(m)=>{updateRawMaterial(m); setCurrentView('inventory');}} onCancel={()=>setCurrentView('inventory')} />}
@@ -391,7 +390,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* Floating Scanner Button */}
             <button
               onClick={() => setIsScanning(true)}
               className="fixed bottom-4 right-4 lg:bottom-8 lg:right-8 bg-indigo-600 text-white p-4 rounded-full shadow-lg hover:bg-indigo-700 transition-colors z-40 print:hidden"
@@ -410,7 +408,7 @@ export default function App() {
           onAddProduct={isAdmin ? addProduct : undefined}
           onUpdateProduct={isAdmin ? updateProduct : undefined}
           onDeleteProduct={isAdmin ? deleteProduct : undefined}
-          onRegisterSale={registerSale}
+          onRegisterSale={handleSmartRegisterSale} // 🎯 Usamos la nueva lógica inteligente
           onBackToAdmin={currentUser && isAdmin ? navigateToAdmin : (currentUser ? () => auth.signOut() : undefined)}
           isCustomer={!isAdmin}
           lastSync={lastSync}
