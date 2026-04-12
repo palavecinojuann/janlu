@@ -1558,7 +1558,7 @@ export function useInventory() {
     }
   };
 
- // 🚀 FUNCIÓN REGISTER SALE (ANTI-DUPLICADOS + CONTADOR GLOBAL + TELÉFONO)
+// 🚀 LÓGICA DE REGISTRO DE VENTA (100% TRANSACCIONAL, LECTURA DIRECTA DE BD)
   const registerSale = async (saleData: Omit<Sale, 'id' | 'date'>) => {
     let nextOrderNumber = 1000;
     try {
@@ -1581,9 +1581,15 @@ export function useInventory() {
       nextOrderNumber = Math.max(1000, localMax + 1);
     }
     
-    // CRM Logic - Normalization
-    const normalizeEmail = (e?: string) => e?.trim().toLowerCase() || '';
-    const normalizePhone = (p?: string) => p?.replace(/\D/g, '') || '';
+    const normalizeEmail = (e?: string) => {
+      if (e) return e.trim().toLowerCase();
+      return '';
+    };
+
+    const normalizePhone = (p?: string) => {
+      if (p) return p.replace(/\D/g, '');
+      return '';
+    };
     
     let customerId = saleData.customerId === 'guest' ? '' : saleData.customerId;
     let customerToUpdate: Customer | null = null;
@@ -1595,28 +1601,27 @@ export function useInventory() {
     const nEmail = normalizeEmail(inputEmail);
     const nPhone = normalizePhone(inputPhone);
 
-    // 🚨 1. BÚSQUEDA ANTI-DUPLICADOS: Primero buscamos localmente, luego en la Base de Datos
-    existingCustomer = customers.find(c => 
-      (nEmail && normalizeEmail(c.email) === nEmail) || 
-      (nPhone && normalizePhone(c.phone) === nPhone)
-    );
+    existingCustomer = customers.find(c => (nEmail && normalizeEmail(c.email) === nEmail) || (nPhone && normalizePhone(c.phone) === nPhone));
 
     if (!existingCustomer && (nEmail || nPhone)) {
       try {
         if (nEmail) {
           const snap = await getDocs(query(collection(db, 'customers'), where('email', '==', nEmail), limit(1)));
-          if (!snap.empty) existingCustomer = { ...snap.docs[0].data(), id: snap.docs[0].id } as Customer;
+          if (!snap.empty) {
+             existingCustomer = { ...snap.docs[0].data(), id: snap.docs[0].id } as Customer;
+          }
         }
         if (!existingCustomer && nPhone) {
           const snap = await getDocs(query(collection(db, 'customers'), where('phone', '==', nPhone), limit(1)));
-          if (!snap.empty) existingCustomer = { ...snap.docs[0].data(), id: snap.docs[0].id } as Customer;
+          if (!snap.empty) {
+             existingCustomer = { ...snap.docs[0].data(), id: snap.docs[0].id } as Customer;
+          }
         }
       } catch (e) {
         console.warn("Error buscando cliente en DB:", e);
       }
     }
 
-    // 2. LÓGICA DE CREACIÓN/ACTUALIZACIÓN DE CLIENTE
     if (saleData.isRegistering && saleData.registrationData) {
       const { firstName, lastName, phone, email, birthDate } = saleData.registrationData;
       const fullName = `${firstName} ${lastName}`.trim();
@@ -1631,49 +1636,24 @@ export function useInventory() {
           lastPurchaseDate: new Date().toISOString()
         };
       } else {
-        newCustomer = {
-          id: uuidv4(),
-          name: fullName,
-          email: nEmail,
-          phone: nPhone,
-          birthDate: birthDate || '',
-          createdAt: new Date().toISOString(),
-          lastPurchaseDate: new Date().toISOString()
-        };
+        newCustomer = { id: uuidv4(), name: fullName, email: nEmail, phone: nPhone, birthDate: birthDate || '', createdAt: new Date().toISOString(), lastPurchaseDate: new Date().toISOString() };
         customerId = newCustomer.id;
       }
     } else if (!customerId && (nEmail || nPhone)) {
       if (existingCustomer) {
         customerId = existingCustomer.id;
-        customerToUpdate = {
-          ...existingCustomer,
-          phone: existingCustomer.phone || nPhone,
-          lastPurchaseDate: new Date().toISOString()
-        };
+        customerToUpdate = { ...existingCustomer, phone: existingCustomer.phone || nPhone, lastPurchaseDate: new Date().toISOString() };
       } else {
-        newCustomer = {
-          id: uuidv4(),
-          name: (saleData.customerName || '').trim(),
-          email: nEmail,
-          phone: nPhone,
-          address: (saleData.shippingAddress || '').trim(),
-          createdAt: new Date().toISOString(),
-          lastPurchaseDate: new Date().toISOString()
-        };
+        newCustomer = { id: uuidv4(), name: (saleData.customerName || '').trim(), email: nEmail, phone: nPhone, address: (saleData.shippingAddress || '').trim(), createdAt: new Date().toISOString(), lastPurchaseDate: new Date().toISOString() };
         customerId = newCustomer.id;
       }
     } else if (customerId) {
       const existing = existingCustomer || customers.find(c => c.id === customerId);
       if (existing) {
-        customerToUpdate = {
-          ...existing,
-          phone: existing.phone || nPhone,
-          lastPurchaseDate: new Date().toISOString()
-        };
+        customerToUpdate = { ...existing, phone: existing.phone || nPhone, lastPurchaseDate: new Date().toISOString() };
       }
     }
 
-    // 3. CREACIÓN DE LA VENTA
     const newSale: Sale = {
       ...saleData,
       id: uuidv4(),
@@ -1684,65 +1664,34 @@ export function useInventory() {
       totalAmount: roundFinancial(saleData.totalAmount),
       amountPaid: roundFinancial(saleData.amountPaid),
       discount: roundFinancial(saleData.discount || 0),
-      items: saleData.items.map(item => ({
-        ...item,
-        price: roundFinancial(item.price),
-        total: roundFinancial(item.total || (item.price * item.quantity))
-      })),
+      items: saleData.items.map(item => ({ ...item, price: roundFinancial(item.price), total: roundFinancial(item.total || (item.price * item.quantity)) })),
       materialsDeducted: false,
-      paymentHistory: saleData.amountPaid > 0 ? [{
-        date: new Date().toISOString(),
-        amount: roundFinancial(saleData.amountPaid),
-        method: saleData.paymentMethod,
-        status: saleData.paymentStatus || 'verified',
-        notes: saleData.paymentNotes
-      }] : []
+      paymentHistory: saleData.amountPaid > 0 ? [{ date: new Date().toISOString(), amount: roundFinancial(saleData.amountPaid), method: saleData.paymentMethod, status: saleData.paymentStatus || 'verified', notes: saleData.paymentNotes }] : []
     };
 
-    // 🚨 4. GENERACIÓN DE CUPONES (AQUÍ ESTÁ LA CORRECCIÓN)
     let couponToGenerate: Coupon | null = null;
     if (saleData.isRegistering) {
-      // Usamos la variable inteligente que ahora SÍ sabe si el cliente estaba en Firestore
       const alreadyExisted = !!existingCustomer;
-
       if (!alreadyExisted) {
         const suffix = uuidv4().substring(0, 6).toUpperCase();
-        couponToGenerate = {
-          id: uuidv4(),
-          code: `BIE15-${suffix}`,
-          discountPercentage: 15,
-          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-          customerId: customerId || '',
-          isUsed: false,
-          createdAt: new Date().toISOString(),
-        };
+        couponToGenerate = { id: uuidv4(), code: `BIE15-${suffix}`, discountPercentage: 15, expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), customerId: customerId || '', isUsed: false, createdAt: new Date().toISOString() };
         newSale.generatedCouponCode = couponToGenerate.code;
       }
     }
-
-    const updatedProducts = products.map(p => {
-      const saleItems = newSale.items.filter(i => i.productId === p.id);
-      if (!saleItems.length) return p;
-      return {
-        ...p,
-        variants: p.variants.map(v => {
-          const item = saleItems.find(i => i.variantId === v.id);
-          if (item && v.isFinishedGood !== false) return { ...v, stock: Math.max(0, v.stock - item.quantity) };
-          return v;
-        })
-      };
-    });
 
     let couponFromQuery: Coupon | null = null;
     if (newSale.appliedCouponCode) {
       const normalizedCode = newSale.appliedCouponCode.trim().toUpperCase();
       const couponInState = coupons.find(c => c.code.toUpperCase() === normalizedCode);
       if (couponInState) {
-        couponFromQuery = couponInState;
+         couponFromQuery = couponInState;
       } else {
         const q = query(collection(db, 'coupons'), where('code', '==', normalizedCode), limit(1));
         const querySnapshot = await getDocs(q);
-        if (!querySnapshot.empty) couponFromQuery = { ...querySnapshot.docs[0].data(), id: querySnapshot.docs[0].id } as Coupon;
+        if (!querySnapshot.empty) {
+           const docData = querySnapshot.docs[0].data();
+           couponFromQuery = { ...docData, id: querySnapshot.docs[0].id } as Coupon;
+        }
       }
     }
 
@@ -1753,15 +1702,34 @@ export function useInventory() {
         if (couponFromQuery) {
           couponRef = doc(db, 'coupons', couponFromQuery.id);
           couponDocSnap = await transaction.get(couponRef);
-          if (!couponDocSnap.exists()) throw new Error("Cupón no existe en DB");
-          if (couponDocSnap.data().isUsed) throw new Error("El cupón ya ha sido utilizado.");
+          if (!couponDocSnap.exists()) {
+             throw new Error("Cupón no existe en DB");
+          }
+          if (couponDocSnap.data().isUsed) {
+             throw new Error("El cupón ya ha sido utilizado.");
+          }
         }
 
         const materialsToDeduct = new Map<string, number>();
         const materialDocs = new Map<string, DocumentSnapshot>();
+        
+        // 🚨 AQUÍ ESTÁ LA MAGIA: LEEMOS LOS PRODUCTOS DIRECTO DE FIRESTORE, NO DE LA MEMORIA LOCAL
+        const productDocs = new Map<string, DocumentSnapshot>();
+        for (const item of newSale.items) {
+          if (!productDocs.has(item.productId)) {
+            const productRef = doc(db, 'products', item.productId);
+            const docSnap = await transaction.get(productRef);
+            if (!docSnap.exists()) {
+               throw new Error(`Producto no encontrado: ${item.productId}`);
+            }
+            productDocs.set(item.productId, docSnap);
+          }
+        }
+
         if (newSale.status === 'entregado' || newSale.status === 'listo_para_entregar') {
           newSale.items.forEach(item => {
-            const product = products.find(p => p.id === item.productId);
+            const productDoc = productDocs.get(item.productId);
+            const product = productDoc?.data() as Product;
             const variant = product?.variants.find(v => v.id === item.variantId);
             if (variant && variant.recipe && variant.isFinishedGood === false) {
               variant.recipe.forEach(recipeItem => {
@@ -1774,7 +1742,9 @@ export function useInventory() {
           for (const materialId of materialsToDeduct.keys()) {
             const materialRef = doc(db, 'rawMaterials', materialId);
             const docSnap = await transaction.get(materialRef);
-            if (!docSnap.exists()) throw new Error(`Materia prima no encontrada: ${materialId}`);
+            if (!docSnap.exists()) {
+               throw new Error(`Materia prima no encontrada: ${materialId}`);
+            }
             materialDocs.set(materialId, docSnap);
           }
         }
@@ -1784,19 +1754,26 @@ export function useInventory() {
           if (item.isCourse && item.courseId) {
             const courseRef = doc(db, 'courses', item.courseId);
             const docSnap = await transaction.get(courseRef);
-            if (docSnap.exists()) courseDocs.set(item.courseId, docSnap);
+            if (docSnap.exists()) {
+               courseDocs.set(item.courseId, docSnap);
+            }
           }
         }
 
+        // ESCRITURAS
         if (couponDocSnap && couponRef) {
           transaction.update(couponRef, { isUsed: true, usedBySaleId: newSale.id, usedAt: new Date().toISOString() });
         } else if (newSale.appliedCouponCode) {
-          if (newCustomer && newCustomer.customerNumber === newSale.appliedCouponCode) newCustomer.welcomeDiscountUsed = true;
-          else if (customerToUpdate && customerToUpdate.customerNumber === newSale.appliedCouponCode) customerToUpdate.welcomeDiscountUsed = true;
-          else if (newSale.customerId) {
+          if (newCustomer && newCustomer.customerNumber === newSale.appliedCouponCode) {
+            newCustomer.welcomeDiscountUsed = true;
+          } else if (customerToUpdate && customerToUpdate.customerNumber === newSale.appliedCouponCode) {
+            customerToUpdate.welcomeDiscountUsed = true;
+          } else if (newSale.customerId) {
             const customer = existingCustomer || customers.find(c => c.id === newSale.customerId);
             if (customer && customer.customerNumber === newSale.appliedCouponCode) {
-              if (customer.welcomeDiscountUsed) throw new Error("El descuento de bienvenida ya ha sido utilizado.");
+              if (customer.welcomeDiscountUsed) {
+                 throw new Error("El descuento de bienvenida ya ha sido utilizado.");
+              }
               transaction.update(doc(db, 'customers', customer.id), { welcomeDiscountUsed: true });
             }
           }
@@ -1814,16 +1791,34 @@ export function useInventory() {
             const materialData = materialDoc.data() as RawMaterial;
             const effectiveUnit = materialData.baseUnit || UMB_FOR_DIMENSION[materialData.dimension || (materialData.unit ? UNIT_DIMENSIONS[materialData.unit as Unit] : 'units')];
             const quantityUMB = toUMB(totalToDeduct, effectiveUnit as Unit);
-            if (materialData.stock < quantityUMB) throw new Error(`Stock insuficiente para materia prima: ${materialData.name}`);
+            if (materialData.stock < quantityUMB) {
+               throw new Error(`Stock insuficiente para materia prima: ${materialData.name}`);
+            }
             transaction.update(doc(db, 'rawMaterials', materialId), { stock: materialData.stock - quantityUMB });
           }
           newSale.materialsDeducted = true;
         }
 
-        for (const product of updatedProducts) {
-          if (newSale.items.some(i => i.productId === product.id)) {
-            transaction.update(doc(db, 'products', product.id), { variants: product.variants });
+        // 🚨 ESCRITURA DE STOCK BASADA EN DB
+        const productsToUpdate = new Map<string, Product>();
+        for (const item of newSale.items) {
+          const productDoc = productDocs.get(item.productId)!;
+          let productData = productsToUpdate.get(item.productId) || (productDoc.data() as Product);
+          const variant = productData.variants.find(v => v.id === item.variantId);
+          
+          if (variant && variant.isFinishedGood !== false) {
+            const updatedVariants = productData.variants.map(v => {
+              if (v.id === item.variantId) {
+                return { ...v, stock: Math.max(0, v.stock - item.quantity) };
+              }
+              return v;
+            });
+            productData = { ...productData, variants: updatedVariants };
+            productsToUpdate.set(item.productId, productData);
           }
+        }
+        for (const [productId, productData] of productsToUpdate.entries()) {
+          transaction.update(doc(db, 'products', productId), { variants: productData.variants });
         }
 
         if (couponToGenerate) {
@@ -1836,242 +1831,9 @@ export function useInventory() {
             if (courseDoc && courseDoc.exists()) {
               const currentEnrolled = courseDoc.data().enrolledCount || 0;
               const maxQuota = courseDoc.data().maxQuota || 0;
-              if (currentEnrolled + item.quantity > maxQuota) throw new Error(`Cupo insuficiente para el curso: ${item.productName}`);
-              transaction.update(doc(db, 'courses', item.courseId), { enrolledCount: currentEnrolled + item.quantity });
-            }
-          }
-        }
-
-        transaction.set(doc(db, 'sales', newSale.id), cleanObject(newSale));
-      });
-
-      return newSale.id;
-    } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'sales');
-      return undefined;
-    }
-  };
-    // 2. LÓGICA DE CREACIÓN/ACTUALIZACIÓN DE CLIENTE
-    if (saleData.isRegistering && saleData.registrationData) {
-      const { firstName, lastName, phone, email, birthDate } = saleData.registrationData;
-      const fullName = `${firstName} ${lastName}`.trim();
-      
-      if (existingCustomer) {
-        customerId = existingCustomer.id;
-        customerToUpdate = {
-          ...existingCustomer,
-          name: fullName,
-          phone: normalizePhone(phone) || existingCustomer.phone || '',
-          birthDate: birthDate || existingCustomer.birthDate || '',
-          lastPurchaseDate: new Date().toISOString()
-        };
-      } else {
-        newCustomer = {
-          id: uuidv4(),
-          name: fullName,
-          email: nEmail,
-          phone: nPhone,
-          birthDate: birthDate || '',
-          createdAt: new Date().toISOString(),
-          lastPurchaseDate: new Date().toISOString()
-        };
-        customerId = newCustomer.id;
-      }
-    } else if (!customerId && (nEmail || nPhone)) {
-      if (existingCustomer) {
-        customerId = existingCustomer.id;
-        customerToUpdate = {
-          ...existingCustomer,
-          phone: existingCustomer.phone || nPhone,
-          lastPurchaseDate: new Date().toISOString()
-        };
-      } else {
-        newCustomer = {
-          id: uuidv4(),
-          name: (saleData.customerName || '').trim(),
-          email: nEmail,
-          phone: nPhone,
-          address: (saleData.shippingAddress || '').trim(),
-          createdAt: new Date().toISOString(),
-          lastPurchaseDate: new Date().toISOString()
-        };
-        customerId = newCustomer.id;
-      }
-    } else if (customerId) {
-      const existing = existingCustomer || customers.find(c => c.id === customerId);
-      if (existing) {
-        customerToUpdate = {
-          ...existing,
-          phone: existing.phone || nPhone,
-          lastPurchaseDate: new Date().toISOString()
-        };
-      }
-    }
-
-    // 3. CREACIÓN DE LA VENTA
-    const newSale: Sale = {
-      ...saleData,
-      id: uuidv4(),
-      customerId: customerId || '',
-      customerPhone: saleData.customerPhone || newCustomer?.phone || customerToUpdate?.phone || '',
-      orderNumber: nextOrderNumber,
-      date: new Date().toISOString(),
-      totalAmount: roundFinancial(saleData.totalAmount),
-      amountPaid: roundFinancial(saleData.amountPaid),
-      discount: roundFinancial(saleData.discount || 0),
-      items: saleData.items.map(item => ({
-        ...item,
-        price: roundFinancial(item.price),
-        total: roundFinancial(item.total || (item.price * item.quantity))
-      })),
-      materialsDeducted: false,
-      paymentHistory: saleData.amountPaid > 0 ? [{
-        date: new Date().toISOString(),
-        amount: roundFinancial(saleData.amountPaid),
-        method: saleData.paymentMethod,
-        status: saleData.paymentStatus || 'verified',
-        notes: saleData.paymentNotes
-      }] : []
-    };
-
-    // 4. GENERACIÓN DE CUPÓN DE BIENVENIDA (Solo si es nuevo de verdad)
-    let couponToGenerate: Coupon | null = null;
-    if (saleData.isRegistering) {
-      const alreadyExisted = !!existingCustomer;
-      if (!alreadyExisted) {
-        const suffix = uuidv4().substring(0, 6).toUpperCase();
-        couponToGenerate = {
-          id: uuidv4(),
-          code: `BIE15-${suffix}`,
-          discountPercentage: 15,
-          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-          customerId: customerId || '',
-          isUsed: false,
-          createdAt: new Date().toISOString(),
-        };
-        newSale.generatedCouponCode = couponToGenerate.code;
-      }
-    }
-
-    // Deducción optimista local
-    const updatedProducts = products.map(p => {
-      const saleItems = newSale.items.filter(i => i.productId === p.id);
-      if (!saleItems.length) return p;
-      return {
-        ...p,
-        variants: p.variants.map(v => {
-          const item = saleItems.find(i => i.variantId === v.id);
-          if (item && v.isFinishedGood !== false) return { ...v, stock: Math.max(0, v.stock - item.quantity) };
-          return v;
-        })
-      };
-    });
-
-    let couponFromQuery: Coupon | null = null;
-    if (newSale.appliedCouponCode) {
-      const normalizedCode = newSale.appliedCouponCode.trim().toUpperCase();
-      const couponInState = coupons.find(c => c.code.toUpperCase() === normalizedCode);
-      if (couponInState) {
-        couponFromQuery = couponInState;
-      } else {
-        const q = query(collection(db, 'coupons'), where('code', '==', normalizedCode), limit(1));
-        const querySnapshot = await getDocs(q);
-        if (!querySnapshot.empty) couponFromQuery = { ...querySnapshot.docs[0].data(), id: querySnapshot.docs[0].id } as Coupon;
-      }
-    }
-
-    try {
-      await runTransaction(db, async (transaction) => {
-        let couponDocSnap: DocumentSnapshot | null = null;
-        let couponRef: DocumentReference | null = null;
-        if (couponFromQuery) {
-          couponRef = doc(db, 'coupons', couponFromQuery.id);
-          couponDocSnap = await transaction.get(couponRef);
-          if (!couponDocSnap.exists()) throw new Error("Cupón no existe en DB");
-          if (couponDocSnap.data().isUsed) throw new Error("El cupón ya ha sido utilizado.");
-        }
-
-        const materialsToDeduct = new Map<string, number>();
-        const materialDocs = new Map<string, DocumentSnapshot>();
-        if (newSale.status === 'entregado' || newSale.status === 'listo_para_entregar') {
-          newSale.items.forEach(item => {
-            const product = products.find(p => p.id === item.productId);
-            const variant = product?.variants.find(v => v.id === item.variantId);
-            if (variant && variant.recipe && variant.isFinishedGood === false) {
-              variant.recipe.forEach(recipeItem => {
-                const currentDeduction = materialsToDeduct.get(recipeItem.rawMaterialId) || 0;
-                materialsToDeduct.set(recipeItem.rawMaterialId, currentDeduction + (recipeItem.quantity * item.quantity));
-              });
-            }
-          });
-
-          for (const materialId of materialsToDeduct.keys()) {
-            const materialRef = doc(db, 'rawMaterials', materialId);
-            const docSnap = await transaction.get(materialRef);
-            if (!docSnap.exists()) throw new Error(`Materia prima no encontrada: ${materialId}`);
-            materialDocs.set(materialId, docSnap);
-          }
-        }
-
-        const courseDocs = new Map<string, DocumentSnapshot>();
-        for (const item of newSale.items) {
-          if (item.isCourse && item.courseId) {
-            const courseRef = doc(db, 'courses', item.courseId);
-            const docSnap = await transaction.get(courseRef);
-            if (docSnap.exists()) courseDocs.set(item.courseId, docSnap);
-          }
-        }
-
-        // Writes
-        if (couponDocSnap && couponRef) {
-          transaction.update(couponRef, { isUsed: true, usedBySaleId: newSale.id, usedAt: new Date().toISOString() });
-        } else if (newSale.appliedCouponCode) {
-          if (newCustomer && newCustomer.customerNumber === newSale.appliedCouponCode) newCustomer.welcomeDiscountUsed = true;
-          else if (customerToUpdate && customerToUpdate.customerNumber === newSale.appliedCouponCode) customerToUpdate.welcomeDiscountUsed = true;
-          else if (newSale.customerId) {
-            const customer = existingCustomer || customers.find(c => c.id === newSale.customerId);
-            if (customer && customer.customerNumber === newSale.appliedCouponCode) {
-              if (customer.welcomeDiscountUsed) throw new Error("El descuento de bienvenida ya ha sido utilizado.");
-              transaction.update(doc(db, 'customers', customer.id), { welcomeDiscountUsed: true });
-            }
-          }
-        }
-
-        if (newCustomer) {
-          transaction.set(doc(db, 'customers', newCustomer.id), cleanObject(newCustomer));
-        } else if (customerToUpdate) {
-          transaction.update(doc(db, 'customers', customerToUpdate.id), cleanObject(customerToUpdate));
-        }
-
-        if (newSale.status === 'entregado' || newSale.status === 'listo_para_entregar') {
-          for (const [materialId, totalToDeduct] of materialsToDeduct.entries()) {
-            const materialDoc = materialDocs.get(materialId)!;
-            const materialData = materialDoc.data() as RawMaterial;
-            const effectiveUnit = materialData.baseUnit || UMB_FOR_DIMENSION[materialData.dimension || (materialData.unit ? UNIT_DIMENSIONS[materialData.unit as Unit] : 'units')];
-            const quantityUMB = toUMB(totalToDeduct, effectiveUnit as Unit);
-            if (materialData.stock < quantityUMB) throw new Error(`Stock insuficiente para materia prima: ${materialData.name}`);
-            transaction.update(doc(db, 'rawMaterials', materialId), { stock: materialData.stock - quantityUMB });
-          }
-          newSale.materialsDeducted = true;
-        }
-
-        for (const product of updatedProducts) {
-          if (newSale.items.some(i => i.productId === product.id)) {
-            transaction.update(doc(db, 'products', product.id), { variants: product.variants });
-          }
-        }
-
-        if (couponToGenerate) {
-          transaction.set(doc(db, 'coupons', couponToGenerate.id), cleanObject(couponToGenerate));
-        }
-
-        for (const item of newSale.items) {
-          if (item.isCourse && item.courseId) {
-            const courseDoc = courseDocs.get(item.courseId);
-            if (courseDoc && courseDoc.exists()) {
-              const currentEnrolled = courseDoc.data().enrolledCount || 0;
-              const maxQuota = courseDoc.data().maxQuota || 0;
-              if (currentEnrolled + item.quantity > maxQuota) throw new Error(`Cupo insuficiente para el curso: ${item.productName}`);
+              if (currentEnrolled + item.quantity > maxQuota) {
+                 throw new Error(`Cupo insuficiente para el curso: ${item.productName}`);
+              }
               transaction.update(doc(db, 'courses', item.courseId), { enrolledCount: currentEnrolled + item.quantity });
             }
           }
@@ -2087,21 +1849,15 @@ export function useInventory() {
     }
   };
 
+  // 🚀 LÓGICA DE UPDATE SALE (100% TRANSACCIONAL)
   const updateSale = async (updatedSale: Sale) => {
     const roundedSale = {
       ...updatedSale,
       totalAmount: roundFinancial(updatedSale.totalAmount),
       amountPaid: roundFinancial(updatedSale.amountPaid),
       discount: roundFinancial(updatedSale.discount || 0),
-      items: updatedSale.items.map(item => ({
-        ...item,
-        price: roundFinancial(item.price),
-        total: roundFinancial(item.total)
-      })),
-      paymentHistory: updatedSale.paymentHistory?.map(p => ({
-        ...p,
-        amount: roundFinancial(p.amount)
-      }))
+      items: updatedSale.items.map(item => ({ ...item, price: roundFinancial(item.price), total: roundFinancial(item.total) })),
+      paymentHistory: updatedSale.paymentHistory?.map(p => ({ ...p, amount: roundFinancial(p.amount) }))
     };
     const s = sales.find(sale => sale.id === roundedSale.id);
     if (s) {
@@ -2111,25 +1867,24 @@ export function useInventory() {
       try {
         if (roundedSale.status === 'cancelado' && s.status !== 'cancelado') {
           await runTransaction(db, async (transaction) => {
-            // --- 1. READS ---
-            
-            // 1.1 Read Products
             const productDocs = new Map<string, DocumentSnapshot>();
             for (const item of roundedSale.items) {
               if (!productDocs.has(item.productId)) {
                 const productRef = doc(db, 'products', item.productId);
                 const docSnap = await transaction.get(productRef);
-                if (!docSnap.exists()) throw new Error(`Producto no encontrado: ${item.productId}`);
+                if (!docSnap.exists()) {
+                   throw new Error(`Producto no encontrado: ${item.productId}`);
+                }
                 productDocs.set(item.productId, docSnap);
               }
             }
 
-            // 1.2 Read Raw Materials
             const materialsToReturn = new Map<string, number>();
             const materialDocs = new Map<string, DocumentSnapshot>();
             if (wasDeducted) {
               roundedSale.items.forEach(item => {
-                const product = products.find(p => p.id === item.productId);
+                const productDoc = productDocs.get(item.productId);
+                const product = productDoc?.data() as Product;
                 const variant = product?.variants.find(v => v.id === item.variantId);
                 if (variant && variant.recipe && variant.isFinishedGood === false) {
                   variant.recipe.forEach(recipeItem => {
@@ -2142,36 +1897,36 @@ export function useInventory() {
               for (const materialId of materialsToReturn.keys()) {
                 const materialRef = doc(db, 'rawMaterials', materialId);
                 const docSnap = await transaction.get(materialRef);
-                if (!docSnap.exists()) throw new Error(`Materia prima no encontrada: ${materialId}`);
+                if (!docSnap.exists()) {
+                   throw new Error(`Materia prima no encontrada: ${materialId}`);
+                }
                 materialDocs.set(materialId, docSnap);
               }
             }
 
-            // 1.3 Read Course Quotas
             const courseDocs = new Map<string, DocumentSnapshot>();
             for (const item of roundedSale.items) {
               if (item.isCourse && item.courseId) {
                 const courseRef = doc(db, 'courses', item.courseId);
                 const docSnap = await transaction.get(courseRef);
                 if (docSnap.exists()) {
-                  courseDocs.set(item.courseId, docSnap);
+                   courseDocs.set(item.courseId, docSnap);
                 }
               }
             }
 
-            // --- 2. WRITES ---
-
-            // 2.1 Return product stock
             const productsToUpdate = new Map<string, Product>();
             for (const item of roundedSale.items) {
               const productDoc = productDocs.get(item.productId)!;
               let productData = productsToUpdate.get(item.productId) || (productDoc.data() as Product);
               const variant = productData.variants.find(v => v.id === item.variantId);
-              
               if (variant && variant.isFinishedGood !== false) {
-                const updatedVariants = productData.variants.map(v => 
-                  v.id === item.variantId ? { ...v, stock: v.stock + item.quantity } : v
-                );
+                const updatedVariants = productData.variants.map(v => {
+                  if (v.id === item.variantId) {
+                    return { ...v, stock: v.stock + item.quantity };
+                  }
+                  return v;
+                });
                 productData = { ...productData, variants: updatedVariants };
                 productsToUpdate.set(item.productId, productData);
               }
@@ -2180,21 +1935,17 @@ export function useInventory() {
               transaction.update(doc(db, 'products', productId), { variants: productData.variants });
             }
 
-            // 2.2 Return raw materials
             if (wasDeducted) {
               for (const [materialId, totalToReturn] of materialsToReturn.entries()) {
                 const materialDoc = materialDocs.get(materialId)!;
                 const materialData = materialDoc.data() as RawMaterial;
-                
                 const effectiveUnit = materialData.baseUnit || UMB_FOR_DIMENSION[materialData.dimension || (materialData.unit ? UNIT_DIMENSIONS[materialData.unit as Unit] : 'units')];
                 const quantityUMB = toUMB(totalToReturn, effectiveUnit as Unit);
-                
                 transaction.update(doc(db, 'rawMaterials', materialId), { stock: materialData.stock + quantityUMB });
               }
               roundedSale.materialsDeducted = false;
             }
 
-            // 2.3 Return course quotas
             for (const item of roundedSale.items) {
               if (item.isCourse && item.courseId) {
                 const courseDoc = courseDocs.get(item.courseId);
@@ -2204,14 +1955,144 @@ export function useInventory() {
                 }
               }
             }
-            
-            // 2.4 Update Sale (Final Write)
+            transaction.set(doc(db, 'sales', roundedSale.id), cleanObject(roundedSale));
+          });
+        } else if (s.status === 'cancelado' && roundedSale.status !== 'cancelado') {
+          await runTransaction(db, async (transaction) => {
+            const productDocs = new Map<string, DocumentSnapshot>();
+            for (const item of roundedSale.items) {
+              if (!productDocs.has(item.productId)) {
+                const productRef = doc(db, 'products', item.productId);
+                const docSnap = await transaction.get(productRef);
+                if (!docSnap.exists()) {
+                   throw new Error(`Producto no encontrado: ${item.productId}`);
+                }
+                productDocs.set(item.productId, docSnap);
+              }
+            }
+
+            const materialsToDeduct = new Map<string, number>();
+            const materialDocs = new Map<string, DocumentSnapshot>();
+            if (shouldBeDeducted) {
+              roundedSale.items.forEach(item => {
+                const productDoc = productDocs.get(item.productId);
+                const product = productDoc?.data() as Product;
+                const variant = product?.variants.find(v => v.id === item.variantId);
+                if (variant && variant.recipe && variant.isFinishedGood === false) {
+                  variant.recipe.forEach(recipeItem => {
+                    const currentDeduction = materialsToDeduct.get(recipeItem.rawMaterialId) || 0;
+                    materialsToDeduct.set(recipeItem.rawMaterialId, currentDeduction + (recipeItem.quantity * item.quantity));
+                  });
+                }
+              });
+
+              for (const materialId of materialsToDeduct.keys()) {
+                const materialRef = doc(db, 'rawMaterials', materialId);
+                const docSnap = await transaction.get(materialRef);
+                if (!docSnap.exists()) {
+                   throw new Error(`Materia prima no encontrada: ${materialId}`);
+                }
+                materialDocs.set(materialId, docSnap);
+              }
+            }
+
+            const courseDocs = new Map<string, DocumentSnapshot>();
+            for (const item of roundedSale.items) {
+              if (item.isCourse && item.courseId) {
+                const courseRef = doc(db, 'courses', item.courseId);
+                const docSnap = await transaction.get(courseRef);
+                if (docSnap.exists()) {
+                   courseDocs.set(item.courseId, docSnap);
+                }
+              }
+            }
+
+            const productsToUpdate = new Map<string, Product>();
+            for (const item of roundedSale.items) {
+              const productDoc = productDocs.get(item.productId)!;
+              let productData = productsToUpdate.get(item.productId) || (productDoc.data() as Product);
+              const variant = productData.variants.find(v => v.id === item.variantId);
+              if (variant && variant.isFinishedGood !== false) {
+                const updatedVariants = productData.variants.map(v => {
+                  if (v.id === item.variantId) {
+                    return { ...v, stock: Math.max(0, v.stock - item.quantity) };
+                  }
+                  return v;
+                });
+                productData = { ...productData, variants: updatedVariants };
+                productsToUpdate.set(item.productId, productData);
+              }
+            }
+            for (const [productId, productData] of productsToUpdate.entries()) {
+              transaction.update(doc(db, 'products', productId), { variants: productData.variants });
+            }
+
+            if (shouldBeDeducted) {
+              for (const [materialId, totalToDeduct] of materialsToDeduct.entries()) {
+                const materialDoc = materialDocs.get(materialId)!;
+                const materialData = materialDoc.data() as RawMaterial;
+                const effectiveUnit = materialData.baseUnit || UMB_FOR_DIMENSION[materialData.dimension || (materialData.unit ? UNIT_DIMENSIONS[materialData.unit as Unit] : 'units')];
+                const quantityUMB = toUMB(totalToDeduct, effectiveUnit as Unit);
+                transaction.update(doc(db, 'rawMaterials', materialId), { stock: materialData.stock - quantityUMB });
+              }
+              roundedSale.materialsDeducted = true;
+            }
+
+            for (const item of roundedSale.items) {
+              if (item.isCourse && item.courseId) {
+                const courseDoc = courseDocs.get(item.courseId);
+                if (courseDoc && courseDoc.exists()) {
+                  const currentEnrolled = courseDoc.data().enrolledCount || 0;
+                  transaction.update(doc(db, 'courses', item.courseId), { enrolledCount: currentEnrolled + item.quantity });
+                }
+              }
+            }
             transaction.set(doc(db, 'sales', roundedSale.id), cleanObject(roundedSale));
           });
         } else if (!wasDeducted && shouldBeDeducted && roundedSale.status !== 'cancelado') {
-          await deductRawMaterials(roundedSale.items);
-          roundedSale.materialsDeducted = true;
-          await setDoc(doc(db, 'sales', roundedSale.id), cleanObject(roundedSale));
+          await runTransaction(db, async (transaction) => {
+            const productDocs = new Map<string, DocumentSnapshot>();
+            for (const item of roundedSale.items) {
+              if (!productDocs.has(item.productId)) {
+                const productRef = doc(db, 'products', item.productId);
+                const docSnap = await transaction.get(productRef);
+                productDocs.set(item.productId, docSnap);
+              }
+            }
+
+            const materialsToDeduct = new Map<string, number>();
+            const materialDocs = new Map<string, DocumentSnapshot>();
+            roundedSale.items.forEach(item => {
+              const productDoc = productDocs.get(item.productId);
+              const product = productDoc?.data() as Product;
+              const variant = product?.variants.find(v => v.id === item.variantId);
+              if (variant && variant.recipe && variant.isFinishedGood === false) {
+                variant.recipe.forEach(recipeItem => {
+                  const currentDeduction = materialsToDeduct.get(recipeItem.rawMaterialId) || 0;
+                  materialsToDeduct.set(recipeItem.rawMaterialId, currentDeduction + (recipeItem.quantity * item.quantity));
+                });
+              }
+            });
+
+            for (const materialId of materialsToDeduct.keys()) {
+              const materialRef = doc(db, 'rawMaterials', materialId);
+              const docSnap = await transaction.get(materialRef);
+              if (!docSnap.exists()) {
+                 throw new Error(`Materia prima no encontrada: ${materialId}`);
+              }
+              materialDocs.set(materialId, docSnap);
+            }
+
+            for (const [materialId, totalToDeduct] of materialsToDeduct.entries()) {
+              const materialDoc = materialDocs.get(materialId)!;
+              const materialData = materialDoc.data() as RawMaterial;
+              const effectiveUnit = materialData.baseUnit || UMB_FOR_DIMENSION[materialData.dimension || (materialData.unit ? UNIT_DIMENSIONS[materialData.unit as Unit] : 'units')];
+              const quantityUMB = toUMB(totalToDeduct, effectiveUnit as Unit);
+              transaction.update(doc(db, 'rawMaterials', materialId), { stock: materialData.stock - quantityUMB });
+            }
+            roundedSale.materialsDeducted = true;
+            transaction.set(doc(db, 'sales', roundedSale.id), cleanObject(roundedSale));
+          });
         } else {
           await setDoc(doc(db, 'sales', roundedSale.id), cleanObject(roundedSale));
         }
