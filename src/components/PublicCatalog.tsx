@@ -1,11 +1,11 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Product, RawMaterial, Offer, Variant, Campaign, Sale, SaleStatus, StoreSettings, Course } from '../types';
-import { Search, Filter, Wind, Droplet, Flame, ShoppingBag, Instagram, Facebook, Phone, Lock, Unlock, Plus, Edit2, Trash2, X, Tag, Clock, Calendar, ShoppingCart, Minus, ChevronRight, ChevronLeft, AlertTriangle, Package, LayoutDashboard, ArrowRightLeft, Upload, CheckCircle, Timer, Zap, LogOut, Loader2, Gift, Shield, Music2, ShieldCheck, Truck, Mail, MapPin, GraduationCap } from 'lucide-react';
+import { Search, Filter, Wind, Droplet, Flame, ShoppingBag, Instagram, Facebook, Phone, Lock, Unlock, Plus, Edit2, Trash2, X, Tag, Clock, Calendar, ShoppingCart, Minus, ChevronRight, ChevronLeft, AlertTriangle, Package, LayoutDashboard, ArrowRightLeft, Upload, CheckCircle, Timer, Zap, LogOut, Loader2, Gift, Shield, Music2, ShieldCheck, Truck, Mail, MapPin, GraduationCap, Copy } from 'lucide-react';
 import ProductForm from './ProductForm';
 import ProductModal from './ProductModal';
 import { getVariantStock } from '../utils/stockUtils';
 import { roundFinancial } from '../utils/mathUtils';
-import { useDraggableScroll } from '../useDraggableScroll'; // 🔌 AQUÍ CONECTAMOS EL MOTOR
+import { useDraggableScroll } from '../useDraggableScroll';
 
 interface PublicCatalogProps {
   products: Product[];
@@ -601,6 +601,9 @@ export default function PublicCatalog({
   const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number } | null>(null);
   const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
 
+  // 🎁 Estado para el nuevo cupón generado
+  const [generatedCoupon, setGeneratedCoupon] = useState<{code: string, expiry: string} | null>(null);
+
   const [isRegistering, setIsRegistering] = useState(false);
   const [registrationData, setRegistrationData] = useState({
     firstName: '',
@@ -619,21 +622,15 @@ export default function PublicCatalog({
     };
   }, [searchTerm]);
 
-  // 💡 FUNCIÓN INTELIGENTE PARA LOS ENLACES SOCIALES
   const getSocialLink = (platform: 'instagram' | 'facebook' | 'tiktok', value?: string) => {
     if (!value) return '#';
     const cleanValue = value.trim();
-    
-    // Si ya le puso el https, lo dejamos pasar
     if (cleanValue.startsWith('http')) return cleanValue;
-    
-    // Si puso el @, se lo sacamos para armar la URL
     const handle = cleanValue.replace(/^@/, '');
     
     if (platform === 'instagram') return `https://www.instagram.com/${handle}`;
     if (platform === 'facebook') return `https://www.facebook.com/${handle}`;
     if (platform === 'tiktok') return `https://www.tiktok.com/@${handle}`;
-    
     return cleanValue;
   };
 
@@ -900,6 +897,20 @@ export default function PublicCatalog({
     setCheckoutError(null);
 
     try {
+      // 🎁 Lógica del Generador de Cupones Únicos
+      let newCouponInfo = null;
+      if (isRegistering) {
+        const shortCode = 'JLU-' + Math.random().toString(36).substring(2, 6).toUpperCase();
+        const expiryDate = new Date();
+        expiryDate.setDate(expiryDate.getDate() + 30); // 30 días de validez
+        
+        newCouponInfo = {
+          code: shortCode,
+          expiry: expiryDate.toLocaleDateString('es-AR')
+        };
+        setGeneratedCoupon(newCouponInfo);
+      }
+
       const saleItems = cart.map(item => {
         if (item.course) {
           return {
@@ -939,13 +950,14 @@ export default function PublicCatalog({
         balanceDue: finalTotal,
         appliedCouponCode: appliedCoupon?.code,
         isRegistering,
-        registrationData: isRegistering ? registrationData : undefined
+        registrationData: isRegistering ? { ...registrationData, generatedCoupon: newCouponInfo } : undefined
       };
 
       if (onRegisterSale) {
         onRegisterSale(newSale);
       }
 
+      // Generar mensaje de WhatsApp
       let message = `Hola Janlu Velas, mi nombre es ${customerDetails.name}. Quiero hacer el siguiente pedido:\n\n`;
       
       cart.forEach(item => {
@@ -973,10 +985,17 @@ export default function PublicCatalog({
         paymentMethod === 'efectivo' ? `Efectivo ${storeSettings?.cashDiscountPercentage ? `(${storeSettings.cashDiscountPercentage}% de descuento)` : ''}` :
         paymentMethod === 'mercadopago' ? 'Mercado Pago' : 'Acordar con el vendedor'
       }\n`;
+      
       if (deliveryMethod === 'envio') {
         message += `Email de contacto: ${customerDetails.email}\n`;
       }
-      message += `\nMe comunico para coordinar el pago y la entrega.`;
+      
+      // 🎁 Agregar info del cupón al WhatsApp para el Admin
+      if (newCouponInfo) {
+        message += `\n🎉 Me registré en la comunidad. Mi código de regalo generado es: ${newCouponInfo.code} (Válido hasta: ${newCouponInfo.expiry})`;
+      }
+
+      message += `\n\nMe comunico para coordinar el pago y la entrega.`;
       
       const encodedMessage = encodeURIComponent(message);
       const whatsappNumber = storeSettings?.whatsappNumber ? storeSettings.whatsappNumber.replace(/[^0-9]/g, '') : '';
@@ -1745,6 +1764,7 @@ export default function PublicCatalog({
                   if (checkoutStep === 'success') {
                     setCheckoutStep('cart');
                   }
+                  setGeneratedCoupon(null); // Reseteamos el cupón al cerrar
                 }}
                 className="p-2 text-stone-400 hover:text-stone-600 bg-stone-50 rounded-full"
               >
@@ -2139,19 +2159,51 @@ export default function PublicCatalog({
 
               {checkoutStep === 'success' && (
                 <div className="h-full flex flex-col items-center justify-center text-center space-y-4">
-                  <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-4">
+                  <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-2">
                     <CheckCircle size={40} />
                   </div>
                   <h3 className="text-2xl font-serif font-medium text-stone-900">¡Pedido Recibido!</h3>
-                  <p className="text-stone-600">
-                    Gracias por tu compra. Hemos recibido tu pedido y nos pondremos en contacto contigo pronto.
+                  <p className="text-stone-600 max-w-sm mb-4">
+                    Gracias por tu compra. Hemos recibido tu pedido y nos pondremos en contacto contigo pronto por WhatsApp.
                   </p>
+
+                  {/* 🎁 TARJETA VIP DE CUPÓN GENERADO */}
+                  {generatedCoupon && (
+                    <div className="bg-stone-900 text-white p-6 rounded-2xl shadow-xl shadow-stone-900/20 w-full max-w-sm animate-in zoom-in-95 duration-500">
+                      <div className="flex justify-center mb-2 text-amber-400">
+                        <Gift size={28} />
+                      </div>
+                      <p className="text-[10px] uppercase tracking-widest font-bold opacity-80 mb-1">Tu regalo de bienvenida</p>
+                      <p className="text-sm mb-4">Guarda este código para tu próxima compra:</p>
+                      
+                      <div className="bg-white/10 border border-white/20 p-4 rounded-xl flex items-center justify-between mb-4">
+                        <span className="font-mono text-2xl font-bold tracking-widest text-amber-400">{generatedCoupon.code}</span>
+                        <button 
+                          onClick={() => {
+                            navigator.clipboard.writeText(generatedCoupon.code);
+                            alert('¡Código copiado!');
+                          }}
+                          className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
+                          title="Copiar código"
+                        >
+                          <Copy size={18} />
+                        </button>
+                      </div>
+                      
+                      <p className="text-[10px] text-stone-400 uppercase tracking-widest flex items-center justify-center gap-1">
+                        <Timer size={12} />
+                        Válido hasta: {generatedCoupon.expiry}
+                      </p>
+                    </div>
+                  )}
+
                   <button
                     onClick={() => {
                       setIsCartOpen(false);
                       setCheckoutStep('cart');
+                      setGeneratedCoupon(null);
                     }}
-                    className="mt-8 px-6 py-3 bg-stone-900 text-white rounded-xl font-medium hover:bg-stone-800 transition-colors"
+                    className="mt-8 px-6 py-3 bg-stone-100 text-stone-900 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-stone-200 transition-colors"
                   >
                     Volver al catálogo
                   </button>
