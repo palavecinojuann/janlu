@@ -108,7 +108,6 @@ export default function App() {
   const [saleStatusFilter, setSaleStatusFilter] = useState<string>('all');
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
 
-  const [loginError, setLoginError] = useState<string | null>(null);
   const [showAuth, setShowAuth] = useState(false);
   const [isPublicCatalog, setIsPublicCatalog] = useState(true);
 
@@ -148,18 +147,19 @@ export default function App() {
     setIsPublicCatalog(false);
   };
 
-  // 🚀 LÓGICA DE NUMERACIÓN CORRELATIVA (PEDIDO #1000+)
+  // 🚀 LÓGICA DE NUMERACIÓN CORRELATIVA CORREGIDA
   const handleSmartRegisterSale = async (saleData: any) => {
-    // Buscamos el número de pedido más alto que ya existe en la base de datos local
-    const maxOrderNumber = sales.reduce((max, sale) => {
-      const currentNum = sale.orderNumber || 0;
+    // Buscamos con lupa el número de pedido más alto que ya existe
+    const currentSales = sales || [];
+    const maxOrderNumber = currentSales.reduce((max, sale) => {
+      const currentNum = Number(sale.orderNumber) || 0;
       return currentNum > max ? currentNum : max;
     }, 0);
 
-    // Si no hay ventas, empezamos en 1000. Si hay, sumamos 1 al máximo.
-    const nextOrderNumber = maxOrderNumber === 0 ? 1000 : maxOrderNumber + 1;
+    // Si no hay ventas o el máximo es 0, empezamos en 1000. Si no, máximo + 1.
+    const nextOrderNumber = maxOrderNumber < 1000 ? 1000 : maxOrderNumber + 1;
 
-    // Registramos la venta con su nuevo número oficial
+    // Ejecutamos el registro oficial con el nuevo número
     await registerSale({
       ...saleData,
       orderNumber: nextOrderNumber
@@ -408,7 +408,7 @@ export default function App() {
           onAddProduct={isAdmin ? addProduct : undefined}
           onUpdateProduct={isAdmin ? updateProduct : undefined}
           onDeleteProduct={isAdmin ? deleteProduct : undefined}
-          onRegisterSale={handleSmartRegisterSale} // 🎯 Usamos la nueva lógica inteligente
+          onRegisterSale={handleSmartRegisterSale} // 🎯 AHORA SÍ: Usamos la función inteligente
           onBackToAdmin={currentUser && isAdmin ? navigateToAdmin : (currentUser ? () => auth.signOut() : undefined)}
           isCustomer={!isAdmin}
           lastSync={lastSync}
