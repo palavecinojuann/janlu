@@ -38,11 +38,9 @@ const CountdownTimer = ({ expiresAt }: { expiresAt: string }) => {
       let expirationDate: Date;
       
       if (expiresAt.includes('-') && !expiresAt.includes('T')) {
-        // Handle YYYY-MM-DD format - set to end of day
         const [year, month, day] = expiresAt.split('-').map(Number);
         expirationDate = new Date(year, month - 1, day, 23, 59, 59, 999);
       } else {
-        // Handle ISO or other formats
         expirationDate = new Date(expiresAt);
       }
       
@@ -125,11 +123,9 @@ const ProductCard: React.FC<ProductCardProps> = ({
   useEffect(() => {
     setLocalVariant(prev => {
       const isCurrentVariantValid = prev && product.variants.some(v => v.id === prev.id);
-      
       if (!isCurrentVariantValid) {
         return product.variants.find(v => getVariantStock(v, rawMaterials) > 0) || product.variants[0] || null;
       }
-      
       if (getVariantStock(prev, rawMaterials) <= 0) {
         return product.variants.find(v => getVariantStock(v, rawMaterials) > 0) || product.variants[0] || null;
       }
@@ -170,7 +166,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
   return (
     <div 
-      className={`group bg-white flex flex-col cursor-pointer ${isOutOfStock ? 'opacity-75' : ''}`}
+      className={`group bg-white flex flex-col cursor-pointer transition-all duration-500 ease-out hover:scale-[1.03] hover:z-10 relative ${isOutOfStock ? 'opacity-75' : ''}`}
       onClick={onClick}
     >
       <div className="aspect-[3/4] bg-stone-50 relative overflow-hidden mb-4">
@@ -178,12 +174,12 @@ const ProductCard: React.FC<ProductCardProps> = ({
           <img 
             src={product.photoUrl} 
             alt={product.name} 
-            className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out ${isOutOfStock ? 'grayscale' : ''}`}
+            className={`w-full h-full object-cover transition-transform duration-700 ease-out ${isOutOfStock ? 'grayscale' : ''}`}
             referrerPolicy="no-referrer"
             loading="lazy"
           />
         ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center text-stone-300 group-hover:text-stone-400 transition-colors">
+          <div className="w-full h-full flex flex-col items-center justify-center text-stone-300 transition-colors">
             <Flame size={48} strokeWidth={1} />
           </div>
         )}
@@ -234,7 +230,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
         {/* Quick Add Button Overlay */}
         {!isOutOfStock && (
-          <div className="absolute bottom-0 left-0 right-0 p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out">
+          <div className="absolute bottom-0 left-0 right-0 p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out z-20">
             {quantityInCart === 0 ? (
               <button
                 onClick={(e) => {
@@ -243,13 +239,13 @@ const ProductCard: React.FC<ProductCardProps> = ({
                     onUpdateCart(product, localVariant, 1);
                   }
                 }}
-                className="w-full py-3 bg-stone-900 text-white text-xs font-bold uppercase tracking-widest hover:bg-stone-800 transition-colors"
+                className="w-full py-3 bg-stone-900 text-white text-xs font-bold uppercase tracking-widest hover:bg-stone-800 transition-colors shadow-lg"
               >
                 Agregar al carrito
               </button>
             ) : (
               <div 
-                className="w-full flex items-center justify-between bg-white border border-stone-900 overflow-hidden"
+                className="w-full flex items-center justify-between bg-white border border-stone-900 overflow-hidden shadow-lg"
                 onClick={(e) => e.stopPropagation()}
               >
                 <button
@@ -315,7 +311,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
                 >
                   {v.name}
                   {variantQuantityInCart > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 bg-stone-900 text-white text-[8px] w-3.5 h-3.5 rounded-full flex items-center justify-center shadow-sm">
+                    <span className="absolute -top-1.5 -right-1.5 bg-stone-900 text-white text-[8px] w-3.5 h-3.5 rounded-full flex items-center justify-center shadow-sm z-10">
                       {variantQuantityInCart}
                     </span>
                   )}
@@ -454,16 +450,14 @@ const ProductSlider: React.FC<{ title: string; products: Product[]; isAdminMode:
       </div>
       
       <div className="relative">
-        {/* Flecha Izquierda */}
         <button
           onClick={() => handleScroll('left')}
-          className="hidden md:flex absolute -left-5 top-[45%] -translate-y-1/2 z-20 w-12 h-12 bg-white/95 backdrop-blur-sm border border-stone-100 shadow-xl rounded-full items-center justify-center text-stone-400 hover:text-stone-900 hover:scale-110 transition-all opacity-0 group-hover/slider:opacity-100"
+          className="hidden md:flex absolute -left-5 top-[45%] -translate-y-1/2 z-30 w-12 h-12 bg-white/95 backdrop-blur-sm border border-stone-100 shadow-xl rounded-full items-center justify-center text-stone-400 hover:text-stone-900 hover:scale-110 transition-all opacity-0 group-hover/slider:opacity-100"
           aria-label="Desplazar a la izquierda"
         >
           <ChevronLeft size={24} strokeWidth={1.5} />
         </button>
 
-        {/* Contenedor de Productos - py-6 da aire para que el zoom no se corte */}
         <div 
           ref={ref}
           className={`${className} flex flex-nowrap gap-6 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 py-6 select-none hide-scrollbar snap-x snap-mandatory`}
@@ -474,10 +468,9 @@ const ProductSlider: React.FC<{ title: string; products: Product[]; isAdminMode:
           onMouseMove={onMouseMove}
         >
           {products.map((product, index) => (
-            /* AQUÍ ESTÁ EL TRUCO: flex-none para tamaño fijo y hover:scale para el zoom */
             <div 
               key={`${product.id}-${index}`} 
-              className="flex-none w-[200px] sm:w-[280px] snap-start transition-all duration-500 ease-out hover:scale-[1.04] hover:z-10"
+              className="flex-none w-[200px] sm:w-[280px] snap-start"
             >
               <ProductCard
                 product={product}
@@ -499,10 +492,9 @@ const ProductSlider: React.FC<{ title: string; products: Product[]; isAdminMode:
           ))}
         </div>
 
-        {/* Flecha Derecha */}
         <button
           onClick={() => handleScroll('right')}
-          className="hidden md:flex absolute -right-5 top-[45%] -translate-y-1/2 z-20 w-12 h-12 bg-white/95 backdrop-blur-sm border border-stone-100 shadow-xl rounded-full items-center justify-center text-stone-400 hover:text-stone-900 hover:scale-110 transition-all opacity-0 group-hover/slider:opacity-100"
+          className="hidden md:flex absolute -right-5 top-[45%] -translate-y-1/2 z-30 w-12 h-12 bg-white/95 backdrop-blur-sm border border-stone-100 shadow-xl rounded-full items-center justify-center text-stone-400 hover:text-stone-900 hover:scale-110 transition-all opacity-0 group-hover/slider:opacity-100"
           aria-label="Desplazar a la derecha"
         >
           <ChevronRight size={24} strokeWidth={1.5} />
@@ -548,7 +540,6 @@ export default function PublicCatalog({
 
   const [currentSlide, setCurrentSlide] = useState(0);
   const heroSlides = useMemo(() => {
-    // If settings are not loaded yet, return an empty array to avoid flashing default images
     if (!isSettingsLoaded) return [];
 
     if (storeSettings?.heroSlides && storeSettings.heroSlides.length > 0) {
@@ -584,7 +575,6 @@ export default function PublicCatalog({
     return () => clearInterval(timer);
   }, [heroSlides.length]);
 
-  // Cart state
   const [cart, setCart] = useState<CartItem[]>(() => {
     try {
       const saved = localStorage.getItem('janlu_cart');
@@ -598,6 +588,7 @@ export default function PublicCatalog({
   useEffect(() => {
     localStorage.setItem('janlu_cart', JSON.stringify(cart));
   }, [cart]);
+
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState<'cart' | 'details' | 'success'>('cart');
   const [customerDetails, setCustomerDetails] = useState({ name: '', email: '', phone: '' });
@@ -627,6 +618,24 @@ export default function PublicCatalog({
       clearTimeout(handler);
     };
   }, [searchTerm]);
+
+  // 💡 FUNCIÓN INTELIGENTE PARA LOS ENLACES SOCIALES
+  const getSocialLink = (platform: 'instagram' | 'facebook' | 'tiktok', value?: string) => {
+    if (!value) return '#';
+    const cleanValue = value.trim();
+    
+    // Si ya le puso el https, lo dejamos pasar
+    if (cleanValue.startsWith('http')) return cleanValue;
+    
+    // Si puso el @, se lo sacamos para armar la URL
+    const handle = cleanValue.replace(/^@/, '');
+    
+    if (platform === 'instagram') return `https://www.instagram.com/${handle}`;
+    if (platform === 'facebook') return `https://www.facebook.com/${handle}`;
+    if (platform === 'tiktok') return `https://www.tiktok.com/@${handle}`;
+    
+    return cleanValue;
+  };
 
   const handleApplyCoupon = async () => {
     if (!couponCode.trim() || !onValidateCoupon) return;
@@ -694,25 +703,19 @@ export default function PublicCatalog({
   const activeOffers = useMemo(() => {
     if (!Array.isArray(offers)) return [];
     const now = new Date();
-    const currentDay = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    const currentDay = now.getDay();
     const currentTime = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
 
     return offers.filter(offer => {
       if (!offer.isActive) return false;
-
-      // Check expiration date
       if (offer.expiresAt) {
         const [year, month, day] = offer.expiresAt.split('-').map(Number);
         const expirationDate = new Date(year, month - 1, day, 23, 59, 59, 999);
         if (now > expirationDate) return false;
       }
-
-      // Check valid days
       if (offer.validDays && offer.validDays.length > 0) {
         if (!offer.validDays.includes(currentDay)) return false;
       }
-
-      // Check time restrictions
       if (offer.startTime && currentTime < offer.startTime) return false;
       if (offer.endTime && currentTime > offer.endTime) return false;
 
@@ -733,22 +736,12 @@ export default function PublicCatalog({
     });
 
     return filtered.sort((a, b) => {
-      // Sort by sortOrder (optional, default to Infinity)
       const orderA = a.sortOrder ?? Infinity;
       const orderB = b.sortOrder ?? Infinity;
       if (orderA !== orderB) return orderA - orderB;
-      
-      // Fallback to createdAt (descending)
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
   }, [products, debouncedSearchTerm, selectedCategory, isAdminMode]);
-
-  useEffect(() => {
-    if (isAdminMode && Array.isArray(products)) {
-      console.log('PublicCatalog: Total products received:', products.length);
-      console.log('PublicCatalog: Filtered products:', filteredProducts.length);
-    }
-  }, [products, filteredProducts, isAdminMode]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-AR', { 
@@ -757,12 +750,6 @@ export default function PublicCatalog({
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
     }).format(amount);
-  };
-
-  const formatDays = (days?: number[]) => {
-    if (!days || days.length === 0 || days.length === 7) return null;
-    const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-    return days.map(d => dayNames[d]).join(', ');
   };
 
   const formatStock = (stock: number) => {
@@ -777,7 +764,6 @@ export default function PublicCatalog({
     if (!Array.isArray(campaigns)) return null;
     return campaigns.find(c => {
       if (!c.isActive) return false;
-      
       let expirationDate: Date;
       if (c.expiresAt.includes('-') && !c.expiresAt.includes('T')) {
         const [year, month, day] = c.expiresAt.split('-').map(Number);
@@ -785,7 +771,6 @@ export default function PublicCatalog({
       } else {
         expirationDate = new Date(c.expiresAt);
       }
-      
       return expirationDate > new Date();
     });
   }, [campaigns]);
@@ -795,26 +780,22 @@ export default function PublicCatalog({
       !offer.productIds || offer.productIds.length === 0 || offer.productIds.includes(product.id)
     );
     
-    // 1. Check for product-specific discount offers
     const discountOffer = productOffers.find(o => o.type === 'discount' && o.discountPercentage);
     if (discountOffer && discountOffer.discountPercentage) {
       return roundFinancial(variant.price * (1 - discountOffer.discountPercentage / 100));
     }
 
-    // 2. Check for product-specific combo offers (fixed price for single product)
     const comboOffer = productOffers.find(o => o.type === 'combo' && o.fixedPrice && o.productIds.length === 1);
     if (comboOffer && comboOffer.fixedPrice) {
       return comboOffer.fixedPrice;
     }
 
-    // 3. Check for BOGO (2x1) - If quantity >= 2, apply 50% discount to the unit price for that quantity
     const bogoOffer = productOffers.find(o => o.type === 'bogo');
     if (bogoOffer && qty >= 2) {
       const paidQuantity = qty - Math.floor(qty / 2);
       return (variant.price * paidQuantity) / qty;
     }
 
-    // 4. Check for global campaign discount
     if (activeCampaign && activeCampaign.discount) {
       return roundFinancial(variant.price * (1 - activeCampaign.discount / 100));
     }
@@ -857,7 +838,6 @@ export default function PublicCatalog({
     if (!appliedCoupon) return cartTotal;
 
     if (stackingPolicy === 'best_offer') {
-      // For each item, take the best discount between automatic offers and the coupon
       return cart.reduce((sum, item) => {
         if (item.course) {
           const originalPrice = item.course.price;
@@ -869,18 +849,16 @@ export default function PublicCatalog({
           const originalPrice = item.variant.price;
           const effectivePrice = getEffectivePrice(item.product, item.variant, item.quantity);
           const couponPrice = originalPrice * (1 - appliedCoupon.discount / 100);
-          
-          // The best price for the customer is the minimum
           const bestPrice = Math.min(effectivePrice, couponPrice);
           return sum + (bestPrice * item.quantity);
         }
         return sum;
       }, 0);
     } else {
-      // Stacking: apply coupon to the already discounted total
       return roundFinancial(cartTotal * (1 - appliedCoupon.discount / 100));
     }
   }, [cart, cartTotal, appliedCoupon, stackingPolicy, getEffectivePrice]);
+  
   const cartItemsCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const hasExceededStock = cart.some(item => {
     if (item.course) {
@@ -902,17 +880,14 @@ export default function PublicCatalog({
       setCheckoutError('Por favor ingresa tu nombre.');
       return;
     }
-
     if (!currentUser && !customerDetails.phone.trim()) {
       setCheckoutError('Por favor ingresa tu número de teléfono.');
       return;
     }
-
     if (deliveryMethod === 'envio' && !customerDetails.email.trim()) {
       setCheckoutError('Por favor ingresa tu email para el envío.');
       return;
     }
-
     if (isRegistering) {
       const { firstName, lastName, phone, email, birthDate } = registrationData;
       if (!firstName.trim() || !lastName.trim() || !phone.trim() || !email.trim() || !birthDate.trim()) {
@@ -971,7 +946,6 @@ export default function PublicCatalog({
         onRegisterSale(newSale);
       }
 
-      // Generar mensaje de WhatsApp
       let message = `Hola Janlu Velas, mi nombre es ${customerDetails.name}. Quiero hacer el siguiente pedido:\n\n`;
       
       cart.forEach(item => {
@@ -1022,13 +996,6 @@ export default function PublicCatalog({
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const [showDebug, setShowDebug] = useState(false);
-
-  const getCartQuantity = (productId: string, variantId: string) => {
-    const item = cart.find(i => i.product?.id === productId && i.variant?.id === variantId);
-    return item ? item.quantity : 0;
   };
 
   return (
@@ -1225,10 +1192,9 @@ export default function PublicCatalog({
               )}
             </div>
 
-            {/* Offers Section - Full Width Banner */}
+            {/* Offers Section */}
             {activeOffers.length > 0 && (
               <div className="w-full bg-stone-900 overflow-hidden relative">
-                {/* Decorative background elements */}
                 <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none opacity-20">
                   <div className="absolute -top-24 -left-24 w-96 h-96 bg-rose-500 rounded-full blur-[100px]" />
                   <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-emerald-500 rounded-full blur-[100px]" />
@@ -1365,7 +1331,7 @@ export default function PublicCatalog({
               </div>
             )}
 
-            <div ref={productsGridRef} className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-10">
+            <div ref={productsGridRef} className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 sm:gap-x-6 gap-y-10 sm:gap-y-12 py-4">
               {filteredProducts.map((product, index) => (
                 <ProductCard
                   key={`${product.id}-${index}`}
@@ -1617,12 +1583,12 @@ export default function PublicCatalog({
                     </a>
                   )}
                   {storeSettings?.instagramUrl && (
-                    <a href={storeSettings.instagramUrl} target="_blank" rel="noopener noreferrer" className="w-12 h-12 bg-stone-900 text-white rounded-full flex items-center justify-center hover:scale-110 transition-transform">
+                    <a href={getSocialLink('instagram', storeSettings.instagramUrl)} target="_blank" rel="noopener noreferrer" className="w-12 h-12 bg-stone-900 text-white rounded-full flex items-center justify-center hover:scale-110 transition-transform">
                       <Instagram size={20} />
                     </a>
                   )}
                   {storeSettings?.facebookUrl && (
-                    <a href={storeSettings.facebookUrl} target="_blank" rel="noopener noreferrer" className="w-12 h-12 bg-stone-900 text-white rounded-full flex items-center justify-center hover:scale-110 transition-transform">
+                    <a href={getSocialLink('facebook', storeSettings.facebookUrl)} target="_blank" rel="noopener noreferrer" className="w-12 h-12 bg-stone-900 text-white rounded-full flex items-center justify-center hover:scale-110 transition-transform">
                       <Facebook size={20} />
                     </a>
                   )}
@@ -1708,17 +1674,17 @@ export default function PublicCatalog({
               </a>
             )}
             {storeSettings?.instagramUrl && (
-              <a href={storeSettings.instagramUrl} target="_blank" rel="noopener noreferrer" className="text-stone-400 hover:text-stone-900 transition-colors">
+              <a href={getSocialLink('instagram', storeSettings.instagramUrl)} target="_blank" rel="noopener noreferrer" className="text-stone-400 hover:text-stone-900 transition-colors">
                 <Instagram size={20} />
               </a>
             )}
             {storeSettings?.facebookUrl && (
-              <a href={storeSettings.facebookUrl} target="_blank" rel="noopener noreferrer" className="text-stone-400 hover:text-stone-900 transition-colors">
+              <a href={getSocialLink('facebook', storeSettings.facebookUrl)} target="_blank" rel="noopener noreferrer" className="text-stone-400 hover:text-stone-900 transition-colors">
                 <Facebook size={20} />
               </a>
             )}
             {storeSettings?.tiktokUrl && (
-              <a href={storeSettings.tiktokUrl} target="_blank" rel="noopener noreferrer" className="text-stone-400 hover:text-stone-900 transition-colors">
+              <a href={getSocialLink('tiktok', storeSettings.tiktokUrl)} target="_blank" rel="noopener noreferrer" className="text-stone-400 hover:text-stone-900 transition-colors">
                 <Music2 size={20} />
               </a>
             )}
