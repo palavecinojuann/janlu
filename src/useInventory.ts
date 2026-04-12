@@ -1585,6 +1585,7 @@ export function useInventory() {
     }
   };
 
+  // 🚀 LÓGICA DE CONTADOR GLOBAL (AI STUDIO) APLICADA
   const registerSale = async (saleData: Omit<Sale, 'id' | 'date'>) => {
     let nextOrderNumber = 1000;
     try {
@@ -1691,7 +1692,7 @@ export function useInventory() {
       ...saleData,
       id: uuidv4(),
       customerId: customerId || '',
-      orderNumber: nextOrderNumber,
+      orderNumber: nextOrderNumber, // <--- NÚMERO SEGURO APLICADO AQUÍ
       date: new Date().toISOString(),
       totalAmount: roundFinancial(saleData.totalAmount),
       amountPaid: roundFinancial(saleData.amountPaid),
