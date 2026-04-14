@@ -1823,21 +1823,19 @@ export function useInventory() {
       });
 
      transaction.set(doc(db, 'sales', newSale.id), cleanObject(newSale));
-      });
+    }); // <-- ESTO CIERRA LA TRANSACCIÓN DE FIREBASE
 
-      // 🚨 Devolvemos un objeto con el ID y el cupón para que el carrito lo muestre
-      return { 
-        id: newSale.id, 
-        generatedCoupon: couponToGenerate ? { code: couponToGenerate.code, expiry: new Date(couponToGenerate.expiresAt).toLocaleDateString('es-AR') } : null 
-      };
-    } catch (error) { 
-        generatedCoupon: couponToGenerate ? { code: couponToGenerate.code, expiry: new Date(couponToGenerate.expiresAt).toLocaleDateString('es-AR') } : null 
-      };
-    } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'sales');
-      return undefined;
-    }
-  };
+    // 🚨 Devolvemos un objeto con el ID y el cupón para que el carrito lo muestre
+    return {
+      // ... (acá pueden estar otros datos que devuelvas) ...
+      generatedCoupon: couponToGenerate ? { code: couponToGenerate.code, expiry: new Date(couponToGenerate.expiresAt) } : null
+    };
+
+  } catch (error) { // <-- EL CATCH VA DESPUÉS DEL RETURN
+    console.error("Error en la transacción: ", error);
+    throw error;
+  }
+}
 
   // 🚀 LÓGICA DE UPDATE SALE (SOLO RECALCULA STOCK SI HAY CAMBIO ENTRE CANCELADO/ACTIVO)
   const updateSale = async (updatedSale: Sale) => {
