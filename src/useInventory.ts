@@ -1817,25 +1817,20 @@ export function useInventory() {
               }
             }
           }
-        }
+        } // Cierra el if (shouldBeDeducted)
 
         transaction.set(doc(db, 'sales', newSale.id), cleanObject(newSale));
-      });
+      }); // Cierra el runTransaction
 
-     transaction.set(doc(db, 'sales', newSale.id), cleanObject(newSale));
-    }); // <-- ESTO CIERRA LA TRANSACCIÓN DE FIREBASE
+      return {
+        generatedCoupon: couponToGenerate ? { code: couponToGenerate.code, expiry: new Date(couponToGenerate.expiresAt) } : null
+      };
 
-    // 🚨 Devolvemos un objeto con el ID y el cupón para que el carrito lo muestre
-    return {
-      // ... (acá pueden estar otros datos que devuelvas) ...
-      generatedCoupon: couponToGenerate ? { code: couponToGenerate.code, expiry: new Date(couponToGenerate.expiresAt) } : null
-    };
-
-  } catch (error) { // <-- EL CATCH VA DESPUÉS DEL RETURN
-    console.error("Error en la transacción: ", error);
-    throw error;
-  }
-}
+    } catch (error) {
+      console.error("Error en la transacción: ", error);
+      throw error;
+    }
+  }; // Cierra la función registerSale
 
   // 🚀 LÓGICA DE UPDATE SALE (SOLO RECALCULA STOCK SI HAY CAMBIO ENTRE CANCELADO/ACTIVO)
   const updateSale = async (updatedSale: Sale) => {
