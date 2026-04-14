@@ -13,6 +13,6 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 
-// Al no pasarle un segundo parámetro, Firebase usa tu base de datos por defecto de forma segura
-export const db = getFirestore(app); 
+// AQUÍ ESTÁ LA MAGIA: Le decimos que use tu base de datos específica, no la vacía
+export const db = getFirestore(app, import.meta.env.VITE_FIRESTORE_DATABASE_ID); 
 export const auth = getAuth(app);
