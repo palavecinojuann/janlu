@@ -83,6 +83,15 @@ const CountdownTimer = ({ expiresAt }: { expiresAt: string }) => {
   );
 };
 
+interface CartItem {
+  product?: Product;
+  variant?: Variant;
+  course?: Course;
+  isCourse?: boolean;
+  quantity: number;
+  customDescription: string;
+}
+
 interface ProductCardProps {
   product: Product;
   isAdminMode: boolean;
@@ -133,6 +142,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
     });
   }, [product, rawMaterials]);
 
+  // Usamos un useMemo modificado para saber la cantidad EXACTA de la variante actual en el carrito
   const quantityInCart = useMemo(() => {
     if (!localVariant) return 0;
     const item = cart.find(i => i.product?.id === product.id && i.variant?.id === localVariant.id);
@@ -228,8 +238,14 @@ const ProductCard: React.FC<ProductCardProps> = ({
           </div>
         )}
 
+        {/* ✨ BARRA DE COMPRA RÁPIDA INTEGRADA */}
         {!isOutOfStock && (
-          <div className="absolute bottom-0 left-0 right-0 p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out z-20">
+          <div 
+            className="absolute bottom-0 left-0 right-0 p-3 sm:p-4 transition-transform duration-300 ease-out z-20 
+                       translate-y-0 md:translate-y-full md:group-hover:translate-y-0
+                       bg-white/95 md:bg-transparent backdrop-blur-sm md:backdrop-blur-none border-t border-stone-100 md:border-none"
+            onClick={(e) => e.stopPropagation()} // Evita que se abra el modal al interactuar con esta zona
+          >
             {quantityInCart === 0 ? (
               <button
                 onClick={(e) => {
@@ -238,30 +254,38 @@ const ProductCard: React.FC<ProductCardProps> = ({
                     onUpdateCart(product, localVariant, 1);
                   }
                 }}
-                className="w-full py-3 bg-stone-900 text-white text-xs font-bold uppercase tracking-widest hover:bg-stone-800 transition-colors shadow-lg"
+                className="w-full py-4 sm:py-3 bg-stone-900 text-white text-sm sm:text-xs font-bold uppercase tracking-widest hover:bg-stone-800 transition-colors shadow-lg active:scale-95 flex items-center justify-center gap-2"
               >
-                Agregar al carrito
+                <ShoppingBag size={16} className="sm:w-4 sm:h-4" />
+                Agregar Rápido
               </button>
             ) : (
-              <div 
-                className="w-full flex items-center justify-between bg-white border border-stone-900 overflow-hidden shadow-lg"
-                onClick={(e) => e.stopPropagation()}
-              >
+              <div className="w-full flex items-center justify-between bg-white border-2 md:border border-stone-900 overflow-hidden shadow-lg h-14 sm:h-auto">
                 <button
-                  onClick={() => onUpdateCart(product, localVariant!, quantityInCart - 1)}
-                  className="px-4 py-3 hover:bg-stone-50 text-stone-900 transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onUpdateCart(product, localVariant!, quantityInCart - 1);
+                  }}
+                  className="px-6 py-3 sm:px-4 sm:py-3 hover:bg-stone-50 text-stone-900 transition-colors active:bg-stone-100 h-full flex items-center justify-center"
                 >
-                  <Minus size={14} />
+                  <Minus size={18} className="sm:w-4 sm:h-4" />
                 </button>
-                <span className="font-bold text-stone-900">{quantityInCart}</span>
+                <span className="font-bold text-stone-900 text-lg sm:text-base">{quantityInCart}</span>
                 <button
-                  onClick={() => onUpdateCart(product, localVariant!, quantityInCart + 1)}
-                  className="px-4 py-3 hover:bg-stone-50 text-stone-900 transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onUpdateCart(product, localVariant!, quantityInCart + 1);
+                  }}
+                  className="px-6 py-3 sm:px-4 sm:py-3 hover:bg-stone-50 text-stone-900 transition-colors active:bg-stone-100 h-full flex items-center justify-center"
                 >
-                  <Plus size={14} />
+                  <Plus size={18} className="sm:w-4 sm:h-4" />
                 </button>
               </div>
             )}
+            {/* Mensajito visual para celular para indicar qué medida se agrega */}
+            <p className="md:hidden text-[9px] text-stone-400 text-center uppercase tracking-widest mt-2 font-bold">
+              Agrega: {localVariant?.name}
+            </p>
           </div>
         )}
       </div>
@@ -297,7 +321,10 @@ const ProductCard: React.FC<ProductCardProps> = ({
               return (
                 <button
                   key={v.id}
-                  onClick={() => setLocalVariant(v)}
+                  onClick={(e) => {
+                    e.stopPropagation(); // Evitar que el modal se abra al cambiar la medida
+                    setLocalVariant(v);
+                  }}
                   disabled={isVariantOutOfStock}
                   className={`px-2 py-1 text-[10px] border transition-colors relative ${
                     isVariantOutOfStock
@@ -319,9 +346,9 @@ const ProductCard: React.FC<ProductCardProps> = ({
           </div>
         )}
 
-        {quantityInCart > 0 && (
+        {totalQuantityInCart > 0 && (
           <div className="text-[10px] text-stone-500 font-medium mb-2 flex items-center gap-1">
-            <span>🛍️</span> {quantityInCart} en tu carrito
+            <span>🛍️</span> {totalQuantityInCart} en tu carrito
           </div>
         )}
 
@@ -340,15 +367,6 @@ const ProductCard: React.FC<ProductCardProps> = ({
     </div>
   );
 };
-
-interface CartItem {
-  product?: Product;
-  variant?: Variant;
-  course?: Course;
-  isCourse?: boolean;
-  quantity: number;
-  customDescription: string;
-}
 
 const PublicCampaignBanner = ({ campaign }: { campaign: Campaign | null }) => {
   const [timeLeft, setTimeLeft] = useState('');
@@ -884,7 +902,7 @@ export default function PublicCatalog({
 
     setIsSubmitting(true);
     setCheckoutError(null);
-    setGeneratedCoupon(null); // 🚨 LIMPIEZA: Borramos cualquier cupón fantasma de pruebas anteriores
+    setGeneratedCoupon(null); // Borramos cualquier cupón fantasma de pruebas anteriores
 
     try {
       const saleItems = cart.map(item => {
@@ -935,7 +953,7 @@ export default function PublicCatalog({
         // Obtenemos la VERDADERA respuesta del servidor
         const saleResult = await onRegisterSale(newSaleData as any);
         
-        // Si el servidor (useInventory) decidió crear un cupón de verdad, lo atrapamos
+        // Si el servidor decidió crear un cupón de verdad, lo atrapamos
         if (saleResult && typeof saleResult === 'object' && saleResult.generatedCoupon) {
            serverGeneratedCoupon = saleResult.generatedCoupon;
            setGeneratedCoupon(serverGeneratedCoupon);
@@ -974,7 +992,7 @@ export default function PublicCatalog({
         message += `Email de contacto: ${customerDetails.email}\n`;
       }
       
-      // 🚨 CORRECCIÓN: Solo agregamos el mensaje de WhatsApp si el SERVIDOR confirmó el cupón
+      // Solo agregamos el mensaje de WhatsApp si el SERVIDOR confirmó el cupón
       if (serverGeneratedCoupon) {
         message += `\n🎉 Me registré en la comunidad.\nMi código de regalo generado es: ${serverGeneratedCoupon.code} (Válido hasta: ${serverGeneratedCoupon.expiry})`;
       }
