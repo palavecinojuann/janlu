@@ -241,34 +241,36 @@ export default function ProductModal({
               </div>
             )}
 
-            <div className="flex flex-col gap-4">
+            {/* ✨ LA BARRA INFERIOR MEJORADA PARA CELULARES */}
+            <div className="flex flex-col gap-4 mt-auto">
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+                
                 <div className="flex flex-col gap-1 w-full sm:w-auto">
-                  <div className="flex items-center border-2 border-stone-200 rounded-2xl overflow-hidden h-14 bg-white">
+                  <div className="flex items-center border-2 border-stone-200 rounded-2xl overflow-hidden h-16 sm:h-14 bg-white">
                     <button 
                       onClick={() => {
                         if (localVariant) {
                           onUpdateCart(product, localVariant, Math.max(0, quantityInCart - 1));
                         }
                       }}
-                      className="w-14 h-full flex items-center justify-center text-stone-400 hover:text-stone-900 hover:bg-stone-50 transition-colors"
+                      className="w-16 sm:w-14 h-full flex items-center justify-center text-stone-400 hover:text-stone-900 active:bg-stone-100 transition-colors"
                     >
-                      <Minus size={18} />
+                      <Minus className="w-6 h-6 sm:w-[18px] sm:h-[18px]" />
                     </button>
-                    <div className="w-14 text-center font-bold text-stone-900 text-lg">{quantityInCart}</div>
+                    <div className="flex-1 sm:w-14 text-center font-bold text-stone-900 text-xl sm:text-lg">{quantityInCart}</div>
                     <button 
                       onClick={() => {
                         if (localVariant) {
                           onUpdateCart(product, localVariant, quantityInCart + 1);
                         }
                       }}
-                      className="w-14 h-full flex items-center justify-center text-stone-400 hover:text-stone-900 hover:bg-stone-50 transition-colors"
+                      className="w-16 sm:w-14 h-full flex items-center justify-center text-stone-400 hover:text-stone-900 active:bg-stone-100 transition-colors"
                     >
-                      <Plus size={18} />
+                      <Plus className="w-6 h-6 sm:w-[18px] sm:h-[18px]" />
                     </button>
                   </div>
                   {!isOutOfStock && localVariant && (
-                    <span className="text-[10px] text-stone-400 font-bold uppercase tracking-widest text-center mt-1">
+                    <span className="text-[11px] sm:text-[10px] text-stone-400 font-bold uppercase tracking-widest text-center mt-1">
                       {getVariantStock(localVariant, rawMaterials)} disponibles
                     </span>
                   )}
@@ -284,11 +286,12 @@ export default function ProductModal({
                       onClose();
                     }
                   }}
-                  className="flex-1 h-14 bg-stone-900 text-white font-bold uppercase tracking-[0.2em] text-xs hover:bg-stone-800 rounded-2xl transition-all shadow-xl shadow-stone-900/10 disabled:opacity-50 disabled:grayscale flex items-center justify-center gap-2"
+                  className="flex-1 h-16 sm:h-14 bg-stone-900 text-white font-bold uppercase tracking-[0.2em] text-sm sm:text-xs hover:bg-stone-800 rounded-2xl transition-all shadow-xl shadow-stone-900/10 active:scale-[0.98] disabled:opacity-50 disabled:grayscale flex items-center justify-center gap-3"
                 >
-                  <ShoppingBag size={16} />
-                  {quantityInCart === 0 ? 'Agregar al carrito' : 'Confirmar y Volver'}
+                  <ShoppingBag className="w-5 h-5 sm:w-4 sm:h-4" />
+                  <span>{quantityInCart === 0 ? 'Agregar al carrito' : 'Confirmar y Volver'}</span>
                 </button>
+                
               </div>
             </div>
 
