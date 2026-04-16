@@ -313,6 +313,7 @@ export default function ProductModal({
               </div>
             </div>
           )}
+         </div>
         </div>
       </div>
     </div>
