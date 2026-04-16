@@ -183,7 +183,6 @@ const ProductCard: React.FC<ProductCardProps> = ({
           <img 
             src={product.photoUrl} 
             alt={product.name} 
-            {/* ✨ IMAGEN CORREGIDA: Ajusta sin cortar */}
             className={`w-full h-full object-contain bg-stone-50 transition-transform duration-700 ease-out ${isOutOfStock ? 'grayscale' : ''}`}
             referrerPolicy="no-referrer"
             loading="lazy"
