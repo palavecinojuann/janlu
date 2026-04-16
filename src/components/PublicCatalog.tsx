@@ -238,13 +238,52 @@ const ProductCard: React.FC<ProductCardProps> = ({
           </div>
         )}
 
-        {/* ✨ BARRA DE COMPRA RÁPIDA INTEGRADA */}
-        {!isOutOfStock && (
-          <div 
-            className="absolute bottom-0 left-0 right-0 p-3 sm:p-4 transition-transform duration-300 ease-out z-20 
-                       translate-y-0 md:translate-y-full md:group-hover:translate-y-0
-                       bg-white/95 md:bg-transparent backdrop-blur-sm md:backdrop-blur-none border-t border-stone-100 md:border-none"
-            onClick={(e) => e.stopPropagation()} // Evita que se abra el modal al interactuar con esta zona
+        {/* ✨ BARRA DE COMPRA RÁPIDA (Optimizada para Móvil y PC) */}
+{!isOutOfStock && (
+  <div 
+    className="absolute bottom-0 left-0 right-0 p-3 sm:p-4 transition-transform duration-300 ease-out z-20 
+               translate-y-0 md:translate-y-full md:group-hover:translate-y-0
+               bg-white/95 md:bg-stone-900/10 backdrop-blur-sm md:backdrop-blur-none border-t border-stone-100 md:border-none"
+    onClick={(e) => e.stopPropagation()} 
+  >
+    {quantityInCart === 0 ? (
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          if (localVariant) onUpdateCart(product, localVariant, 1);
+        }}
+        className="w-full py-4 sm:py-3 bg-stone-900 text-white text-sm sm:text-xs font-bold uppercase tracking-widest hover:bg-stone-800 transition-all active:scale-95 flex items-center justify-center gap-2 shadow-lg"
+      >
+        <ShoppingBag size={18} className="sm:w-4 sm:h-4" />
+        <span>Agregar</span>
+      </button>
+    ) : (
+      <div className="w-full flex items-center justify-between bg-white border-2 border-stone-900 overflow-hidden shadow-lg h-14 sm:h-12 rounded-xl sm:rounded-none">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onUpdateCart(product, localVariant!, quantityInCart - 1);
+          }}
+          className="flex-1 h-full flex items-center justify-center hover:bg-stone-50 text-stone-900 active:bg-stone-100 transition-colors"
+        >
+          <Minus size={22} className="sm:w-4 sm:h-4" />
+        </button>
+        <span className="flex-1 text-center font-bold text-stone-900 text-xl sm:text-base">
+          {quantityInCart}
+        </span>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onUpdateCart(product, localVariant!, quantityInCart + 1);
+          }}
+          className="flex-1 h-full flex items-center justify-center hover:bg-stone-50 text-stone-900 active:bg-stone-100 transition-colors"
+        >
+          <Plus size={22} className="sm:w-4 sm:h-4" />
+        </button>
+      </div>
+    )}
+  </div>
+)}
           >
             {quantityInCart === 0 ? (
               <button
