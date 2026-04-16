@@ -239,49 +239,12 @@ const ProductCard: React.FC<ProductCardProps> = ({
         )}
 
        {/* ✨ BARRA DE COMPRA RÁPIDA (Optimizada para Móvil y PC) */}
-{!isOutOfStock && (
-  <div 
-    className="absolute bottom-0 left-0 right-0 p-3 sm:p-4 transition-transform duration-300 ease-out z-20 translate-y-0 md:translate-y-full md:group-hover:translate-y-0 bg-white/95 md:bg-stone-900/10 backdrop-blur-sm md:backdrop-blur-none border-t border-stone-100 md:border-none"
-    onClick={(e) => e.stopPropagation()} 
-  >
-    {quantityInCart === 0 ? (
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          if (localVariant) onUpdateCart(product, localVariant, 1);
-        }}
-        className="w-full py-4 sm:py-3 bg-stone-900 text-white text-sm sm:text-xs font-bold uppercase tracking-widest hover:bg-stone-800 transition-all active:scale-95 flex items-center justify-center gap-2 shadow-lg"
-      >
-        <ShoppingBag size={18} className="sm:w-4 sm:h-4" />
-        <span>Agregar</span>
-      </button>
-    ) : (
-      <div className="w-full flex items-center justify-between bg-white border-2 border-stone-900 overflow-hidden shadow-lg h-14 sm:h-12 rounded-xl sm:rounded-none">
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onUpdateCart(product, localVariant!, quantityInCart - 1);
-          }}
-          className="flex-1 h-full flex items-center justify-center hover:bg-stone-50 text-stone-900 active:bg-stone-100 transition-colors"
-        >
-          <Minus size={22} className="sm:w-4 sm:h-4" />
-        </button>
-        <span className="flex-1 text-center font-bold text-stone-900 text-xl sm:text-base">
-          {quantityInCart}
-        </span>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onUpdateCart(product, localVariant!, quantityInCart + 1);
-          }}
-          className="flex-1 h-full flex items-center justify-center hover:bg-stone-50 text-stone-900 active:bg-stone-100 transition-colors"
-        >
-          <Plus size={22} className="sm:w-4 sm:h-4" />
-        </button>
-      </div>
-    )}
-  </div>
-)}
+{/* ✨ BARRA DE COMPRA RÁPIDA (Optimizada para Móvil y PC) */}
+        {!isOutOfStock && (
+          <div 
+            className="absolute bottom-0 left-0 right-0 p-3 sm:p-4 transition-transform duration-300 ease-out z-20 translate-y-0 md:translate-y-full md:group-hover:translate-y-0 bg-white/95 md:bg-stone-900/10 backdrop-blur-sm md:backdrop-blur-none border-t border-stone-100 md:border-none"
+            onClick={(e) => e.stopPropagation()} 
+          >
             {quantityInCart === 0 ? (
               <button
                 onClick={(e) => {
@@ -290,34 +253,37 @@ const ProductCard: React.FC<ProductCardProps> = ({
                     onUpdateCart(product, localVariant, 1);
                   }
                 }}
-                className="w-full py-4 sm:py-3 bg-stone-900 text-white text-sm sm:text-xs font-bold uppercase tracking-widest hover:bg-stone-800 transition-colors shadow-lg active:scale-95 flex items-center justify-center gap-2"
+                className="w-full py-4 sm:py-3 bg-stone-900 text-white text-sm sm:text-xs font-bold uppercase tracking-widest hover:bg-stone-800 transition-all active:scale-95 flex items-center justify-center gap-2 shadow-lg"
               >
-                <ShoppingBag size={16} className="sm:w-4 sm:h-4" />
-                Agregar Rápido
+                <ShoppingBag className="w-5 h-5 sm:w-4 sm:h-4" />
+                <span>Agregar</span>
               </button>
             ) : (
-              <div className="w-full flex items-center justify-between bg-white border-2 md:border border-stone-900 overflow-hidden shadow-lg h-14 sm:h-auto">
+              <div className="w-full flex items-center justify-between bg-white border-2 border-stone-900 overflow-hidden shadow-lg h-14 sm:h-12 rounded-xl sm:rounded-none">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     onUpdateCart(product, localVariant!, quantityInCart - 1);
                   }}
-                  className="px-6 py-3 sm:px-4 sm:py-3 hover:bg-stone-50 text-stone-900 transition-colors active:bg-stone-100 h-full flex items-center justify-center"
+                  className="flex-1 h-full flex items-center justify-center hover:bg-stone-50 text-stone-900 active:bg-stone-100 transition-colors"
                 >
-                  <Minus size={18} className="sm:w-4 sm:h-4" />
+                  <Minus className="w-6 h-6 sm:w-4 sm:h-4" />
                 </button>
-                <span className="font-bold text-stone-900 text-lg sm:text-base">{quantityInCart}</span>
+                <span className="flex-1 text-center font-bold text-stone-900 text-xl sm:text-base">
+                  {quantityInCart}
+                </span>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     onUpdateCart(product, localVariant!, quantityInCart + 1);
                   }}
-                  className="px-6 py-3 sm:px-4 sm:py-3 hover:bg-stone-50 text-stone-900 transition-colors active:bg-stone-100 h-full flex items-center justify-center"
+                  className="flex-1 h-full flex items-center justify-center hover:bg-stone-50 text-stone-900 active:bg-stone-100 transition-colors"
                 >
-                  <Plus size={18} className="sm:w-4 sm:h-4" />
+                  <Plus className="w-6 h-6 sm:w-4 sm:h-4" />
                 </button>
               </div>
             )}
+            
             {/* Mensajito visual para celular para indicar qué medida se agrega */}
             <p className="md:hidden text-[9px] text-stone-400 text-center uppercase tracking-widest mt-2 font-bold">
               Agrega: {localVariant?.name}
