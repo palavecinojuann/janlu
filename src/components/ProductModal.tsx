@@ -133,7 +133,7 @@ export default function ProductModal({
           )}
         </div>
 
-        <div className="flex-1 p-6 md:p-10 lg:p-12 overflow-y-auto flex flex-col bg-white">
+        <div className="flex-1 p-6 md:p-10 lg:p-12 flex flex-col bg-white">
           <div className="mb-8">
             <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-3 block">
               SKU: {localVariant?.sku || product.id.slice(0, 8).toUpperCase()}
