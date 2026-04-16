@@ -238,12 +238,10 @@ const ProductCard: React.FC<ProductCardProps> = ({
           </div>
         )}
 
-        {/* ✨ BARRA DE COMPRA RÁPIDA (Optimizada para Móvil y PC) */}
+       {/* ✨ BARRA DE COMPRA RÁPIDA (Optimizada para Móvil y PC) */}
 {!isOutOfStock && (
   <div 
-    className="absolute bottom-0 left-0 right-0 p-3 sm:p-4 transition-transform duration-300 ease-out z-20 
-               translate-y-0 md:translate-y-full md:group-hover:translate-y-0
-               bg-white/95 md:bg-stone-900/10 backdrop-blur-sm md:backdrop-blur-none border-t border-stone-100 md:border-none"
+    className="absolute bottom-0 left-0 right-0 p-3 sm:p-4 transition-transform duration-300 ease-out z-20 translate-y-0 md:translate-y-full md:group-hover:translate-y-0 bg-white/95 md:bg-stone-900/10 backdrop-blur-sm md:backdrop-blur-none border-t border-stone-100 md:border-none"
     onClick={(e) => e.stopPropagation()} 
   >
     {quantityInCart === 0 ? (
@@ -284,7 +282,6 @@ const ProductCard: React.FC<ProductCardProps> = ({
     )}
   </div>
 )}
-          >
             {quantityInCart === 0 ? (
               <button
                 onClick={(e) => {
