@@ -114,7 +114,7 @@ export default function ProductModal({
             <img 
               src={product.photoUrl} 
               alt={product.name} 
-              className={`absolute inset-0 w-full h-full object-cover ${isOutOfStock ? 'grayscale' : ''}`}
+              className={`absolute inset-0 w-full h-full object-contain bg-stone-50 ${isOutOfStock ? 'grayscale' : ''}`}
               referrerPolicy="no-referrer"
             />
           ) : (
