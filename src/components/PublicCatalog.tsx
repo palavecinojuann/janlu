@@ -142,7 +142,6 @@ const ProductCard: React.FC<ProductCardProps> = ({
     });
   }, [product, rawMaterials]);
 
-  // Usamos un useMemo modificado para saber la cantidad EXACTA de la variante actual en el carrito
   const quantityInCart = useMemo(() => {
     if (!localVariant) return 0;
     const item = cart.find(i => i.product?.id === product.id && i.variant?.id === localVariant.id);
@@ -184,7 +183,8 @@ const ProductCard: React.FC<ProductCardProps> = ({
           <img 
             src={product.photoUrl} 
             alt={product.name} 
-            className={`w-full h-full object-cover transition-transform duration-700 ease-out ${isOutOfStock ? 'grayscale' : ''}`}
+            {/* ✨ IMAGEN CORREGIDA: Ajusta sin cortar */}
+            className={`w-full h-full object-contain bg-stone-50 transition-transform duration-700 ease-out ${isOutOfStock ? 'grayscale' : ''}`}
             referrerPolicy="no-referrer"
             loading="lazy"
           />
@@ -239,7 +239,6 @@ const ProductCard: React.FC<ProductCardProps> = ({
         )}
 
        {/* ✨ BARRA DE COMPRA RÁPIDA (Optimizada para Móvil y PC) */}
-{/* ✨ BARRA DE COMPRA RÁPIDA (Optimizada para Móvil y PC) */}
         {!isOutOfStock && (
           <div 
             className="absolute bottom-0 left-0 right-0 p-3 sm:p-4 transition-transform duration-300 ease-out z-20 translate-y-0 md:translate-y-full md:group-hover:translate-y-0 bg-white/95 md:bg-stone-900/10 backdrop-blur-sm md:backdrop-blur-none border-t border-stone-100 md:border-none"
@@ -253,7 +252,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
                     onUpdateCart(product, localVariant, 1);
                   }
                 }}
-                className="w-full py-3 sm:py-3 bg-stone-900 text-white text-sm sm:text-xs font-bold uppercase tracking-widest hover:bg-stone-800 transition-all active:scale-95 flex items-center justify-center gap-2 shadow-lg"
+                className="w-full py-4 sm:py-3 bg-stone-900 text-white text-sm sm:text-xs font-bold uppercase tracking-widest hover:bg-stone-800 transition-all active:scale-95 flex items-center justify-center gap-2 shadow-lg"
               >
                 <ShoppingBag className="w-5 h-5 sm:w-4 sm:h-4" />
                 <span>Agregar</span>
@@ -904,7 +903,7 @@ export default function PublicCatalog({
 
     setIsSubmitting(true);
     setCheckoutError(null);
-    setGeneratedCoupon(null); // Borramos cualquier cupón fantasma de pruebas anteriores
+    setGeneratedCoupon(null); 
 
     try {
       const saleItems = cart.map(item => {
@@ -952,10 +951,8 @@ export default function PublicCatalog({
       let serverGeneratedCoupon = null;
 
       if (onRegisterSale) {
-        // Obtenemos la VERDADERA respuesta del servidor
         const saleResult = await onRegisterSale(newSaleData as any);
         
-        // Si el servidor decidió crear un cupón de verdad, lo atrapamos
         if (saleResult && typeof saleResult === 'object' && saleResult.generatedCoupon) {
            serverGeneratedCoupon = saleResult.generatedCoupon;
            setGeneratedCoupon(serverGeneratedCoupon);
@@ -994,7 +991,6 @@ export default function PublicCatalog({
         message += `Email de contacto: ${customerDetails.email}\n`;
       }
       
-      // Solo agregamos el mensaje de WhatsApp si el SERVIDOR confirmó el cupón
       if (serverGeneratedCoupon) {
         message += `\n🎉 Me registré en la comunidad.\nMi código de regalo generado es: ${serverGeneratedCoupon.code} (Válido hasta: ${serverGeneratedCoupon.expiry})`;
       }
@@ -1019,8 +1015,9 @@ export default function PublicCatalog({
     }
   };
 
+  {/* ✨ CLASES AGREGADAS PARA EVITAR SCROLL HORIZONTAL */}
   return (
-    <div className="min-h-screen bg-white text-stone-900 font-sans selection:bg-stone-200 overflow-x-hidden">
+    <div className="min-h-screen bg-white text-stone-900 font-sans selection:bg-stone-200 overflow-x-hidden w-full max-w-[100vw]">
       {/* Top Bar */}
       <div className="bg-stone-950 text-stone-100 text-[10px] sm:text-xs font-medium uppercase tracking-widest text-center py-2 px-4">
         {storeSettings?.topBarText || "20% OFF CON TRANSFERENCIA | ENVÍO GRATIS EN COMPRAS SUPERIORES A $50.000"}
@@ -2334,4 +2331,3 @@ export default function PublicCatalog({
     </div>
   );
 }
-
