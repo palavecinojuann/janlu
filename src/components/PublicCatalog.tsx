@@ -253,7 +253,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
                     onUpdateCart(product, localVariant, 1);
                   }
                 }}
-                className="w-full py-4 sm:py-3 bg-stone-900 text-white text-sm sm:text-xs font-bold uppercase tracking-widest hover:bg-stone-800 transition-all active:scale-95 flex items-center justify-center gap-2 shadow-lg"
+                className="w-full py-3 sm:py-3 bg-stone-900 text-white text-sm sm:text-xs font-bold uppercase tracking-widest hover:bg-stone-800 transition-all active:scale-95 flex items-center justify-center gap-2 shadow-lg"
               >
                 <ShoppingBag className="w-5 h-5 sm:w-4 sm:h-4" />
                 <span>Agregar</span>
