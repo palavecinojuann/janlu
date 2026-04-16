@@ -298,6 +298,21 @@ export default function ProductModal({
               >
                 <ShoppingBag className="w-5 h-5 sm:w-4 sm:h-4" />
                 <span>{quantityInCart === 0 ? 'Agregar al carrito' : 'Confirmar y Volver'}</span>
+              {/* Botón de Agregar: Más alto y con letra más grande */}
+              <button
+                disabled={isOutOfStock || !localVariant}
+                onClick={() => {
+                  if (localVariant) {
+                    if (quantityInCart === 0) {
+                      onUpdateCart(product, localVariant, 1);
+                    }
+                    onClose();
+                  }
+                }}
+                className="flex-1 h-16 sm:h-14 bg-stone-900 text-white font-bold uppercase tracking-widest text-sm sm:text-xs hover:bg-stone-800 rounded-xl transition-all shadow-lg active:scale-[0.98] disabled:opacity-50 disabled:grayscale flex items-center justify-center gap-3"
+              >
+                <ShoppingBag className="w-6 h-6 sm:w-5 sm:h-5" />
+                <span>{quantityInCart === 0 ? 'Agregar al carrito' : 'Confirmar y Volver'}</span>
               </button>
               
             </div>
