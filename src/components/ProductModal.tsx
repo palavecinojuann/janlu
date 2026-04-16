@@ -99,7 +99,8 @@ export default function ProductModal({
         onClick={onClose}
       />
       
-      <div className="relative bg-white w-full max-w-[1000px] h-[100dvh] sm:h-[85vh] sm:min-h-[600px] sm:rounded-[32px] shadow-2xl overflow-hidden flex flex-col md:flex-row z-10 animate-in fade-in zoom-in-95 duration-300">
+      {/* Contenedor principal: En celular scrollea entero, en PC scrollea dividido */}
+      <div className="relative bg-white w-full max-w-[1000px] h-[100dvh] sm:h-[85vh] sm:min-h-[600px] sm:rounded-[32px] shadow-2xl overflow-y-auto md:overflow-hidden flex flex-col md:flex-row z-10 animate-in fade-in zoom-in-95 duration-300">
         
         <button 
           onClick={onClose}
@@ -133,7 +134,8 @@ export default function ProductModal({
           )}
         </div>
 
-        <div className="flex-1 p-6 md:p-10 lg:p-12 flex flex-col bg-white">
+        {/* Panel de texto: En PC usa su propio scroll, en celular usa el del padre */}
+        <div className="flex-1 p-6 md:p-10 lg:p-12 flex flex-col bg-white md:overflow-y-auto">
           <div className="mb-8">
             <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-3 block">
               SKU: {localVariant?.sku || product.id.slice(0, 8).toUpperCase()}
@@ -158,7 +160,6 @@ export default function ProductModal({
                 Precio sin impuestos {formatCurrency(currentPrice * 0.82)}
               </p>
 
-              {/* ✨ NUEVO: Subtotal Acumulado (solo aparece si llevan más de 1) */}
               {quantityInCart > 1 && (
                 <div className="mt-4 inline-flex items-center gap-2 bg-stone-900 px-4 py-2 rounded-xl">
                   <span className="text-xs font-bold text-stone-300 uppercase tracking-widest">Total:</span>
@@ -169,7 +170,6 @@ export default function ProductModal({
               )}
             </div>
 
-            {/* ✨ CORRECCIÓN: La caja gris ahora solo se muestra SI HAY descuentos o cuotas */}
             {(cashDiscount > 0 || installmentsCount > 0) && (
               <div className="mt-6 space-y-3 bg-stone-50 p-4 rounded-2xl border border-stone-100">
                 {cashDiscount > 0 && (
@@ -241,94 +241,79 @@ export default function ProductModal({
               </div>
             )}
 
-          {/* ✨ LA BARRA INFERIOR MEJORADA PARA CELULARES */}
-          <div className="flex flex-col gap-4 mt-auto">
-            {/* 📱 CONTROLES DE CANTIDAD Y COMPRA EN MODAL */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
-              
-              {/* Selector de cantidad: Expandido en móvil y botones separados a los extremos */}
-              <div className="flex flex-col gap-1 w-full sm:w-auto">
-                <div className="flex items-center justify-between border-2 border-stone-200 rounded-xl overflow-hidden h-14 sm:h-12 bg-white shrink-0">
-                  <button 
-                    onClick={() => {
-                      if (localVariant) {
-                        onUpdateCart(product, localVariant, Math.max(0, quantityInCart - 1));
-                      }
-                    }}
-                    className="w-14 sm:w-12 h-full flex items-center justify-center text-stone-500 hover:text-stone-900 active:bg-stone-100 transition-colors"
-                  >
-                    <Minus className="w-5 h-5 sm:w-4 sm:h-4" />
-                  </button>
-                  
-                  <div className="flex-1 sm:w-12 text-center font-bold text-stone-900 text-lg sm:text-base">
-                    {quantityInCart}
+            {/* ✨ LA BARRA INFERIOR MEJORADA PARA CELULARES */}
+            <div className="flex flex-col gap-4 mt-auto">
+              {/* 📱 CONTROLES DE CANTIDAD Y COMPRA EN MODAL */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
+                
+                {/* Selector de cantidad */}
+                <div className="flex flex-col gap-1 w-full sm:w-auto">
+                  <div className="flex items-center justify-between border-2 border-stone-200 rounded-xl overflow-hidden h-14 sm:h-12 bg-white shrink-0">
+                    <button 
+                      onClick={() => {
+                        if (localVariant) {
+                          onUpdateCart(product, localVariant, Math.max(0, quantityInCart - 1));
+                        }
+                      }}
+                      className="w-14 sm:w-12 h-full flex items-center justify-center text-stone-500 hover:text-stone-900 active:bg-stone-100 transition-colors"
+                    >
+                      <Minus className="w-5 h-5 sm:w-4 sm:h-4" />
+                    </button>
+                    
+                    <div className="flex-1 sm:w-12 text-center font-bold text-stone-900 text-lg sm:text-base">
+                      {quantityInCart}
+                    </div>
+                    
+                    <button 
+                      onClick={() => {
+                        if (localVariant) {
+                          onUpdateCart(product, localVariant, quantityInCart + 1);
+                        }
+                      }}
+                      className="w-14 sm:w-12 h-full flex items-center justify-center text-stone-500 hover:text-stone-900 active:bg-stone-100 transition-colors"
+                    >
+                      <Plus className="w-5 h-5 sm:w-4 sm:h-4" />
+                    </button>
                   </div>
                   
-                  <button 
-                    onClick={() => {
-                      if (localVariant) {
-                        onUpdateCart(product, localVariant, quantityInCart + 1);
-                      }
-                    }}
-                    className="w-14 sm:w-12 h-full flex items-center justify-center text-stone-500 hover:text-stone-900 active:bg-stone-100 transition-colors"
-                  >
-                    <Plus className="w-5 h-5 sm:w-4 sm:h-4" />
-                  </button>
+                  {!isOutOfStock && localVariant && (
+                    <span className="text-[11px] sm:text-[10px] text-stone-400 font-bold uppercase tracking-widest text-center mt-1">
+                      {getVariantStock(localVariant, rawMaterials)} disponibles
+                    </span>
+                  )}
                 </div>
+
+                {/* Botón de Agregar: Más alto y con letra más grande */}
+                <button
+                  disabled={isOutOfStock || !localVariant}
+                  onClick={() => {
+                    if (localVariant) {
+                      if (quantityInCart === 0) {
+                        onUpdateCart(product, localVariant, 1);
+                      }
+                      onClose();
+                    }
+                  }}
+                  className="flex-1 h-16 sm:h-14 bg-stone-900 text-white font-bold uppercase tracking-widest text-sm sm:text-xs hover:bg-stone-800 rounded-xl transition-all shadow-lg active:scale-[0.98] disabled:opacity-50 disabled:grayscale flex items-center justify-center gap-3"
+                >
+                  <ShoppingBag className="w-6 h-6 sm:w-5 sm:h-5" />
+                  <span>{quantityInCart === 0 ? 'Agregar al carrito' : 'Confirmar y Volver'}</span>
+                </button>
                 
-                {!isOutOfStock && localVariant && (
-                  <span className="text-[11px] sm:text-[10px] text-stone-400 font-bold uppercase tracking-widest text-center mt-1">
-                    {getVariantStock(localVariant, rawMaterials)} disponibles
-                  </span>
-                )}
               </div>
-
-              {/* Botón de Agregar: Altura balanceada */}
-              <button
-                disabled={isOutOfStock || !localVariant}
-                onClick={() => {
-                  if (localVariant) {
-                    if (quantityInCart === 0) {
-                      onUpdateCart(product, localVariant, 1);
-                    }
-                    onClose();
-                  }
-                }}
-                className="flex-1 h-14 sm:h-12 bg-stone-900 text-white font-bold uppercase tracking-[0.2em] text-xs hover:bg-stone-800 rounded-xl transition-all shadow-lg active:scale-[0.98] disabled:opacity-50 disabled:grayscale flex items-center justify-center gap-3"
-              >
-                <ShoppingBag className="w-5 h-5 sm:w-4 sm:h-4" />
-                <span>{quantityInCart === 0 ? 'Agregar al carrito' : 'Confirmar y Volver'}</span>
-              {/* Botón de Agregar: Más alto y con letra más grande */}
-              <button
-                disabled={isOutOfStock || !localVariant}
-                onClick={() => {
-                  if (localVariant) {
-                    if (quantityInCart === 0) {
-                      onUpdateCart(product, localVariant, 1);
-                    }
-                    onClose();
-                  }
-                }}
-                className="flex-1 h-16 sm:h-14 bg-stone-900 text-white font-bold uppercase tracking-widest text-sm sm:text-xs hover:bg-stone-800 rounded-xl transition-all shadow-lg active:scale-[0.98] disabled:opacity-50 disabled:grayscale flex items-center justify-center gap-3"
-              >
-                <ShoppingBag className="w-6 h-6 sm:w-5 sm:h-5" />
-                <span>{quantityInCart === 0 ? 'Agregar al carrito' : 'Confirmar y Volver'}</span>
-              </button>
-              
             </div>
+
+            {(product.customNote || storeSettings?.productModalNotice) && (
+              <div className="mt-8 pt-6 border-t border-stone-100 bg-stone-50/50 -mx-6 md:-mx-10 lg:-mx-12 px-6 md:px-10 lg:px-12 -mb-6 md:-mb-10 lg:-mb-12 pb-6 md:pb-10 lg:pb-12">
+                <div className="flex gap-3 text-stone-500 max-w-md">
+                  <Info size={16} className="shrink-0 mt-0.5" />
+                  <p className="text-[11px] md:text-xs leading-relaxed font-medium">
+                    {product.customNote || storeSettings?.productModalNotice}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
-
-          {(product.customNote || storeSettings?.productModalNotice) && (
-            <div className="mt-8 pt-6 border-t border-stone-100 bg-stone-50/50 -mx-6 md:-mx-10 lg:-mx-12 px-6 md:px-10 lg:px-12 -mb-6 md:-mb-10 lg:-mb-12 pb-6 md:pb-10 lg:pb-12">
-              <div className="flex gap-3 text-stone-500 max-w-md">
-                <Info size={16} className="shrink-0 mt-0.5" />
-                <p className="text-[11px] md:text-xs leading-relaxed font-medium">
-                  {product.customNote || storeSettings?.productModalNotice}
-                </p>
-              </div>
-            </div>
-          )}
-         </div>
         </div>
       </div>
     </div>
