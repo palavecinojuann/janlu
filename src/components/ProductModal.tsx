@@ -241,7 +241,7 @@ export default function ProductModal({
               </div>
             )}
 
-           {/* ✨ LA BARRA INFERIOR MEJORADA PARA CELULARES */}
+          {/* ✨ LA BARRA INFERIOR MEJORADA PARA CELULARES */}
           <div className="flex flex-col gap-4 mt-auto">
             {/* 📱 CONTROLES DE CANTIDAD Y COMPRA EN MODAL */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
