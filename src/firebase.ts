@@ -2,7 +2,6 @@ import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
-// El sistema leerá las llaves que le pongamos en Vercel
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -14,6 +13,6 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 
-// Usamos la base de datos principal y por defecto de tu proyecto
-export const db = getFirestore(app); 
+// VOLVEMOS A AGREGAR EL PARÁMETRO DEL ID
+export const db = getFirestore(app, import.meta.env.VITE_FIRESTORE_DATABASE_ID); 
 export const auth = getAuth(app);
