@@ -300,6 +300,8 @@ export default function ProductModal({
                   <ShoppingBag className="w-6 h-6 sm:w-5 sm:h-5" />
                   <span>{quantityInCart === 0 ? 'Agregar al carrito' : 'Confirmar y Volver'}</span>
                 </button>
+                </div>
+            </div>
 
             {(product.customNote || storeSettings?.productModalNotice) && (
               <div className="mt-8 pt-6 border-t border-stone-100 bg-stone-50/50 -mx-6 md:-mx-10 lg:-mx-12 px-6 md:px-10 lg:px-12 -mb-6 md:-mb-10 lg:-mb-12 pb-6 md:pb-10 lg:pb-12">
