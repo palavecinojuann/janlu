@@ -283,7 +283,7 @@ export default function ProductModal({
                   )}
                 </div>
 
-                {/* Botón de Agregar: Más alto y con letra más grande */}
+               {/* Botón de Agregar: BLINDADO CONTRA APLASTAMIENTO */}
                 <button
                   disabled={isOutOfStock || !localVariant}
                   onClick={() => {
@@ -294,14 +294,12 @@ export default function ProductModal({
                       onClose();
                     }
                   }}
-                  className="flex-1 h-16 sm:h-14 bg-stone-900 text-white font-bold uppercase tracking-widest text-sm sm:text-xs hover:bg-stone-800 rounded-xl transition-all shadow-lg active:scale-[0.98] disabled:opacity-50 disabled:grayscale flex items-center justify-center gap-3"
+                  // LA MAGIA: Cambiamos 'flex-1' por 'w-full' y agregamos 'shrink-0'
+                  className="w-full shrink-0 h-16 sm:h-14 bg-stone-900 text-white font-bold uppercase tracking-widest text-sm sm:text-xs hover:bg-stone-800 rounded-xl transition-all shadow-lg active:scale-[0.98] disabled:opacity-50 disabled:grayscale flex items-center justify-center gap-3"
                 >
                   <ShoppingBag className="w-6 h-6 sm:w-5 sm:h-5" />
                   <span>{quantityInCart === 0 ? 'Agregar al carrito' : 'Confirmar y Volver'}</span>
                 </button>
-                
-              </div>
-            </div>
 
             {(product.customNote || storeSettings?.productModalNotice) && (
               <div className="mt-8 pt-6 border-t border-stone-100 bg-stone-50/50 -mx-6 md:-mx-10 lg:-mx-12 px-6 md:px-10 lg:px-12 -mb-6 md:-mb-10 lg:-mb-12 pb-6 md:pb-10 lg:pb-12">
