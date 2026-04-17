@@ -393,31 +393,31 @@ export function useInventory() {
       updateOrders();
     }, (e) => handleAdminError(e, OperationType.GET, 'orders_active'));
 
-    const fetchNonCriticalData = async () => {
+   const fetchNonCriticalData = async () => {
       if (hasFetchedNonCritical.current) return;
       hasFetchedNonCritical.current = true;
       
-      console.log("Fetching non-critical static data...");
+      console.log("Fetching non-critical static data (Optimized Limits)...");
       try {
-        const auditLogsSnap = await getDocs(query(collection(db, 'auditLogs'), orderBy('timestamp', 'desc'), limit(50)));
+        const auditLogsSnap = await getDocs(query(collection(db, 'auditLogs'), orderBy('timestamp', 'desc'), limit(15)));
         setAuditLogs(auditLogsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as AuditLog)));
 
-        const customersSnap = await getDocs(query(collection(db, 'customers'), limit(50)));
+        const customersSnap = await getDocs(query(collection(db, 'customers'), limit(15)));
         setCustomers(customersSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Customer)));
 
-        const salesRecentSnap = await getDocs(query(collection(db, 'sales'), where('date', '>=', thirtyDaysAgoStr), orderBy('date', 'desc'), limit(50)));
+        const salesRecentSnap = await getDocs(query(collection(db, 'sales'), where('date', '>=', thirtyDaysAgoStr), orderBy('date', 'desc'), limit(15)));
         salesCache.recent = salesRecentSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Sale));
         updateSales();
 
-        const quotesRecentSnap = await getDocs(query(collection(db, 'quotes'), where('date', '>=', thirtyDaysAgoStr), orderBy('date', 'desc'), limit(50)));
+        const quotesRecentSnap = await getDocs(query(collection(db, 'quotes'), where('date', '>=', thirtyDaysAgoStr), orderBy('date', 'desc'), limit(15)));
         quotesCache.recent = quotesRecentSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Quote));
         updateQuotes();
 
-        const ordersRecentSnap = await getDocs(query(collection(db, 'productionOrders'), where('createdAt', '>=', thirtyDaysAgoISO), orderBy('createdAt', 'desc'), limit(50)));
+        const ordersRecentSnap = await getDocs(query(collection(db, 'productionOrders'), where('createdAt', '>=', thirtyDaysAgoISO), orderBy('createdAt', 'desc'), limit(15)));
         ordersCache.recent = ordersRecentSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as ProductionOrder));
         updateOrders();
 
-        const usersSnap = await getDocs(query(collection(db, 'users'), limit(50)));
+        const usersSnap = await getDocs(query(collection(db, 'users'), limit(15)));
         setUsers(usersSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as any as User)));
 
         const preAuthSnap = await getDocs(collection(db, 'preAuthorizedAdmins'));
@@ -434,13 +434,13 @@ export function useInventory() {
           }
         }
 
-        const financialDocsSnap = await getDocs(query(collection(db, 'financialDocs'), limit(50)));
+        const financialDocsSnap = await getDocs(query(collection(db, 'financialDocs'), limit(15)));
         setFinancialDocs(financialDocsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as FinancialDocument)));
 
-        const activitiesSnap = await getDocs(query(collection(db, 'activities'), limit(50)));
+        const activitiesSnap = await getDocs(query(collection(db, 'activities'), limit(15)));
         setActivities(activitiesSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Activity)));
 
-        const simulationsSnap = await getDocs(query(collection(db, 'simulations'), limit(20)));
+        const simulationsSnap = await getDocs(query(collection(db, 'simulations'), limit(10)));
         setSimulations(simulationsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Simulation)));
 
       } catch (e) {
