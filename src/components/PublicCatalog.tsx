@@ -237,10 +237,11 @@ const ProductCard: React.FC<ProductCardProps> = ({
           </div>
         )}
 
-       {/* ✨ BARRA DE COMPRA RÁPIDA (Optimizada para Móvil y PC) */}
+      {/* ✨ BARRA DE COMPRA RÁPIDA (Optimizada para Móvil y PC) */}
         {!isOutOfStock && (
           <div 
-            className="absolute bottom-0 left-0 right-0 p-3 sm:p-4 transition-transform duration-300 ease-out z-20 translate-y-0 md:translate-y-full md:group-hover:translate-y-0 bg-white/95 md:bg-stone-900/10 backdrop-blur-sm md:backdrop-blur-none border-t border-stone-100 md:border-none"
+            // CAMBIO 1: En móvil fluye normal (relative) para no tapar la foto. En PC (md:absolute) flota encima.
+            className="relative md:absolute md:bottom-0 left-0 right-0 p-3 sm:p-4 transition-transform duration-300 ease-out z-20 translate-y-0 md:translate-y-full md:group-hover:translate-y-0 bg-white/95 md:bg-stone-900/10 backdrop-blur-sm md:backdrop-blur-none border-t border-stone-100 md:border-none w-full"
             onClick={(e) => e.stopPropagation()} 
           >
             {quantityInCart === 0 ? (
@@ -251,13 +252,14 @@ const ProductCard: React.FC<ProductCardProps> = ({
                     onUpdateCart(product, localVariant, 1);
                   }
                 }}
-                className="w-full py-4 sm:py-3 bg-stone-900 text-white text-sm sm:text-xs font-bold uppercase tracking-widest hover:bg-stone-800 transition-all active:scale-95 flex items-center justify-center gap-2 shadow-lg"
+                // CAMBIO 2: Altura fija (h-14) y shrink-0 para igualar exactamente al selector de cantidad
+                className="w-full h-14 sm:h-12 shrink-0 bg-stone-900 text-white text-sm sm:text-xs font-bold uppercase tracking-widest hover:bg-stone-800 transition-all active:scale-95 flex items-center justify-center gap-2 shadow-lg rounded-xl sm:rounded-none"
               >
                 <ShoppingBag className="w-5 h-5 sm:w-4 sm:h-4" />
                 <span>Agregar</span>
               </button>
             ) : (
-              <div className="w-full flex items-center justify-between bg-white border-2 border-stone-900 overflow-hidden shadow-lg h-14 sm:h-12 rounded-xl sm:rounded-none">
+              <div className="w-full flex items-center justify-between bg-white border-2 border-stone-900 overflow-hidden shadow-lg h-14 sm:h-12 rounded-xl sm:rounded-none shrink-0">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -281,6 +283,8 @@ const ProductCard: React.FC<ProductCardProps> = ({
                 </button>
               </div>
             )}
+          </div>
+        )}
             
             {/* Mensajito visual para celular para indicar qué medida se agrega */}
             <p className="md:hidden text-[9px] text-stone-400 text-center uppercase tracking-widest mt-2 font-bold">
