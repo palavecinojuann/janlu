@@ -286,13 +286,63 @@ const ProductCard: React.FC<ProductCardProps> = ({
           </div>
         )}
             
-            {/* Mensajito visual para celular para indicar qué medida se agrega */}
-            <p className="md:hidden text-[9px] text-stone-400 text-center uppercase tracking-widest mt-2 font-bold">
-              Agrega: {localVariant?.name}
-            </p>
+           {/* ✨ BARRA DE COMPRA RÁPIDA (SOLO PC - FLOTA SOBRE LA IMAGEN) */}
+        {!isOutOfStock && (
+          <div 
+            className="hidden md:block absolute bottom-0 left-0 right-0 p-4 transition-transform duration-300 ease-out z-20 translate-y-full group-hover:translate-y-0 bg-stone-900/10 backdrop-blur-sm w-full"
+            onClick={(e) => e.stopPropagation()} 
+          >
+            {quantityInCart === 0 ? (
+              <button
+                onClick={(e) => { e.stopPropagation(); if (localVariant) onUpdateCart(product, localVariant, 1); }}
+                className="w-full h-12 shrink-0 bg-stone-900 text-white text-xs font-bold uppercase tracking-widest hover:bg-stone-800 transition-all active:scale-95 flex items-center justify-center gap-2 shadow-lg"
+              >
+                <ShoppingBag className="w-4 h-4" />
+                <span>Agregar</span>
+              </button>
+            ) : (
+              <div className="w-full flex items-center justify-between bg-white border-2 border-stone-900 overflow-hidden shadow-lg h-12 shrink-0">
+                <button onClick={(e) => { e.stopPropagation(); onUpdateCart(product, localVariant!, quantityInCart - 1); }} className="flex-1 h-full flex items-center justify-center hover:bg-stone-50 text-stone-900 active:bg-stone-100 transition-colors">
+                  <Minus className="w-4 h-4" />
+                </button>
+                <span className="flex-1 text-center font-bold text-stone-900 text-base">{quantityInCart}</span>
+                <button onClick={(e) => { e.stopPropagation(); onUpdateCart(product, localVariant!, quantityInCart + 1); }} className="flex-1 h-full flex items-center justify-center hover:bg-stone-50 text-stone-900 active:bg-stone-100 transition-colors">
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
+            )}
           </div>
         )}
-      </div>
+      </div> {/* <-- ESTE DIV CIERRA LA IMAGEN, ES VITAL QUE ESTÉ AQUÍ */}
+
+      {/* ✨ BARRA DE COMPRA RÁPIDA (SOLO MÓVIL - FLUYE DEBAJO DE LA IMAGEN) */}
+      {!isOutOfStock && (
+        <div className="md:hidden w-full px-2 mb-3" onClick={(e) => e.stopPropagation()}>
+          {quantityInCart === 0 ? (
+            <button
+              onClick={(e) => { e.stopPropagation(); if (localVariant) onUpdateCart(product, localVariant, 1); }}
+              // AQUI ESTÁ LA MAGIA DEL BOTÓN: h-14 fijo y shrink-0
+              className="w-full h-14 shrink-0 bg-stone-900 text-white text-sm font-bold uppercase tracking-widest active:scale-95 flex items-center justify-center gap-2 shadow-lg rounded-xl"
+            >
+              <ShoppingBag className="w-5 h-5" />
+              <span>Agregar</span>
+            </button>
+          ) : (
+            <div className="w-full flex items-center justify-between bg-white border-2 border-stone-900 overflow-hidden shadow-lg h-14 rounded-xl shrink-0">
+              <button onClick={(e) => { e.stopPropagation(); onUpdateCart(product, localVariant!, quantityInCart - 1); }} className="flex-1 h-full flex items-center justify-center active:bg-stone-100 transition-colors text-stone-900">
+                <Minus className="w-6 h-6" />
+              </button>
+              <span className="flex-1 text-center font-bold text-stone-900 text-xl">{quantityInCart}</span>
+              <button onClick={(e) => { e.stopPropagation(); onUpdateCart(product, localVariant!, quantityInCart + 1); }} className="flex-1 h-full flex items-center justify-center active:bg-stone-100 transition-colors text-stone-900">
+                <Plus className="w-6 h-6" />
+              </button>
+            </div>
+          )}
+          <p className="text-[10px] text-stone-400 text-center uppercase tracking-widest mt-2 font-bold">
+            Agrega: {localVariant?.name}
+          </p>
+        </div>
+      )}
       
       <div className="flex flex-col flex-1 px-1">
         <h3 className="text-sm sm:text-base font-serif text-stone-900 mb-1 line-clamp-2">{product.name}</h3>
