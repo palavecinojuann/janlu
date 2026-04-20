@@ -291,15 +291,15 @@ export function useInventory() {
       }
     }, (e) => handlePublicError(e, OperationType.GET, 'products'));
     
-    const unsubCampaigns = onSnapshot(collection(db, 'campaigns'), (snapshot) => {
+   const unsubCampaigns = onSnapshot(query(collection(db, 'campaigns'), limit(20)), (snapshot) => {
       setCampaigns(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Campaign)));
     }, (e) => handlePublicError(e, OperationType.GET, 'campaigns'));
     
-    const unsubOffers = onSnapshot(collection(db, 'offers'), (snapshot) => {
+    const unsubOffers = onSnapshot(query(collection(db, 'offers'), limit(20)), (snapshot) => {
       setOffers(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Offer)));
     }, (e) => handlePublicError(e, OperationType.GET, 'offers'));
 
-    const unsubCourses = onSnapshot(collection(db, 'courses'), (snapshot) => {
+    const unsubCourses = onSnapshot(query(collection(db, 'courses'), limit(20)), (snapshot) => {
       setCourses(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Course)));
     }, (e) => handlePublicError(e, OperationType.GET, 'courses'));
 
