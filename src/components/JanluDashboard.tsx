@@ -486,7 +486,7 @@ export default function JanluDashboard({
             </div>
             <div className="h-72 w-full min-h-[288px]">
               <ResponsiveContainer width="100%" height="100%" minWidth={300} minHeight={288}>
-                <LineChart data={monthlyRevenue}>
+                <LineChart data={dailyRevenue}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f5f5f4" />
                   <XAxis 
                     dataKey="name" 
