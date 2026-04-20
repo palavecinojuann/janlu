@@ -90,17 +90,18 @@ export default function ProductModal({
   const installmentsWithoutInterest = storeSettings?.installmentsWithoutInterest || false;
   const installmentPrice = installmentsCount > 0 ? currentPrice / installmentsCount : 0;
 
-  if (!isOpen) return null;
+ if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-0 sm:p-4 md:p-6 lg:p-8">
+      
       <div 
         className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       />
       
-      {/* Contenedor principal: En celular scrollea entero, en PC se adapta al contenido automáticamente */}
-      <div className="relative bg-white w-full max-w-[1000px] h-[100dvh] md:h-auto md:max-h-[90vh] sm:rounded-[32px] shadow-2xl overflow-y-auto md:overflow-hidden flex flex-col md:flex-row z-10 animate-in fade-in zoom-in-95 duration-300">
+      {/* 🚀 CONTENEDOR PRINCIPAL: Oculta el desbordamiento general (overflow-hidden) */}
+      <div className="relative bg-white w-full max-w-[1000px] h-[100dvh] md:h-auto md:max-h-[90vh] sm:rounded-[32px] shadow-2xl overflow-hidden flex flex-col md:flex-row z-10 animate-in fade-in zoom-in-95 duration-300">
         
         <button 
           onClick={onClose}
@@ -110,8 +111,8 @@ export default function ProductModal({
           <X size={24} />
         </button>
 
-        {/* Imagen: En PC tomará automáticamente la altura del texto gracias al flex */}
-        <div className="w-full md:w-[50%] h-[40vh] md:h-auto md:min-h-[500px] bg-stone-50 relative flex-shrink-0 border-b md:border-b-0 md:border-r border-stone-100">
+        {/* 📸 COLUMNA IZQUIERDA: LA FOTO (md:w-1/2 fuerza que sea exactamente la mitad) */}
+        <div className="w-full md:w-1/2 h-[40vh] md:h-auto md:min-h-[500px] bg-stone-50 relative flex-shrink-0 border-b md:border-b-0 md:border-r border-stone-100 flex items-center justify-center">
           {product.photoUrl ? (
             <img 
               src={product.photoUrl} 
