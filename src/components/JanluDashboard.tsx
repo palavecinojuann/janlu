@@ -150,18 +150,18 @@ export default function JanluDashboard({
   });
   const formattedDate = currentDate.charAt(0).toUpperCase() + currentDate.slice(1);
 
-  const monthlyRevenue = useMemo(() => {
+ const dailyRevenue = useMemo(() => {
     const data = [];
     const now = new Date();
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const monthName = d.toLocaleString('es-ES', { month: 'short', year: 'numeric' });
-      const monthSales = validSales.filter(s => {
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+      const dayName = d.toLocaleDateString('es-ES', { weekday: 'short' });
+      const daySales = validSales.filter(s => {
         const sd = new Date(s.date);
-        return sd.getMonth() === d.getMonth() && sd.getFullYear() === d.getFullYear();
+        return sd.getDate() === d.getDate() && sd.getMonth() === d.getMonth() && sd.getFullYear() === d.getFullYear();
       });
-      const revenue = monthSales.reduce((acc, s) => acc + s.amountPaid, 0);
-      data.push({ name: monthName, revenue });
+      const revenue = daySales.reduce((acc, s) => acc + s.amountPaid, 0);
+      data.push({ name: dayName, revenue });
     }
     return data;
   }, [validSales]);
