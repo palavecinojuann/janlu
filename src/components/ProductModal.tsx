@@ -88,12 +88,11 @@ export default function ProductModal({
   const cashPrice = currentPrice * (1 - cashDiscount / 100);
   const installmentsCount = storeSettings?.installmentsCount || 0;
   const installmentsWithoutInterest = storeSettings?.installmentsWithoutInterest || false;
-  const installmentPrice = installmentsCount > 0 ? currentPrice / installmentsCount : 0;
 
   if (!isOpen) return null;
 
   return (
-    // 1. EL CONTENEDOR PADRE: Permite scroll natural de toda la página si el modal es muy alto
+    // 1. EL CONTENEDOR PADRE: Maneja el scroll de toda la pantalla
     <div className="fixed inset-0 z-[100] overflow-y-auto">
       <div className="flex min-h-full items-center justify-center p-0 sm:p-4 md:p-8">
         
@@ -103,7 +102,7 @@ export default function ProductModal({
           onClick={onClose}
         />
         
-        {/* 2. EL MODAL BLANCO: Sin alturas máximas ni overflows. Crece todo lo que necesite. */}
+        {/* 2. EL MODAL BLANCO: Sin overflow-y-auto interno, crece naturalmente */}
         <div className="relative bg-white w-full max-w-[950px] sm:rounded-[32px] shadow-2xl flex flex-col md:flex-row z-10 overflow-hidden animate-in fade-in zoom-in-95 duration-300">
           
           <button 
@@ -114,7 +113,7 @@ export default function ProductModal({
             <X size={24} />
           </button>
 
-          {/* 📸 COLUMNA IZQUIERDA (FOTO): 50% exacto del ancho. Toma la misma altura que el texto mágicamente. */}
+          {/* 📸 COLUMNA IZQUIERDA (FOTO): 50% exacto en PC */}
           <div className="w-full md:w-1/2 bg-stone-50 relative flex-shrink-0 min-h-[350px] md:min-h-[500px] border-b md:border-b-0 md:border-r border-stone-100 flex items-center justify-center">
             {product.photoUrl ? (
               <img 
@@ -139,7 +138,7 @@ export default function ProductModal({
             )}
           </div>
 
-          {/* 📝 COLUMNA DERECHA (TEXTO): 50% exacto del ancho. Sin scroll interno, muestra TODO de una vez. */}
+          {/* 📝 COLUMNA DERECHA (TEXTO): 50% exacto en PC, sin scrolls internos */}
           <div className="w-full md:w-1/2 flex flex-col p-6 sm:p-8 md:p-10">
             <div className="mb-8">
               <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-3 block">
@@ -246,9 +245,8 @@ export default function ProductModal({
                 </div>
               )}
 
-              {/* ✨ LA BARRA INFERIOR MEJORADA PARA CELULARES */}
+              {/* ✨ BARRA DE COMPRA: Botón arreglado con sm:flex-1 */}
               <div className="flex flex-col gap-4 mt-auto">
-                {/* 📱 CONTROLES DE CANTIDAD Y COMPRA EN MODAL */}
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
                   
                   {/* Selector de cantidad */}
@@ -256,9 +254,7 @@ export default function ProductModal({
                     <div className="flex items-center justify-between border-2 border-stone-200 rounded-xl overflow-hidden h-16 sm:h-14 bg-white">
                       <button 
                         onClick={() => {
-                          if (localVariant) {
-                            onUpdateCart(product, localVariant, Math.max(0, quantityInCart - 1));
-                          }
+                          if (localVariant) onUpdateCart(product, localVariant, Math.max(0, quantityInCart - 1));
                         }}
                         className="w-14 sm:w-12 h-full flex items-center justify-center text-stone-500 hover:text-stone-900 active:bg-stone-100 transition-colors"
                       >
@@ -271,9 +267,7 @@ export default function ProductModal({
                       
                       <button 
                         onClick={() => {
-                          if (localVariant) {
-                            onUpdateCart(product, localVariant, quantityInCart + 1);
-                          }
+                          if (localVariant) onUpdateCart(product, localVariant, quantityInCart + 1);
                         }}
                         className="w-14 sm:w-12 h-full flex items-center justify-center text-stone-500 hover:text-stone-900 active:bg-stone-100 transition-colors"
                       >
@@ -288,19 +282,16 @@ export default function ProductModal({
                     )}
                   </div>
 
-                 {/* Botón de Agregar: BLINDADO CONTRA APLASTAMIENTO */}
+                 {/* Botón de Agregar */}
                   <button
                     disabled={isOutOfStock || !localVariant}
                     onClick={() => {
                       if (localVariant) {
-                        if (quantityInCart === 0) {
-                          onUpdateCart(product, localVariant, 1);
-                        }
+                        if (quantityInCart === 0) onUpdateCart(product, localVariant, 1);
                         onClose();
                       }
                     }}
-                    // LA MAGIA: Cambiamos 'flex-1' por 'w-full'
-                    className="w-full h-16 sm:h-14 bg-stone-900 text-white font-bold uppercase tracking-widest text-sm sm:text-xs hover:bg-stone-800 rounded-xl transition-all shadow-lg active:scale-[0.98] disabled:opacity-50 disabled:grayscale flex items-center justify-center gap-3 shrink-0"
+                    className="w-full sm:flex-1 h-16 sm:h-14 bg-stone-900 text-white font-bold uppercase tracking-widest text-sm sm:text-xs hover:bg-stone-800 rounded-xl transition-all shadow-lg active:scale-[0.98] disabled:opacity-50 disabled:grayscale flex items-center justify-center gap-3 shrink-0"
                   >
                     <ShoppingBag className="w-6 h-6 sm:w-5 sm:h-5" />
                     <span>{quantityInCart === 0 ? 'Agregar al carrito' : 'Confirmar y Volver'}</span>
@@ -308,8 +299,9 @@ export default function ProductModal({
                 </div>
               </div>
 
+              {/* Notas del producto */}
               {(product.customNote || storeSettings?.productModalNotice) && (
-                <div className="mt-8 pt-6 border-t border-stone-100 bg-stone-50/50 -mx-6 md:-mx-10 px-6 md:px-10 -mb-6 md:-mb-10 pb-6 md:pb-10">
+                <div className="mt-8 pt-6 border-t border-stone-100 bg-stone-50/50 -mx-6 sm:-mx-8 md:-mx-10 px-6 sm:px-8 md:px-10 -mb-6 sm:-mb-8 md:-mb-10 pb-6 sm:pb-8 md:pb-10">
                   <div className="flex gap-3 text-stone-500 max-w-md">
                     <Info size={16} className="shrink-0 mt-0.5" />
                     <p className="text-[11px] md:text-xs leading-relaxed font-medium">
