@@ -350,7 +350,7 @@ export function useInventory() {
     const thirtyDaysAgoISO = thirtyDaysAgo.toISOString();
     const todayStr = now.toISOString().split('T')[0];
 
-    const unsubCoupons = onSnapshot(collection(db, 'coupons'), (snapshot) => {
+   const unsubCoupons = onSnapshot(query(collection(db, 'coupons'), limit(50)), (snapshot) => {
       setCoupons(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Coupon)));
     }, (e) => handleAdminError(e, OperationType.GET, 'coupons'));
 
@@ -362,7 +362,7 @@ export function useInventory() {
       setSales(Array.from(merged.values()).sort((a, b) => b.date.localeCompare(a.date)));
     };
 
-    const unsubSalesActive = onSnapshot(query(collection(db, 'sales'), where('status', 'in', ['nuevo', 'en_preparacion', 'listo_para_entregar'])), (snapshot) => {
+    const unsubSalesActive = onSnapshot(query(collection(db, 'sales'), where('status', 'in', ['nuevo', 'en_preparacion', 'listo_para_entregar']), limit(30)), (snapshot) => {
       salesCache.active = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Sale));
       updateSales();
     }, (e) => handleAdminError(e, OperationType.GET, 'sales_active'));
@@ -375,7 +375,7 @@ export function useInventory() {
       setQuotes(Array.from(merged.values()).sort((a, b) => b.date.localeCompare(a.date)));
     };
 
-    const unsubQuotesActive = onSnapshot(query(collection(db, 'quotes'), where('validUntil', '>=', todayStr)), (snapshot) => {
+    const unsubQuotesActive = onSnapshot(query(collection(db, 'quotes'), where('validUntil', '>=', todayStr), limit(30)), (snapshot) => {
       quotesCache.active = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Quote));
       updateQuotes();
     }, (e) => handleAdminError(e, OperationType.GET, 'quotes_active'));
@@ -388,7 +388,7 @@ export function useInventory() {
       setProductionOrders(Array.from(merged.values()).sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
     };
 
-    const unsubOrdersActive = onSnapshot(query(collection(db, 'productionOrders'), where('status', '==', 'pending')), (snapshot) => {
+    const unsubOrdersActive = onSnapshot(query(collection(db, 'productionOrders'), where('status', '==', 'pending'), limit(30)), (snapshot) => {
       ordersCache.active = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as ProductionOrder));
       updateOrders();
     }, (e) => handleAdminError(e, OperationType.GET, 'orders_active'));
