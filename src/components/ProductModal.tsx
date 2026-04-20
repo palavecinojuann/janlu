@@ -90,51 +90,57 @@ export default function ProductModal({
   const installmentsWithoutInterest = storeSettings?.installmentsWithoutInterest || false;
   const installmentPrice = installmentsCount > 0 ? currentPrice / installmentsCount : 0;
 
- if (!isOpen) return null;
+if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-0 sm:p-4 md:p-6 lg:p-8">
-      
-      <div 
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
-        onClick={onClose}
-      />
-      
-      {/* 🚀 CONTENEDOR PRINCIPAL: Oculta el desbordamiento general (overflow-hidden) */}
-      <div className="relative bg-white w-full max-w-[1000px] h-[100dvh] md:h-auto md:max-h-[90vh] sm:rounded-[32px] shadow-2xl overflow-hidden flex flex-col md:flex-row z-10 animate-in fade-in zoom-in-95 duration-300">
+    // 1. EL CONTENEDOR PADRE: Ahora permite scroll natural de toda la página si el modal es muy alto
+    <div className="fixed inset-0 z-[100] overflow-y-auto">
+      <div className="flex min-h-full items-center justify-center p-0 sm:p-4 md:p-8">
         
-        <button 
+        {/* Fondo oscuro */}
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
           onClick={onClose}
-          className="absolute top-4 right-4 md:top-6 md:right-6 z-30 p-2 bg-white/90 backdrop-blur-md rounded-full text-stone-400 hover:text-stone-900 shadow-sm transition-all hover:rotate-90 hover:bg-white"
-          aria-label="Cerrar"
-        >
-          <X size={24} />
-        </button>
-
-        {/* 📸 COLUMNA IZQUIERDA: LA FOTO (md:w-1/2 fuerza que sea exactamente la mitad) */}
-        <div className="w-full md:w-1/2 h-[40vh] md:h-auto md:min-h-[500px] bg-stone-50 relative flex-shrink-0 border-b md:border-b-0 md:border-r border-stone-100 flex items-center justify-center">
-          {product.photoUrl ? (
-            <img 
-              src={product.photoUrl} 
-              alt={product.name} 
-              className={`absolute inset-0 w-full h-full object-contain p-4 md:p-8 bg-stone-50 ${isOutOfStock ? 'grayscale' : ''}`}
-              referrerPolicy="no-referrer"
-            />
-          ) : (
-            <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center text-stone-200">
-              <Flame size={80} strokeWidth={1} />
-              <span className="text-xs mt-4 uppercase tracking-[0.3em] font-bold">Sin imagen</span>
-            </div>
-          )}
+        />
+        
+        {/* 2. EL MODAL BLANCO: Sin alturas máximas ni overflows. Crece todo lo que necesite. */}
+        <div className="relative bg-white w-full max-w-[950px] sm:rounded-[32px] shadow-2xl flex flex-col md:flex-row z-10 overflow-hidden animate-in fade-in zoom-in-95 duration-300">
           
-          {isOutOfStock && (
-            <div className="absolute inset-0 bg-white/40 flex items-center justify-center backdrop-blur-[2px]">
-              <span className="bg-white text-stone-900 text-sm font-bold px-8 py-4 uppercase tracking-[0.2em] border border-stone-900 shadow-xl">
-                Agotado
-              </span>
-            </div>
-          )}
-        </div>
+          <button 
+            onClick={onClose}
+            className="absolute top-4 right-4 md:top-6 md:right-6 z-30 p-2 bg-white/90 backdrop-blur-md rounded-full text-stone-400 hover:text-stone-900 shadow-sm transition-all hover:rotate-90 hover:bg-white"
+            aria-label="Cerrar"
+          >
+            <X size={24} />
+          </button>
+
+          {/* 📸 COLUMNA IZQUIERDA (FOTO): 50% exacto del ancho. Toma la misma altura que el texto mágicamente. */}
+          <div className="w-full md:w-1/2 bg-stone-50 relative flex-shrink-0 min-h-[350px] md:min-h-full border-b md:border-b-0 md:border-r border-stone-100">
+            {product.photoUrl ? (
+              <img 
+                src={product.photoUrl} 
+                alt={product.name} 
+                className={`absolute inset-0 w-full h-full object-cover md:object-contain p-0 md:p-8 bg-stone-50 ${isOutOfStock ? 'grayscale' : ''}`}
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center text-stone-200">
+                <Flame size={80} strokeWidth={1} />
+                <span className="text-xs mt-4 uppercase tracking-[0.3em] font-bold">Sin imagen</span>
+              </div>
+            )}
+            
+            {isOutOfStock && (
+              <div className="absolute inset-0 bg-white/40 flex items-center justify-center backdrop-blur-[2px]">
+                <span className="bg-white text-stone-900 text-sm font-bold px-8 py-4 uppercase tracking-[0.2em] border border-stone-900 shadow-xl">
+                  Agotado
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* 📝 COLUMNA DERECHA (TEXTO): 50% exacto del ancho. Sin scroll interno, muestra TODO de una vez. */}
+          <div className="w-full md:w-1/2 flex flex-col p-6 sm:p-8 md:p-10">
 
         {/* Panel de texto: En PC usa su propio scroll, en celular usa el del padre */}
         <div className="flex-1 p-6 md:p-10 lg:p-12 flex flex-col bg-white md:overflow-y-auto">
