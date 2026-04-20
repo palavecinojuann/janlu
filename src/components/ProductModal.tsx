@@ -99,8 +99,8 @@ export default function ProductModal({
         onClick={onClose}
       />
       
-      {/* Contenedor principal: En celular scrollea entero, en PC scrollea dividido */}
-      <div className="relative bg-white w-full max-w-[1000px] h-[100dvh] sm:h-[85vh] sm:min-h-[600px] sm:rounded-[32px] shadow-2xl overflow-y-auto md:overflow-hidden flex flex-col md:flex-row z-10 animate-in fade-in zoom-in-95 duration-300">
+      {/* Contenedor principal: En celular scrollea entero, en PC se adapta al contenido automáticamente */}
+      <div className="relative bg-white w-full max-w-[1000px] h-[100dvh] md:h-auto md:max-h-[90vh] sm:rounded-[32px] shadow-2xl overflow-y-auto md:overflow-hidden flex flex-col md:flex-row z-10 animate-in fade-in zoom-in-95 duration-300">
         
         <button 
           onClick={onClose}
@@ -110,12 +110,13 @@ export default function ProductModal({
           <X size={24} />
         </button>
 
-        <div className="w-full md:w-[50%] h-[40vh] md:h-full bg-stone-50 relative flex-shrink-0 border-b md:border-b-0 md:border-r border-stone-100">
+        {/* Imagen: En PC tomará automáticamente la altura del texto gracias al flex */}
+        <div className="w-full md:w-[50%] h-[40vh] md:h-auto md:min-h-[500px] bg-stone-50 relative flex-shrink-0 border-b md:border-b-0 md:border-r border-stone-100">
           {product.photoUrl ? (
             <img 
               src={product.photoUrl} 
               alt={product.name} 
-              className={`absolute inset-0 w-full h-full object-contain bg-stone-50 ${isOutOfStock ? 'grayscale' : ''}`}
+              className={`absolute inset-0 w-full h-full object-contain p-4 md:p-8 bg-stone-50 ${isOutOfStock ? 'grayscale' : ''}`}
               referrerPolicy="no-referrer"
             />
           ) : (
