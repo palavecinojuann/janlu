@@ -90,10 +90,10 @@ export default function ProductModal({
   const installmentsWithoutInterest = storeSettings?.installmentsWithoutInterest || false;
   const installmentPrice = installmentsCount > 0 ? currentPrice / installmentsCount : 0;
 
-if (!isOpen) return null;
+  if (!isOpen) return null;
 
   return (
-    // 1. EL CONTENEDOR PADRE: Ahora permite scroll natural de toda la página si el modal es muy alto
+    // 1. EL CONTENEDOR PADRE: Permite scroll natural de toda la página si el modal es muy alto
     <div className="fixed inset-0 z-[100] overflow-y-auto">
       <div className="flex min-h-full items-center justify-center p-0 sm:p-4 md:p-8">
         
@@ -115,7 +115,7 @@ if (!isOpen) return null;
           </button>
 
           {/* 📸 COLUMNA IZQUIERDA (FOTO): 50% exacto del ancho. Toma la misma altura que el texto mágicamente. */}
-          <div className="w-full md:w-1/2 bg-stone-50 relative flex-shrink-0 min-h-[350px] md:min-h-full border-b md:border-b-0 md:border-r border-stone-100">
+          <div className="w-full md:w-1/2 bg-stone-50 relative flex-shrink-0 min-h-[350px] md:min-h-[500px] border-b md:border-b-0 md:border-r border-stone-100 flex items-center justify-center">
             {product.photoUrl ? (
               <img 
                 src={product.photoUrl} 
@@ -141,190 +141,187 @@ if (!isOpen) return null;
 
           {/* 📝 COLUMNA DERECHA (TEXTO): 50% exacto del ancho. Sin scroll interno, muestra TODO de una vez. */}
           <div className="w-full md:w-1/2 flex flex-col p-6 sm:p-8 md:p-10">
-
-        {/* Panel de texto: En PC usa su propio scroll, en celular usa el del padre */}
-        <div className="flex-1 p-6 md:p-10 lg:p-12 flex flex-col bg-white md:overflow-y-auto">
-          <div className="mb-8">
-            <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-3 block">
-              SKU: {localVariant?.sku || product.id.slice(0, 8).toUpperCase()}
-            </span>
-            <h2 className="text-3xl md:text-4xl lg:text-5xl font-serif font-bold text-stone-900 leading-tight mb-6">
-              {product.name}
-            </h2>
-            
-            <div className="space-y-2">
-              <div className="flex items-baseline gap-4">
-                <span className="text-3xl md:text-4xl font-bold text-stone-900 tracking-tight">
-                  {formatCurrency(currentPrice)}
-                  {quantityInCart > 1 && <span className="text-sm font-medium text-stone-400 ml-2">c/u</span>}
-                </span>
-                {hasDiscount && (
-                  <span className="text-xl text-stone-300 line-through font-light">
-                    {formatCurrency(originalPrice)}
+            <div className="mb-8">
+              <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-3 block">
+                SKU: {localVariant?.sku || product.id.slice(0, 8).toUpperCase()}
+              </span>
+              <h2 className="text-3xl md:text-4xl lg:text-5xl font-serif font-bold text-stone-900 leading-tight mb-6">
+                {product.name}
+              </h2>
+              
+              <div className="space-y-2">
+                <div className="flex items-baseline gap-4">
+                  <span className="text-3xl md:text-4xl font-bold text-stone-900 tracking-tight">
+                    {formatCurrency(currentPrice)}
+                    {quantityInCart > 1 && <span className="text-sm font-medium text-stone-400 ml-2">c/u</span>}
                   </span>
+                  {hasDiscount && (
+                    <span className="text-xl text-stone-300 line-through font-light">
+                      {formatCurrency(originalPrice)}
+                    </span>
+                  )}
+                </div>
+                <p className="text-[10px] uppercase tracking-widest font-bold text-stone-400">
+                  Precio sin impuestos {formatCurrency(currentPrice * 0.82)}
+                </p>
+
+                {quantityInCart > 1 && (
+                  <div className="mt-4 inline-flex items-center gap-2 bg-stone-900 px-4 py-2 rounded-xl">
+                    <span className="text-xs font-bold text-stone-300 uppercase tracking-widest">Total:</span>
+                    <span className="text-lg font-bold text-white tracking-tight">
+                      {formatCurrency(currentPrice * quantityInCart)}
+                    </span>
+                  </div>
                 )}
               </div>
-              <p className="text-[10px] uppercase tracking-widest font-bold text-stone-400">
-                Precio sin impuestos {formatCurrency(currentPrice * 0.82)}
-              </p>
 
-              {quantityInCart > 1 && (
-                <div className="mt-4 inline-flex items-center gap-2 bg-stone-900 px-4 py-2 rounded-xl">
-                  <span className="text-xs font-bold text-stone-300 uppercase tracking-widest">Total:</span>
-                  <span className="text-lg font-bold text-white tracking-tight">
-                    {formatCurrency(currentPrice * quantityInCart)}
-                  </span>
+              {(cashDiscount > 0 || installmentsCount > 0) && (
+                <div className="mt-6 space-y-3 bg-stone-50 p-4 rounded-2xl border border-stone-100">
+                  {cashDiscount > 0 && (
+                    <div>
+                      <p className="text-lg md:text-xl font-bold text-rose-600 flex items-center gap-2">
+                        {formatCurrency(cashPrice * (quantityInCart > 0 ? quantityInCart : 1))} <span className="text-xs font-medium uppercase tracking-widest">en Efectivo</span>
+                      </p>
+                      <p className="text-[10px] text-rose-600 font-bold uppercase tracking-widest opacity-80 mt-1">
+                        {cashDiscount}% de descuento pagando en billete físico
+                      </p>
+                    </div>
+                  )}
+                  
+                  {installmentsCount > 0 && (
+                    <div className={`${cashDiscount > 0 ? 'pt-3 border-t border-stone-200/60' : ''}`}>
+                      <p className="text-xs text-stone-700 font-medium uppercase tracking-wider">
+                        <span className="font-bold text-stone-900">{installmentsCount} cuotas sin interés</span> de {formatCurrency((currentPrice * (quantityInCart > 0 ? quantityInCart : 1)) / installmentsCount)}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {product.description && (
+                <div className="mt-8 pt-8 border-t border-stone-100">
+                  <div className="text-sm text-stone-600 leading-relaxed whitespace-pre-line font-medium">
+                    {product.description}
+                  </div>
                 </div>
               )}
             </div>
 
-            {(cashDiscount > 0 || installmentsCount > 0) && (
-              <div className="mt-6 space-y-3 bg-stone-50 p-4 rounded-2xl border border-stone-100">
-                {cashDiscount > 0 && (
-                  <div>
-                    <p className="text-lg md:text-xl font-bold text-rose-600 flex items-center gap-2">
-                      {formatCurrency(cashPrice * (quantityInCart > 0 ? quantityInCart : 1))} <span className="text-xs font-medium uppercase tracking-widest">en Efectivo</span>
-                    </p>
-                    <p className="text-[10px] text-rose-600 font-bold uppercase tracking-widest opacity-80 mt-1">
-                      {cashDiscount}% de descuento pagando en billete físico
-                    </p>
-                  </div>
-                )}
-                
-                {installmentsCount > 0 && (
-                  <div className={`${cashDiscount > 0 ? 'pt-3 border-t border-stone-200/60' : ''}`}>
-                    <p className="text-xs text-stone-700 font-medium uppercase tracking-wider">
-                      <span className="font-bold text-stone-900">{installmentsCount} cuotas sin interés</span> de {formatCurrency((currentPrice * (quantityInCart > 0 ? quantityInCart : 1)) / installmentsCount)}
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
+            <div className="space-y-8 mt-auto pt-8">
+              {product.variants.length > 1 && (
+                <div>
+                  <label className="block text-xs font-bold text-stone-900 uppercase tracking-widest mb-4">
+                    Medida: <span className="text-stone-500 font-medium ml-1">{localVariant?.name}</span>
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {product.variants.map(v => {
+                      const currentStock = getVariantStock(v, rawMaterials);
+                      const isSelected = localVariant?.id === v.id;
+                      const isVariantOutOfStock = currentStock <= 0;
+                      const variantQuantityInCart = cart.find(i => i.product?.id === product.id && i.variant?.id === v.id)?.quantity || 0;
 
-            {product.description && (
-              <div className="mt-8 pt-8 border-t border-stone-100">
-                <div className="text-sm text-stone-600 leading-relaxed whitespace-pre-line font-medium">
-                  {product.description}
+                      return (
+                        <button
+                          key={v.id}
+                          onClick={() => setLocalVariant(v)}
+                          disabled={isVariantOutOfStock}
+                          className={`px-5 py-3 text-xs font-bold uppercase tracking-wider border rounded-xl transition-all relative ${
+                            isVariantOutOfStock
+                              ? 'opacity-40 line-through cursor-not-allowed border-stone-200 text-stone-400 bg-stone-50'
+                              : isSelected
+                              ? 'border-stone-900 bg-stone-900 text-white shadow-lg shadow-stone-900/20'
+                              : 'border-stone-200 text-stone-600 hover:border-stone-900 hover:text-stone-900 bg-white'
+                          }`}
+                        >
+                          {v.name}
+                          {variantQuantityInCart > 0 && (
+                            <span className={`absolute -top-2 -right-2 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shadow-sm ${isSelected ? 'bg-white text-stone-900' : 'bg-emerald-500 text-white'}`}>
+                              {variantQuantityInCart}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
 
-          <div className="space-y-8 mt-auto pt-8">
-            {product.variants.length > 1 && (
-              <div>
-                <label className="block text-xs font-bold text-stone-900 uppercase tracking-widest mb-4">
-                  Medida: <span className="text-stone-500 font-medium ml-1">{localVariant?.name}</span>
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {product.variants.map(v => {
-                    const currentStock = getVariantStock(v, rawMaterials);
-                    const isSelected = localVariant?.id === v.id;
-                    const isVariantOutOfStock = currentStock <= 0;
-                    const variantQuantityInCart = cart.find(i => i.product?.id === product.id && i.variant?.id === v.id)?.quantity || 0;
-
-                    return (
-                      <button
-                        key={v.id}
-                        onClick={() => setLocalVariant(v)}
-                        disabled={isVariantOutOfStock}
-                        className={`px-5 py-3 text-xs font-bold uppercase tracking-wider border rounded-xl transition-all relative ${
-                          isVariantOutOfStock
-                            ? 'opacity-40 line-through cursor-not-allowed border-stone-200 text-stone-400 bg-stone-50'
-                            : isSelected
-                            ? 'border-stone-900 bg-stone-900 text-white shadow-lg shadow-stone-900/20'
-                            : 'border-stone-200 text-stone-600 hover:border-stone-900 hover:text-stone-900 bg-white'
-                        }`}
+              {/* ✨ LA BARRA INFERIOR MEJORADA PARA CELULARES */}
+              <div className="flex flex-col gap-4 mt-auto">
+                {/* 📱 CONTROLES DE CANTIDAD Y COMPRA EN MODAL */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
+                  
+                  {/* Selector de cantidad */}
+                  <div className="flex flex-col gap-1 w-full sm:w-auto shrink-0">
+                    <div className="flex items-center justify-between border-2 border-stone-200 rounded-xl overflow-hidden h-16 sm:h-14 bg-white">
+                      <button 
+                        onClick={() => {
+                          if (localVariant) {
+                            onUpdateCart(product, localVariant, Math.max(0, quantityInCart - 1));
+                          }
+                        }}
+                        className="w-14 sm:w-12 h-full flex items-center justify-center text-stone-500 hover:text-stone-900 active:bg-stone-100 transition-colors"
                       >
-                        {v.name}
-                        {variantQuantityInCart > 0 && (
-                          <span className={`absolute -top-2 -right-2 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shadow-sm ${isSelected ? 'bg-white text-stone-900' : 'bg-emerald-500 text-white'}`}>
-                            {variantQuantityInCart}
-                          </span>
-                        )}
+                        <Minus className="w-5 h-5 sm:w-4 sm:h-4" />
                       </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* ✨ LA BARRA INFERIOR MEJORADA PARA CELULARES */}
-            <div className="flex flex-col gap-4 mt-auto">
-              {/* 📱 CONTROLES DE CANTIDAD Y COMPRA EN MODAL */}
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
-                
-                {/* Selector de cantidad */}
-                <div className="flex flex-col gap-1 w-full sm:w-auto">
-                  <div className="flex items-center justify-between border-2 border-stone-200 rounded-xl overflow-hidden h-14 sm:h-12 bg-white shrink-0">
-                    <button 
-                      onClick={() => {
-                        if (localVariant) {
-                          onUpdateCart(product, localVariant, Math.max(0, quantityInCart - 1));
-                        }
-                      }}
-                      className="w-14 sm:w-12 h-full flex items-center justify-center text-stone-500 hover:text-stone-900 active:bg-stone-100 transition-colors"
-                    >
-                      <Minus className="w-5 h-5 sm:w-4 sm:h-4" />
-                    </button>
-                    
-                    <div className="flex-1 sm:w-12 text-center font-bold text-stone-900 text-lg sm:text-base">
-                      {quantityInCart}
+                      
+                      <div className="flex-1 sm:w-12 text-center font-bold text-stone-900 text-lg sm:text-base">
+                        {quantityInCart}
+                      </div>
+                      
+                      <button 
+                        onClick={() => {
+                          if (localVariant) {
+                            onUpdateCart(product, localVariant, quantityInCart + 1);
+                          }
+                        }}
+                        className="w-14 sm:w-12 h-full flex items-center justify-center text-stone-500 hover:text-stone-900 active:bg-stone-100 transition-colors"
+                      >
+                        <Plus className="w-5 h-5 sm:w-4 sm:h-4" />
+                      </button>
                     </div>
                     
-                    <button 
-                      onClick={() => {
-                        if (localVariant) {
-                          onUpdateCart(product, localVariant, quantityInCart + 1);
-                        }
-                      }}
-                      className="w-14 sm:w-12 h-full flex items-center justify-center text-stone-500 hover:text-stone-900 active:bg-stone-100 transition-colors"
-                    >
-                      <Plus className="w-5 h-5 sm:w-4 sm:h-4" />
-                    </button>
+                    {!isOutOfStock && localVariant && (
+                      <span className="text-[11px] sm:text-[10px] text-stone-400 font-bold uppercase tracking-widest text-center mt-1">
+                        {getVariantStock(localVariant, rawMaterials)} disponibles
+                      </span>
+                    )}
                   </div>
-                  
-                  {!isOutOfStock && localVariant && (
-                    <span className="text-[11px] sm:text-[10px] text-stone-400 font-bold uppercase tracking-widest text-center mt-1">
-                      {getVariantStock(localVariant, rawMaterials)} disponibles
-                    </span>
-                  )}
-                </div>
 
-               {/* Botón de Agregar: BLINDADO CONTRA APLASTAMIENTO */}
-                <button
-                  disabled={isOutOfStock || !localVariant}
-                  onClick={() => {
-                    if (localVariant) {
-                      if (quantityInCart === 0) {
-                        onUpdateCart(product, localVariant, 1);
+                 {/* Botón de Agregar: BLINDADO CONTRA APLASTAMIENTO */}
+                  <button
+                    disabled={isOutOfStock || !localVariant}
+                    onClick={() => {
+                      if (localVariant) {
+                        if (quantityInCart === 0) {
+                          onUpdateCart(product, localVariant, 1);
+                        }
+                        onClose();
                       }
-                      onClose();
-                    }
-                  }}
-                  // LA MAGIA: Cambiamos 'flex-1' por 'w-full' y agregamos 'shrink-0'
-                  className="w-full shrink-0 h-16 sm:h-14 bg-stone-900 text-white font-bold uppercase tracking-widest text-sm sm:text-xs hover:bg-stone-800 rounded-xl transition-all shadow-lg active:scale-[0.98] disabled:opacity-50 disabled:grayscale flex items-center justify-center gap-3"
-                >
-                  <ShoppingBag className="w-6 h-6 sm:w-5 sm:h-5" />
-                  <span>{quantityInCart === 0 ? 'Agregar al carrito' : 'Confirmar y Volver'}</span>
-                </button>
-                </div>
-            </div>
-
-            {(product.customNote || storeSettings?.productModalNotice) && (
-              <div className="mt-8 pt-6 border-t border-stone-100 bg-stone-50/50 -mx-6 md:-mx-10 lg:-mx-12 px-6 md:px-10 lg:px-12 -mb-6 md:-mb-10 lg:-mb-12 pb-6 md:pb-10 lg:pb-12">
-                <div className="flex gap-3 text-stone-500 max-w-md">
-                  <Info size={16} className="shrink-0 mt-0.5" />
-                  <p className="text-[11px] md:text-xs leading-relaxed font-medium">
-                    {product.customNote || storeSettings?.productModalNotice}
-                  </p>
+                    }}
+                    // LA MAGIA: Cambiamos 'flex-1' por 'w-full'
+                    className="w-full h-16 sm:h-14 bg-stone-900 text-white font-bold uppercase tracking-widest text-sm sm:text-xs hover:bg-stone-800 rounded-xl transition-all shadow-lg active:scale-[0.98] disabled:opacity-50 disabled:grayscale flex items-center justify-center gap-3 shrink-0"
+                  >
+                    <ShoppingBag className="w-6 h-6 sm:w-5 sm:h-5" />
+                    <span>{quantityInCart === 0 ? 'Agregar al carrito' : 'Confirmar y Volver'}</span>
+                  </button>
                 </div>
               </div>
-            )}
+
+              {(product.customNote || storeSettings?.productModalNotice) && (
+                <div className="mt-8 pt-6 border-t border-stone-100 bg-stone-50/50 -mx-6 md:-mx-10 px-6 md:px-10 -mb-6 md:-mb-10 pb-6 md:pb-10">
+                  <div className="flex gap-3 text-stone-500 max-w-md">
+                    <Info size={16} className="shrink-0 mt-0.5" />
+                    <p className="text-[11px] md:text-xs leading-relaxed font-medium">
+                      {product.customNote || storeSettings?.productModalNotice}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
-      );
+  );
 }
