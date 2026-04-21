@@ -1378,108 +1378,49 @@ export function useInventory() {
     }
   };
 
-  const validateCoupon = async (code: string, customerEmail?: string): Promise<{ valid: boolean; discount?: number; error?: string }> => {
-    console.log("Validating coupon:", code, "for customer:", customerEmail);
+ const validateCoupon = async (code: string, customerEmail?: string): Promise<{ valid: boolean; discount?: number; error?: string }> => {
+  console.log("Validating coupon:", code, "for customer:", customerEmail);
+
+  // 1. Buscar el código en tu estado local de cupones
+  const coupon = coupons.find(c => c.code.toUpperCase() === code.trim().toUpperCase());
+
+  if (!coupon) {
+    return { valid: false, error: 'Cupón no encontrado o inactivo' };
+  }
+
+  // 2. 🛡️ LÓGICA DE BLINDAJE: Cupón de Bienvenida
+  if (coupon.code.toUpperCase().includes('BIENVENIDA') || coupon.type === 'bienvenida') {
     
-    // 1. Check local state (for admins who have the list)
-    let coupon = coupons.find(c => c.code.toUpperCase() === code.trim().toUpperCase());
-    
-    // 2. If not found in local state, try to fetch directly from Firestore
-    if (!coupon) {
-      console.log("Coupon not found in local state, searching in Firestore...");
-      try {
-        const q = query(collection(db, 'coupons'), where('code', '==', code.trim().toUpperCase()), limit(1));
-        const querySnapshot = await getDocs(q);
-        if (!querySnapshot.empty) {
-          coupon = { ...querySnapshot.docs[0].data(), id: querySnapshot.docs[0].id } as Coupon;
-          console.log("Found coupon in Firestore:", coupon);
-        } else {
-          // Try case-insensitive (though they should be stored uppercase)
-          const q2 = query(collection(db, 'coupons'), where('code', '==', code.trim()), limit(1));
-          const querySnapshot2 = await getDocs(q2);
-          if (!querySnapshot2.empty) {
-            coupon = { ...querySnapshot2.docs[0].data(), id: querySnapshot2.docs[0].id } as Coupon;
-            console.log("Found coupon in Firestore (case-match):", coupon);
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching coupon from Firestore:", error);
-      }
+    // Filtro A: Exigir el email
+    if (!customerEmail || customerEmail.trim() === '') {
+      return { 
+        valid: false, 
+        error: 'Por favor, ingresa tu email en los datos de contacto antes de aplicar este cupón.' 
+      };
     }
 
-    if (coupon) {
-      console.log("Found regular coupon:", coupon);
-      if (coupon.isUsed) return { valid: false, error: 'Cupón ya utilizado' };
-      if (new Date(coupon.expiresAt) < new Date()) return { valid: false, error: 'Cupón caducado' };
-      
-      if (coupon.customerId && customerEmail) {
-        // If we are not admin, we might not have the full customers list
-        // But we can check if the customerId matches the current user's UID if logged in
-        if (currentUser && coupon.customerId !== currentUser.uid) {
-           // If it's not the current user, it might still be valid if the email matches
-           // But we'd need to fetch the customer doc to be sure
-           try {
-             const customerDoc = await getDoc(doc(db, 'customers', coupon.customerId));
-             if (customerDoc.exists()) {
-               const customerData = customerDoc.data() as Customer;
-               if (customerData.email.toLowerCase() !== customerEmail.toLowerCase()) {
-                 console.log("Coupon customer mismatch:", customerData.email, "vs", customerEmail);
-                 return { valid: false, error: 'Cupón no pertenece a este cliente' };
-               }
-             }
-           } catch (e) {
-             console.error("Error verifying coupon customer:", e);
-           }
-        } else if (!currentUser) {
-          // Guest user, we definitely need to fetch the customer doc to verify email
-          try {
-            const customerDoc = await getDoc(doc(db, 'customers', coupon.customerId));
-            if (customerDoc.exists()) {
-              const customerData = customerDoc.data() as Customer;
-              if (customerData.email.toLowerCase() !== customerEmail.toLowerCase()) {
-                console.log("Coupon customer mismatch (guest):", customerData.email, "vs", customerEmail);
-                return { valid: false, error: 'Cupón no pertenece a este cliente' };
-              }
-            }
-          } catch (e) {
-            console.error("Error verifying coupon customer for guest:", e);
-          }
-        }
-      }
-      return { valid: true, discount: coupon.discountPercentage };
+    // Filtro B: Verificar el historial de ventas usando la memoria local (Costo $0 en Firebase)
+    const hasPreviousPurchases = sales.some(sale => 
+      sale.customerEmail?.toLowerCase() === customerEmail.toLowerCase() && 
+      sale.status !== 'Cancelado'
+    );
+
+    if (hasPreviousPurchases) {
+      return { 
+        valid: false, 
+        error: 'Este cupón es exclusivo para tu primera compra en Janlu Velas.' 
+      };
     }
+  }
 
-    // Check if it's a customer number (Welcome Discount)
-    if (customerEmail) {
-      // Try to find customer in local state
-      let customer = customers.find(c => c.email.toLowerCase() === customerEmail.toLowerCase());
-      
-      // If not in local state, try to fetch from Firestore
-      if (!customer) {
-        try {
-          const q = query(collection(db, 'customers'), where('email', '==', customerEmail.toLowerCase()), limit(1));
-          const querySnapshot = await getDocs(q);
-          if (!querySnapshot.empty) {
-            customer = { ...querySnapshot.docs[0].data(), id: querySnapshot.docs[0].id } as Customer;
-          }
-        } catch (e) {
-          console.error("Error fetching customer for welcome discount:", e);
-        }
-      }
+  // 3. Validar caducidad del cupón
+  if (coupon.expiresAt && new Date(coupon.expiresAt) < new Date()) {
+    return { valid: false, error: 'Este cupón ha expirado' };
+  }
 
-      console.log("Checking welcome discount for customer:", customer?.email, "code:", code, "customerNumber:", customer?.customerNumber);
-      if (customer && customer.customerNumber === code.trim()) {
-        if (customer.welcomeDiscountUsed) return { valid: false, error: 'Descuento de bienvenida ya utilizado' };
-        if (customer.discountExpiresAt && new Date(customer.discountExpiresAt) < new Date()) {
-          return { valid: false, error: 'Descuento de bienvenida caducado' };
-        }
-        return { valid: true, discount: customer.discountPercentage || 10 };
-      }
-    }
-
-    console.log("Coupon not found or invalid");
-    return { valid: false, error: 'Cupón no válido' };
-  };
+  // ¡Aprobado! Retornamos el porcentaje o descuento fijo
+  return { valid: true, discount: coupon.percentage || coupon.discount || 0 };
+};
 
   const deductRawMaterials = async (saleItems: Sale['items']) => {
     const batch = writeBatch(db);
