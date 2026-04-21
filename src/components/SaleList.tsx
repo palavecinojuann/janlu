@@ -6,6 +6,7 @@ import Barcode from 'react-barcode';
 import OrderConfirmationImage from './OrderConfirmationImage';
 import { v4 as uuidv4 } from 'uuid';
 import imageCompression from 'browser-image-compression';
+import { useInventoryContext } from '../contexts/InventoryContext';
 
 interface SaleListProps {
   sales: Sale[];
@@ -19,6 +20,8 @@ interface SaleListProps {
 }
 
 export default function SaleList({ sales, products, customers, storeSettings, onNewSale, onUpdateSale, onAttachReceipt, initialStatusFilter }: SaleListProps) {
+  const { fetchMoreSales, hasMoreSales } = useInventoryContext();
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   // 🚀 OPTIMISTIC UI: Creamos una copia local de las ventas para que reaccione al instante
   const [localSales, setLocalSales] = useState<Sale[]>(sales);
 
@@ -800,6 +803,35 @@ export default function SaleList({ sales, products, customers, storeSettings, on
               </tbody>
             </table>
           </div>
+          
+          {hasMoreSales && (
+            <div className="flex justify-center mt-6 pb-6">
+              <button
+                onClick={async () => {
+                  setIsLoadingHistory(true);
+                  try {
+                    await fetchMoreSales();
+                  } finally {
+                    setIsLoadingHistory(false);
+                  }
+                }}
+                disabled={isLoadingHistory}
+                className="flex items-center gap-2 px-6 py-3 bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-300 font-medium rounded-xl transition-all shadow-sm disabled:opacity-50"
+              >
+                {isLoadingHistory ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" />
+                    Cargando historial...
+                  </>
+                ) : (
+                  <>
+                    <Clock size={18} />
+                    Cargar ventas anteriores
+                  </>
+                )}
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { Product, DashboardMetrics, Customer, Sale, Quote, RawMaterial, FinancialDocument, Activity, ProductionOrder, Campaign, Offer, UserProfile, Simulation, PreAuthorizedAdmin, AuditLog, User, StoreSettings, Coupon, Course } from './types';
 import { v4 as uuidv4 } from 'uuid';
 import { db, auth } from './firebase';
-import { collection, doc, onSnapshot, setDoc, updateDoc, deleteDoc, query, getDoc, writeBatch, DocumentSnapshot, DocumentData, runTransaction, orderBy, limit, where, getDocs, DocumentReference } from 'firebase/firestore';
+import { collection, doc, onSnapshot, setDoc, updateDoc, deleteDoc, query, getDoc, writeBatch, DocumentSnapshot, DocumentData, runTransaction, orderBy, limit, where, getDocs, DocumentReference, startAfter } from 'firebase/firestore';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { toUMB, Unit, UNIT_DIMENSIONS, UMB_FOR_DIMENSION } from './utils/units';
 import { getVariantStock } from './utils/stockUtils';
@@ -82,7 +82,16 @@ export function useInventory() {
   const [offers, setOffers] = useState<Offer[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [sales, setSales] = useState<Sale[]>([]);
+  const [realtimeSales, setRealtimeSales] = useState<Sale[]>([]);
+  const [historicalSales, setHistoricalSales] = useState<Sale[]>([]);
+  const [lastSaleDoc, setLastSaleDoc] = useState<DocumentSnapshot | null>(null);
+  const [hasMoreSales, setHasMoreSales] = useState(true);
+
+  const sales = useMemo(() => {
+    const combined = [...realtimeSales, ...historicalSales];
+    const unique = Array.from(new Map(combined.map(item => [item.id, item])).values());
+    return unique.sort((a, b) => (b.orderNumber || 0) - (a.orderNumber || 0));
+  }, [realtimeSales, historicalSales]);
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
@@ -360,19 +369,14 @@ export function useInventory() {
       setCoupons(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Coupon)));
     }, (e) => handleAdminError(e, OperationType.GET, 'coupons'));
 
-    const salesCache = { recent: [] as Sale[], active: [] as Sale[] };
-    const updateSales = () => {
-      const merged = new Map<string, Sale>();
-      salesCache.recent.forEach(s => merged.set(s.id, s));
-      salesCache.active.forEach(s => merged.set(s.id, s));
-      setSales(Array.from(merged.values()).sort((a, b) => b.date.localeCompare(a.date)));
-    };
-
     // NOTA: Se utiliza limit() en esta consulta para gestionar y reducir las cuotas de lectura de Firebase.
-    const unsubSalesActive = onSnapshot(query(collection(db, 'sales'), where('status', 'in', ['nuevo', 'en_preparacion', 'listo_para_entregar']), limit(30)), (snapshot) => {
-      salesCache.active = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Sale));
-      updateSales();
-    }, (e) => handleAdminError(e, OperationType.GET, 'sales_active'));
+    const unsubSalesActive = onSnapshot(query(collection(db, 'sales'), orderBy('orderNumber', 'desc'), limit(20)), (snapshot) => {
+      const newSales = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Sale));
+      setRealtimeSales(newSales);
+      if (snapshot.docs.length > 0) {
+        setLastSaleDoc(snapshot.docs[snapshot.docs.length - 1]);
+      }
+    }, (e) => handleAdminError(e, OperationType.GET, 'sales'));
 
     const quotesCache = { recent: [] as Quote[], active: [] as Quote[] };
     const updateQuotes = () => {
@@ -416,10 +420,7 @@ export function useInventory() {
         const customersSnap = await getDocs(query(collection(db, 'customers'), limit(15)));
         setCustomers(customersSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Customer)));
 
-        // NOTA: Se utiliza limit() en esta consulta para gestionar y reducir las cuotas de lectura de Firebase.
-        const salesRecentSnap = await getDocs(query(collection(db, 'sales'), where('date', '>=', thirtyDaysAgoStr), orderBy('date', 'desc'), limit(15)));
-        salesCache.recent = salesRecentSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Sale));
-        updateSales();
+
 
         // NOTA: Se utiliza limit() en esta consulta para gestionar y reducir las cuotas de lectura de Firebase.
         const quotesRecentSnap = await getDocs(query(collection(db, 'quotes'), where('date', '>=', thirtyDaysAgoStr), orderBy('date', 'desc'), limit(15)));
@@ -1590,16 +1591,18 @@ export function useInventory() {
       id: uuidv4(),
       orderNumber: nextOrderNumber,
       date: new Date().toISOString(),
-      status: saleData.status || 'Nuevo'
+      status: saleData.status || 'nuevo'
     };
 
     try {
       await setDoc(doc(db, 'sales', newSale.id), cleanObject(newSale));
 
       // 🛡️ LÓGICA DE BLINDAJE: Solo comprometer stock, NO descontarlo físicamente aún
-      if (newSale.status !== 'Cancelado') {
+      if (newSale.status !== 'cancelado') {
         await commitStock(newSale.items);
       }
+
+      return newSale.id;
 
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'sales');
@@ -1633,60 +1636,24 @@ export function useInventory() {
       // 🛡️ LÓGICA DE TRANSICIÓN DE ESTADOS DE STOCK
 
       // Caso 1: Se Cancela un pedido activo (Liberar el stock comprometido para que vuelva a la tienda)
-      if (oldSale.status !== 'Cancelado' && roundedSale.status === 'Cancelado') {
+      if (oldSale.status !== 'cancelado' && roundedSale.status === 'cancelado') {
         await releaseStock(roundedSale.items);
       }
       // Caso 2: Se Reactiva un pedido cancelado (Volver a comprometer stock)
-      else if (oldSale.status === 'Cancelado' && roundedSale.status !== 'Cancelado' && roundedSale.status !== 'Entregado') {
+      else if (oldSale.status === 'cancelado' && roundedSale.status !== 'cancelado' && roundedSale.status !== 'entregado') {
         await commitStock(roundedSale.items);
       }
       // Caso 3: Se marca ENTREGADO (El cliente se llevó la vela, se descuenta de tu cera física)
-      else if (oldSale.status !== 'Entregado' && roundedSale.status === 'Entregado') {
+      else if (oldSale.status !== 'entregado' && roundedSale.status === 'entregado') {
         await consumeStockDefinitively(roundedSale.items);
       }
       // Caso 4: Se des-entrega un pedido por error del Admin (Vuelve el stock físico a tu taller, pero sigue comprometido en sistema)
-      else if (oldSale.status === 'Entregado' && roundedSale.status !== 'Entregado' && roundedSale.status !== 'Cancelado') {
+      else if (oldSale.status === 'entregado' && roundedSale.status !== 'entregado' && roundedSale.status !== 'cancelado') {
         await revertConsumedStockToCommitted(roundedSale.items);
       }
 
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'sales');
-    }
-  };
-
-  const returnRawMaterials = async (saleItems: Sale['items']) => {
-    const batch = writeBatch(db);
-    let newMaterials = [...rawMaterials];
-    let materialsToUpdate = new Set<string>();
-
-    saleItems.forEach(item => {
-      const product = products.find(p => p.id === item.productId);
-      const variant = product?.variants.find(v => v.id === item.variantId);
-      if (variant && variant.recipe && variant.isFinishedGood === false) {
-        variant.recipe.forEach(recipeItem => {
-          newMaterials = newMaterials.map(m => {
-            if (m.id === recipeItem.rawMaterialId) {
-              const effectiveUnit = recipeItem.unit || m.baseUnit || UMB_FOR_DIMENSION[m.dimension || (m.unit ? UNIT_DIMENSIONS[m.unit as Unit] : 'units')];
-              const quantityToReturnUMB = toUMB(recipeItem.quantity, effectiveUnit as Unit);
-              materialsToUpdate.add(m.id);
-              return { ...m, stock: m.stock + (quantityToReturnUMB * item.quantity) };
-            }
-            return m;
-          });
-        });
-      }
-    });
-
-    try {
-      materialsToUpdate.forEach(id => {
-        const material = newMaterials.find(m => m.id === id);
-        if (material) {
-          batch.set(doc(db, 'rawMaterials', id), cleanObject(material));
-        }
-      });
-      await batch.commit();
-    } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'rawMaterials');
     }
   };
 
@@ -1982,11 +1949,36 @@ export function useInventory() {
     }
   };
 
+  const fetchMoreSales = async () => {
+    if (!lastSaleDoc || !hasMoreSales) return;
+    try {
+      const q = query(
+        collection(db, 'sales'),
+        orderBy('orderNumber', 'desc'),
+        startAfter(lastSaleDoc),
+        limit(20)
+      );
+      const snapshot = await getDocs(q);
+      if (snapshot.empty) {
+        setHasMoreSales(false);
+        return;
+      }
+      const newSales = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Sale));
+      setHistoricalSales(prev => [...prev, ...newSales]);
+      setLastSaleDoc(snapshot.docs[snapshot.docs.length - 1]);
+      if (snapshot.docs.length < 20) {
+        setHasMoreSales(false);
+      }
+    } catch (error) {
+      console.error("Error fetching more sales:", error);
+    }
+  };
+
   return {
     products, addProduct, addMultipleProducts, updateProduct, deleteProduct, adjustStock,
     courses, addCourse, updateCourse, deleteCourse,
     customers, addCustomer, updateCustomer, deleteCustomer,
-    sales, registerSale, updateSale,
+    sales, fetchMoreSales, hasMoreSales, registerSale, updateSale,
     coupons, generateCoupon, validateCoupon, updateCoupon, deleteCoupon,
     quotes, addQuote, deleteQuote, approveQuote,
     rawMaterials, addRawMaterial, addMultipleRawMaterials, updateRawMaterial, deleteRawMaterial, restockRawMaterial,

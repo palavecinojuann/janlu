@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Product, RawMaterial, Offer, Variant, Campaign, Sale, SaleStatus, StoreSettings, Course } from '../types';
 import { Search, Filter, Wind, Droplet, Flame, ShoppingBag, Instagram, Facebook, Phone, Lock, Unlock, Plus, Edit2, Trash2, X, Tag, Clock, Calendar, ShoppingCart, Minus, ChevronRight, ChevronLeft, AlertTriangle, Package, LayoutDashboard, ArrowRightLeft, Upload, CheckCircle, Timer, Zap, LogOut, Loader2, Gift, Shield, Music2, ShieldCheck, Truck, Mail, MapPin, GraduationCap, Copy } from 'lucide-react';
 import ProductForm from './ProductForm';
@@ -15,7 +15,7 @@ interface PublicCatalogProps {
   onAddProduct?: (product: Product) => Promise<void>;
   onUpdateProduct?: (product: Product) => Promise<void>;
   onDeleteProduct?: (id: string) => void;
-  onRegisterSale?: (sale: Omit<Sale, 'id' | 'date'>) => void;
+  onRegisterSale?: (sale: Omit<Sale, 'id' | 'date'>) => any;
   onBackToAdmin?: () => void;
   isCustomer?: boolean;
   lastSync?: Date;
@@ -109,7 +109,7 @@ interface ProductCardProps {
   onClick?: () => void;
 }
 
-const ProductCard: React.FC<ProductCardProps> = ({
+const ProductCard: React.FC<ProductCardProps> = React.memo(({
   product,
   isAdminMode,
   onEdit,
@@ -420,7 +420,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
       </div>
     </div>
   );
-};
+});
 
 const PublicCampaignBanner = ({ campaign }: { campaign: Campaign | null }) => {
   const [timeLeft, setTimeLeft] = useState('');
@@ -808,22 +808,22 @@ export default function PublicCatalog({
     });
   }, [products, debouncedSearchTerm, selectedCategory, isAdminMode]);
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = useCallback((amount: number) => { 
     return new Intl.NumberFormat('es-AR', { 
       style: 'currency', 
-      currency: 'ARS',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(amount);
-  };
+      currency: 'ARS', 
+      minimumFractionDigits: 2, 
+      maximumFractionDigits: 2 
+    }).format(amount); 
+  }, []);
 
-  const formatStock = (stock: number) => {
-    if (stock <= 0) return '0';
-    if (stock >= 20) return '+20';
-    if (stock >= 10) return '+10';
-    if (stock >= 5) return '+5';
-    return stock.toString();
-  };
+  const formatStock = useCallback((stock: number) => { 
+    if (stock <= 0) return '0'; 
+    if (stock >= 20) return '+20'; 
+    if (stock >= 10) return '+10'; 
+    if (stock >= 5) return '+5'; 
+    return stock.toString(); 
+  }, []);
 
   const activeCampaign = useMemo(() => {
     if (!Array.isArray(campaigns)) return null;
@@ -840,7 +840,7 @@ export default function PublicCatalog({
     });
   }, [campaigns]);
 
-  const getEffectivePrice = (product: Product, variant: Variant, qty: number = 1) => {
+  const getEffectivePrice = useCallback((product: Product, variant: Variant, qty: number = 1) => {
     const productOffers = activeOffers.filter(offer => 
       !offer.productIds || offer.productIds.length === 0 || offer.productIds.includes(product.id)
     );
@@ -866,7 +866,7 @@ export default function PublicCatalog({
     }
 
     return variant.price;
-  };
+  }, [activeOffers, activeCampaign]);
 
   const removeFromCart = (productId?: string, variantId?: string, courseId?: string) => {
     setCart(prev => prev.filter(item => {
