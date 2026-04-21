@@ -398,7 +398,7 @@ export default function JanluDashboard({
   return (
     <div className="flex-1 overflow-y-auto min-h-0 font-sans bg-[#faf9f8] p-4 md:p-8 rounded-3xl relative">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+      <div className="sticky top-0 z-40 bg-[#faf9f8]/90 backdrop-blur-md pb-4 pt-2 -mx-4 px-4 sm:-mx-8 sm:px-8 border-b border-stone-200/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 shadow-sm">
         <div>
           <button 
             onClick={() => setShowCalendar(true)}

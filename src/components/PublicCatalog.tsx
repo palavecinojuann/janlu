@@ -188,8 +188,8 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({
             loading="lazy"
           />
         ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center text-stone-300 transition-colors">
-            <Flame size={48} strokeWidth={1} />
+          <div className="w-full h-full flex flex-col items-center justify-center bg-stone-200/50 animate-pulse transition-colors">
+            <Flame size={48} className="text-stone-300/50" strokeWidth={1} />
           </div>
         )}
         
