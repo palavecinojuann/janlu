@@ -725,6 +725,12 @@ export default function PublicCatalog({
     }
   };
 
+  const triggerHapticFeedback = () => {
+    if (typeof window !== 'undefined' && navigator && navigator.vibrate) {
+      navigator.vibrate(50); // Micro-vibración sólida de 50ms
+    }
+  };
+
   const handleUpdateCart = (product: Product, variant: Variant, qty: number) => {
     const currentStock = getVariantStock(variant, rawMaterials);
     if (qty > currentStock) {
@@ -732,6 +738,8 @@ export default function PublicCatalog({
       setTimeout(() => setStockErrorId(null), 500);
       return;
     }
+
+    triggerHapticFeedback(); // 👈 INYECCIÓN DE VIBRACIÓN
 
     setCart(prev => {
       const existing = prev.find(item => item.product?.id === product.id && item.variant?.id === variant.id);
@@ -881,6 +889,16 @@ export default function PublicCatalog({
   };
 
   const updateCartQuantity = (productId: string | undefined, variantId: string | undefined, newQuantity: number, courseId?: string) => {
+    // Detectamos si la acción es sumar cantidad
+    const currentItem = cart.find(i => 
+      (courseId && i.course?.id === courseId) || 
+      (productId && variantId && i.product?.id === productId && i.variant?.id === variantId)
+    );
+
+    if (currentItem && newQuantity > currentItem.quantity) {
+      triggerHapticFeedback();
+    }
+
     setCart(prev => prev.map(item => {
       if (courseId && item.course?.id === courseId) {
         return { ...item, quantity: Math.max(1, newQuantity) };
