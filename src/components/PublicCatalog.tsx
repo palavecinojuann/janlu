@@ -1799,40 +1799,86 @@ export default function PublicCatalog({
         </section>
       </main>
 
-      {/* Footer Boutique */}
-      <footer className="bg-stone-50 py-16 mt-20 border-t border-stone-100">
-        <div className="max-w-7xl mx-auto px-4 text-center">
-          <div className="flex flex-col items-center justify-center mb-8">
-            <h2 className="text-3xl font-cinzel font-bold text-stone-900 tracking-tight">JANLU</h2>
-            <p className="text-[10px] uppercase tracking-[0.3em] text-stone-400 mt-1">Aromas & Diseño</p>
-          </div>
-          
-          <div className="flex justify-center space-x-8 mb-8">
-            {storeSettings?.email && (
-              <a href={`mailto:${storeSettings.email}`} className="text-stone-400 hover:text-stone-900 transition-colors">
-                <Mail size={20} />
-              </a>
-            )}
-            {storeSettings?.instagramUrl && (
-              <a href={getSocialLink('instagram', storeSettings.instagramUrl)} target="_blank" rel="noopener noreferrer" className="text-stone-400 hover:text-stone-900 transition-colors">
-                <Instagram size={20} />
-              </a>
-            )}
-            {storeSettings?.facebookUrl && (
-              <a href={getSocialLink('facebook', storeSettings.facebookUrl)} target="_blank" rel="noopener noreferrer" className="text-stone-400 hover:text-stone-900 transition-colors">
-                <Facebook size={20} />
-              </a>
-            )}
-            {storeSettings?.tiktokUrl && (
-              <a href={getSocialLink('tiktok', storeSettings.tiktokUrl)} target="_blank" rel="noopener noreferrer" className="text-stone-400 hover:text-stone-900 transition-colors">
-                <Music2 size={20} />
-              </a>
+      {/* FOOTER INMERSIVO (Estilo Alta Gama) */}
+      <footer className="bg-stone-950 text-stone-300 pt-20 pb-10 px-6 sm:px-12 mt-24 border-t border-stone-800">
+        <div className="max-w-7xl mx-auto">
+          {/* Top: Suscripción a Newsletter */}
+          <div className="flex flex-col items-center text-center mb-20">
+            <h3 className="text-white text-2xl sm:text-3xl font-serif mb-4">Únete a nuestro universo</h3>
+            <p className="text-[10px] sm:text-xs uppercase tracking-[0.2em] text-stone-400 mb-8 max-w-md leading-relaxed">
+              Recibe novedades, beneficios exclusivos y consejos para el cuidado de tus velas.
+            </p>
+            {subscribed ? (
+              <p className="text-emerald-400 text-[10px] sm:text-xs tracking-widest uppercase flex items-center gap-2">
+                <CheckCircle size={14} /> ¡Gracias por suscribirte!
+              </p>
+            ) : (
+              <div className="flex w-full max-w-md border-b border-stone-600 pb-2 transition-colors focus-within:border-white group">
+                <input 
+                  type="email" 
+                  id="newsletter-email"
+                  placeholder="Tu correo electrónico" 
+                  className="bg-transparent w-full text-xs sm:text-sm text-white placeholder-stone-500 focus:outline-none"
+                />
+                <button 
+                  onClick={() => {
+                    const emailInput = document.getElementById('newsletter-email') as HTMLInputElement;
+                    if (emailInput && emailInput.value && onAddSubscriber) {
+                      onAddSubscriber(emailInput.value);
+                      setSubscribed(true);
+                    }
+                  }}
+                  className="text-[10px] font-bold uppercase tracking-widest text-stone-400 hover:text-white transition-colors"
+                >
+                  Suscribirse
+                </button>
+              </div>
             )}
           </div>
 
-          <p className="text-xs text-stone-400 uppercase tracking-widest">
-            &copy; {new Date().getFullYear()} JANLU Aromas & Diseño. Todos los derechos reservados.
-          </p>
+          {/* Middle: Grid de Navegación */}
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-12 sm:gap-8 mb-16 text-center sm:text-left">
+            <div className="sm:col-span-1 flex flex-col items-center sm:items-start">
+              <h4 className="text-white text-2xl font-serif tracking-widest mb-4">JANLU</h4>
+              <p className="text-[10px] text-stone-500 tracking-[0.2em] uppercase leading-relaxed">
+                Aromas & Diseño.<br/>Donde empieza la calma.
+              </p>
+            </div>
+            
+            <div className="flex flex-col items-center sm:items-start">
+              <h5 className="text-white text-[10px] font-bold uppercase tracking-[0.2em] mb-6">Explorar</h5>
+              <ul className="space-y-4 text-xs text-stone-400">
+                <li><button onClick={() => { setActiveTab('inicio'); window.scrollTo(0,0); }} className="hover:text-white transition-colors">Inicio</button></li>
+                <li><button onClick={() => { setActiveTab('productos'); window.scrollTo(0,0); }} className="hover:text-white transition-colors">Nuestros Productos</button></li>
+                <li><button onClick={() => { setActiveTab('workshops'); window.scrollTo(0,0); }} className="hover:text-white transition-colors">Academy & Workshops</button></li>
+              </ul>
+            </div>
+
+            <div className="flex flex-col items-center sm:items-start">
+              <h5 className="text-white text-[10px] font-bold uppercase tracking-[0.2em] mb-6">Soporte</h5>
+              <ul className="space-y-4 text-xs text-stone-400">
+                <li><button onClick={() => { setActiveTab('contacto'); window.scrollTo(0,0); }} className="hover:text-white transition-colors">Atención al Cliente</button></li>
+                <li><button onClick={() => { setActiveTab('politicas'); window.scrollTo(0,0); }} className="hover:text-white transition-colors">Envíos y Retiros</button></li>
+                <li><button onClick={() => { setActiveTab('politicas'); window.scrollTo(0,0); }} className="hover:text-white transition-colors">Términos y Condiciones</button></li>
+              </ul>
+            </div>
+
+            <div className="flex flex-col items-center sm:items-start">
+              <h5 className="text-white text-[10px] font-bold uppercase tracking-[0.2em] mb-6">Síguenos</h5>
+              <ul className="space-y-4 text-xs text-stone-400">
+                {storeSettings?.instagramUrl && <li><a href={getSocialLink('instagram', storeSettings.instagramUrl)} target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors flex items-center gap-2"><Instagram size={14}/> Instagram</a></li>}
+                {storeSettings?.facebookUrl && <li><a href={getSocialLink('facebook', storeSettings.facebookUrl)} target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors flex items-center gap-2"><Facebook size={14}/> Facebook</a></li>}
+                {storeSettings?.tiktokUrl && <li><a href={getSocialLink('tiktok', storeSettings.tiktokUrl)} target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors flex items-center gap-2">TikTok</a></li>}
+              </ul>
+            </div>
+          </div>
+
+          {/* Bottom: Copyright */}
+          <div className="text-center pt-8 border-t border-stone-800/50">
+            <p className="text-[8px] sm:text-[9px] text-stone-600 tracking-[0.3em] uppercase">
+              © {new Date().getFullYear()} JANLU VELAS. TODOS LOS DERECHOS RESERVADOS.
+            </p>
+          </div>
         </div>
       </footer>
 
