@@ -107,6 +107,7 @@ interface ProductCardProps {
   rawMaterials: RawMaterial[];
   storeSettings?: StoreSettings;
   onClick?: () => void;
+  stockErrorId?: string | null;
 }
 
 const ProductCard: React.FC<ProductCardProps> = React.memo(({
@@ -123,7 +124,8 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({
   cart,
   rawMaterials,
   storeSettings,
-  onClick
+  onClick,
+  stockErrorId
 }) => {
   const [localVariant, setLocalVariant] = useState<Variant | null>(
     product.variants.find(v => getVariantStock(v, rawMaterials) > 0) || product.variants[0] || null
@@ -305,7 +307,7 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({
                 <button onClick={(e) => { e.stopPropagation(); onUpdateCart(product, localVariant!, quantityInCart - 1); }} className="flex-1 h-full flex items-center justify-center hover:bg-stone-50 text-stone-900 active:bg-stone-100 transition-colors">
                   <Minus className="w-4 h-4" />
                 </button>
-                <span className="flex-1 text-center font-bold text-stone-900 text-base">{quantityInCart}</span>
+                <span className={`flex-1 text-center text-base transition-all duration-300 transform ${stockErrorId === localVariant?.id ? 'text-rose-600 scale-125 font-bold animate-pulse' : 'font-bold text-stone-900'}`}>{quantityInCart}</span>
                 <button onClick={(e) => { e.stopPropagation(); onUpdateCart(product, localVariant!, quantityInCart + 1); }} className="flex-1 h-full flex items-center justify-center hover:bg-stone-50 text-stone-900 active:bg-stone-100 transition-colors">
                   <Plus className="w-4 h-4" />
                 </button>
@@ -332,7 +334,7 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({
               <button onClick={(e) => { e.stopPropagation(); onUpdateCart(product, localVariant!, quantityInCart - 1); }} className="flex-1 h-full flex items-center justify-center active:bg-stone-100 transition-colors text-stone-900">
                 <Minus className="w-6 h-6" />
               </button>
-              <span className="flex-1 text-center font-bold text-stone-900 text-xl">{quantityInCart}</span>
+              <span className={`flex-1 text-center text-xl transition-all duration-300 transform ${stockErrorId === localVariant?.id ? 'text-rose-600 scale-125 font-bold animate-pulse' : 'font-bold text-stone-900'}`}>{quantityInCart}</span>
               <button onClick={(e) => { e.stopPropagation(); onUpdateCart(product, localVariant!, quantityInCart + 1); }} className="flex-1 h-full flex items-center justify-center active:bg-stone-100 transition-colors text-stone-900">
                 <Plus className="w-6 h-6" />
               </button>
@@ -654,6 +656,8 @@ export default function PublicCatalog({
     }
   });
 
+  const [stockErrorId, setStockErrorId] = useState<string | null>(null);
+
   useEffect(() => {
     localStorage.setItem('janlu_cart', JSON.stringify(cart));
   }, [cart]);
@@ -724,7 +728,8 @@ export default function PublicCatalog({
   const handleUpdateCart = (product: Product, variant: Variant, qty: number) => {
     const currentStock = getVariantStock(variant, rawMaterials);
     if (qty > currentStock) {
-      alert(`Solo hay ${currentStock} unidades disponibles de ${variant.name}.`);
+      setStockErrorId(variant.id);
+      setTimeout(() => setStockErrorId(null), 500);
       return;
     }
 
@@ -883,7 +888,8 @@ export default function PublicCatalog({
       if (productId && variantId && item.product?.id === productId && item.variant?.id === variantId) {
         const currentStock = getVariantStock(item.variant!, rawMaterials);
         if (newQuantity > currentStock) {
-          alert(`Solo hay ${currentStock} unidades disponibles de ${item.variant!.name}.`);
+          setStockErrorId(item.variant!.id);
+          setTimeout(() => setStockErrorId(null), 500);
           return { ...item, quantity: currentStock };
         }
         return { ...item, quantity: Math.max(1, newQuantity) };
@@ -1423,6 +1429,7 @@ export default function PublicCatalog({
                     setSelectedProduct(product);
                     setIsModalOpen(true);
                   }}
+                  stockErrorId={stockErrorId}
                 />
               ))}
             </div>
@@ -1905,7 +1912,7 @@ export default function PublicCatalog({
                                   const val = parseFloat(e.target.value);
                                   updateCartQuantity(item.product?.id, item.variant?.id, isNaN(val) ? 1 : val, item.course?.id);
                                 }}
-                                className="w-10 text-center text-sm font-medium text-stone-900 bg-transparent border-none focus:ring-0 p-0"
+                                className={`w-10 text-center text-sm bg-transparent border-none focus:ring-0 p-0 transition-all duration-300 transform ${stockErrorId === item.variant?.id ? 'text-rose-600 scale-125 font-bold animate-pulse' : 'font-medium text-stone-900'}`}
                               />
                               <button 
                                 onClick={() => updateCartQuantity(item.product?.id, item.variant?.id, item.quantity + 1, item.course?.id)}
