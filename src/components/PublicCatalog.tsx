@@ -424,7 +424,7 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({
   );
 });
 
-const PublicCampaignBanner = ({ campaign }: { campaign: Campaign | null }) => {
+const PublicCampaignBanner = ({ campaign, onScrollToProducts }: { campaign: Campaign | null, onScrollToProducts?: () => void }) => {
   const [timeLeft, setTimeLeft] = useState('');
 
   useEffect(() => {
@@ -494,6 +494,15 @@ const PublicCampaignBanner = ({ campaign }: { campaign: Campaign | null }) => {
         <Timer size={12} className="animate-pulse sm:w-[14px] sm:h-[14px]" />
         <span className="font-bold">{timeLeft}</span>
       </div>
+
+      {onScrollToProducts && (
+        <button 
+          onClick={onScrollToProducts}
+          className="hidden sm:flex items-center gap-2 bg-white text-stone-900 px-4 py-1.5 rounded-full text-[10px] font-bold tracking-widest uppercase hover:bg-stone-200 transition-colors shadow-sm ml-4"
+        >
+          Aprovechar <ArrowRightLeft size={12} className="rotate-90" />
+        </button>
+      )}
     </div>
   );
 };
@@ -608,6 +617,10 @@ export default function PublicCatalog({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
   const productsGridRef = useRef<HTMLDivElement>(null);
+
+  const scrollToProducts = useCallback(() => {
+    productsGridRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
 
   const [currentSlide, setCurrentSlide] = useState(0);
   const heroSlides = useMemo(() => {
@@ -1102,7 +1115,7 @@ export default function PublicCatalog({
 
       {/* Header */}
       <header className="bg-white sticky top-0 z-50 border-b border-stone-100">
-        <PublicCampaignBanner campaign={activeCampaign} />
+        <PublicCampaignBanner campaign={activeCampaign} onScrollToProducts={scrollToProducts} />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between w-full">
           {/* Logo */}
           <div className="flex-shrink-0 flex items-center cursor-pointer" onClick={() => setActiveTab('inicio')}>
