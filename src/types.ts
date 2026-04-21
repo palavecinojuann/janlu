@@ -57,6 +57,7 @@ export interface Variant {
   id: string;
   name: string;
   stock: number;
+  compromisedStock?: number; // 🛡️ NUEVO: Stock reservado en pedidos no entregados
   cost: number;
   margin: number;
   price: number;
