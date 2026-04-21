@@ -11,6 +11,7 @@ export default function Settings() {
   const [language, setLanguage] = useState(() => localStorage.getItem('janlu_language') || 'es');
   const [uploadingSlideId, setUploadingSlideId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const atmosphericFileInputRef = useRef<HTMLInputElement>(null);
   const [activeSlideIndex, setActiveSlideIndex] = useState<number | null>(null);
   
   const categories = useMemo(() => {
@@ -101,26 +102,31 @@ export default function Settings() {
     }
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, index: number, target: 'hero' | 'atmospheric' = 'hero') => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const slideId = localSettings.heroSlides?.[index]?.id || 'temp';
+    const currentArray = target === 'hero' ? localSettings.heroSlides : localSettings.atmosphericBanners;
+    const slideId = currentArray?.[index]?.id || 'temp';
     setUploadingSlideId(slideId);
 
     try {
       const options = {
-        maxSizeMB: 0.1, // Reduced from 0.8 to 0.1 to fit multiple images in 1MB document
-        maxWidthOrHeight: 1280, // Reduced from 1920
+        maxSizeMB: 0.1, 
+        maxWidthOrHeight: 1280, 
         useWebWorker: true
       };
       
       const compressedFile = await imageCompression(file, options);
       const base64 = await imageCompression.getDataUrlFromFile(compressedFile);
       
-      const newSlides = [...(localSettings.heroSlides || [])];
+      const newSlides = [...(currentArray || [])];
       newSlides[index] = { ...newSlides[index], image: base64 };
-      setLocalSettings({ ...localSettings, heroSlides: newSlides });
+      if (target === 'hero') {
+        setLocalSettings({ ...localSettings, heroSlides: newSlides });
+      } else {
+        setLocalSettings({ ...localSettings, atmosphericBanners: newSlides });
+      }
     } catch (error) {
       console.error("Error uploading image:", error);
       alert("Error al cargar la imagen. Intenta con un archivo más pequeño.");
@@ -471,6 +477,147 @@ export default function Settings() {
                           Se genera automáticamente basado en la categoría seleccionada.
                         </p>
                       </div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-stone-900 p-6 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800 space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3 text-indigo-600 dark:text-indigo-400">
+              <Image size={24} />
+              <h3 className="text-lg font-semibold">Banners Separadores (Atmósfera)</h3>
+            </div>
+            <button
+              onClick={() => {
+                if ((localSettings.atmosphericBanners || []).length >= 10) {
+                  alert("Máximo 10 banners permitidos para mantener el rendimiento.");
+                  return;
+                }
+                const newSlide: HeroSlide = {
+                  id: uuidv4(),
+                  image: '',
+                  title: '',
+                  subtitle: ''
+                };
+                setLocalSettings({
+                  ...localSettings,
+                  atmosphericBanners: [...(localSettings.atmosphericBanners || []), newSlide]
+                });
+              }}
+              className="flex items-center space-x-1 text-sm text-indigo-600 hover:text-indigo-700 font-medium disabled:opacity-50"
+              disabled={(localSettings.atmosphericBanners || []).length >= 10}
+            >
+              <Plus size={16} />
+              <span>Agregar Banner</span>
+            </button>
+          </div>
+          
+          <div className="space-y-6">
+            {(!localSettings.atmosphericBanners || localSettings.atmosphericBanners.length === 0) ? (
+              <p className="text-sm text-stone-500 text-center py-4 italic">No hay banners atmosféricos configurados. Se mostrarán 3 por defecto en el catálogo.</p>
+            ) : (
+              localSettings.atmosphericBanners.map((slide, index) => (
+                <div key={slide.id} className="p-4 border border-stone-100 dark:border-stone-800 rounded-xl space-y-4 bg-stone-50/50 dark:bg-stone-900/50">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-stone-400 uppercase tracking-widest">Banner #{index + 1}</span>
+                    <button
+                      onClick={() => {
+                        const newSlides = localSettings.atmosphericBanners?.filter(s => s.id !== slide.id);
+                        setLocalSettings({ ...localSettings, atmosphericBanners: newSlides });
+                      }}
+                      className="text-rose-500 hover:text-rose-600 p-1"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="sm:col-span-2">
+                      <label className="block text-[10px] uppercase tracking-wider font-bold text-stone-500 mb-1">Imagen</label>
+                      <div className="flex items-center gap-4">
+                        <div className="w-20 h-20 bg-stone-100 dark:bg-stone-800 rounded-lg overflow-hidden flex-shrink-0 border border-stone-200 dark:border-stone-700">
+                          {slide.image ? (
+                            <img src={slide.image} alt="Preview" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-stone-400">
+                              <Image size={24} />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 space-y-2">
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => {
+                                setActiveSlideIndex(index);
+                                atmosphericFileInputRef.current?.click();
+                              }}
+                              disabled={uploadingSlideId === slide.id}
+                              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-white dark:bg-stone-950 border border-stone-200 dark:border-stone-700 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-stone-50 dark:hover:bg-stone-900 transition-colors disabled:opacity-50"
+                            >
+                              {uploadingSlideId === slide.id ? (
+                                <Loader2 size={14} className="animate-spin" />
+                              ) : (
+                                <Upload size={14} />
+                              )}
+                              Cargar Archivo
+                            </button>
+                            <input
+                              type="file"
+                              ref={atmosphericFileInputRef}
+                              className="hidden"
+                              accept="image/*"
+                              onChange={(e) => {
+                                if (activeSlideIndex !== null) {
+                                  handleImageUpload(e, activeSlideIndex, 'atmospheric');
+                                }
+                              }}
+                            />
+                          </div>
+                          <input
+                            type="url"
+                            value={slide.image}
+                            onChange={(e) => {
+                              const newSlides = [...(localSettings.atmosphericBanners || [])];
+                              newSlides[index] = { ...slide, image: e.target.value };
+                              setLocalSettings({ ...localSettings, atmosphericBanners: newSlides });
+                            }}
+                            placeholder="O pega una URL: https://..."
+                            className="w-full px-3 py-1.5 text-xs border border-stone-200 dark:border-stone-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-stone-950 text-stone-900 dark:text-stone-100"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] uppercase tracking-wider font-bold text-stone-500 mb-1">Título</label>
+                      <input
+                        type="text"
+                        value={slide.title}
+                        onChange={(e) => {
+                          const newSlides = [...(localSettings.atmosphericBanners || [])];
+                          newSlides[index] = { ...slide, title: e.target.value };
+                          setLocalSettings({ ...localSettings, atmosphericBanners: newSlides });
+                        }}
+                        placeholder="Ej: ESENCIA NATURAL"
+                        className="w-full px-3 py-1.5 text-sm border border-stone-200 dark:border-stone-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-stone-950 text-stone-900 dark:text-stone-100"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] uppercase tracking-wider font-bold text-stone-500 mb-1">Subtítulo</label>
+                      <input
+                        type="text"
+                        value={slide.subtitle}
+                        onChange={(e) => {
+                          const newSlides = [...(localSettings.atmosphericBanners || [])];
+                          newSlides[index] = { ...slide, subtitle: e.target.value };
+                          setLocalSettings({ ...localSettings, atmosphericBanners: newSlides });
+                        }}
+                        placeholder="Ej: Aromas que transforman tu espacio"
+                        className="w-full px-3 py-1.5 text-sm border border-stone-200 dark:border-stone-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-stone-950 text-stone-900 dark:text-stone-100"
+                      />
                     </div>
                   </div>
                 </div>

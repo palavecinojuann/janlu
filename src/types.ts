@@ -366,6 +366,7 @@ export interface StoreSettings {
   installmentsWithoutInterest?: boolean;
   topBarText?: string;
   heroSlides?: HeroSlide[];
+  atmosphericBanners?: HeroSlide[];
   shippingInfo?: string;
   returnsInfo?: string;
   wholesaleInfo?: string;

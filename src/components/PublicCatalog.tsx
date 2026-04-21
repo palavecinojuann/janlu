@@ -598,35 +598,39 @@ const ProductSlider: React.FC<{ title: string; products: Product[]; isAdminMode:
   );
 };
 
-const CategorySeparatorBanner = ({ index }: { index: number }) => {
-  // Arreglo de imágenes atmosféricas de alta gama (puedes reemplazarlas con tus fotos de Firebase Storage luego)
-  const atmosphericBanners = [
+const CategorySeparatorBanner = ({ index, storeSettings }: { index: number; storeSettings?: StoreSettings }) => {
+  // Arreglo de imágenes atmosféricas de alta gama por defecto
+  const fallbackBanners = [
     { 
-      img: "https://images.unsplash.com/photo-1603006905003-be475563bc59?q=80&w=2070&auto=format&fit=crop", 
+      image: "https://images.unsplash.com/photo-1603006905003-be475563bc59?q=80&w=2070&auto=format&fit=crop", 
       title: "ESENCIA NATURAL", 
       subtitle: "Aromas que transforman tu espacio" 
     },
     { 
-      img: "https://images.unsplash.com/photo-1596433809252-260c2745ce7f?q=80&w=2070&auto=format&fit=crop", 
+      image: "https://images.unsplash.com/photo-1596433809252-260c2745ce7f?q=80&w=2070&auto=format&fit=crop", 
       title: "MOMENTOS ÚNICOS", 
       subtitle: "Luz y calidez en cada detalle" 
     },
     { 
-      img: "https://images.unsplash.com/photo-1602615576820-ea14cf3e476a?q=80&w=2070&auto=format&fit=crop", 
+      image: "https://images.unsplash.com/photo-1602615576820-ea14cf3e476a?q=80&w=2070&auto=format&fit=crop", 
       title: "RITUALES DE CALMA", 
       subtitle: "Diseño premium hecho a mano" 
     }
   ];
 
+  const activeBanners = storeSettings?.atmosphericBanners && storeSettings.atmosphericBanners.length > 0
+    ? storeSettings.atmosphericBanners
+    : fallbackBanners;
+
   // Lógica de ritmo: Solo mostramos un banner cada 2 filas para no saturar la vista
   if (index % 2 !== 0) return null; 
 
-  const banner = atmosphericBanners[(index / 2) % atmosphericBanners.length];
+  const banner = activeBanners[(index / 2) % activeBanners.length];
 
   return (
     <div className="relative w-full h-[25vh] sm:h-[35vh] overflow-hidden my-16 sm:my-24 bg-stone-950 group">
       <img
-        src={banner.img}
+        src={banner.image}
         alt={banner.title}
         className="w-full h-full object-cover opacity-50 group-hover:scale-105 transition-transform duration-[20000ms] ease-out"
         loading="lazy"
@@ -1471,7 +1475,7 @@ export default function PublicCatalog({
                         window.scrollTo({ top: 0, behavior: 'smooth' });
                       }}
                     />
-                    <CategorySeparatorBanner index={index} />
+                    <CategorySeparatorBanner index={index} storeSettings={storeSettings} />
                   </div>
                 );
               })}
