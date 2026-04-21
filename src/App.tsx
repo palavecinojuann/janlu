@@ -296,6 +296,7 @@ export default function App() {
                     onNavigateToCatalog={navigateToCatalog}
                     lastSync={lastSync}
                     onRefresh={refresh}
+                    onGenerateCoupon={generateCoupon}
                     onNavigate={(view) => {
                       if (view === 'quotes') {
                         setSaleStatusFilter('presupuesto');

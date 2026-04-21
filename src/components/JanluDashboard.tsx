@@ -22,6 +22,7 @@ interface JanluDashboardProps {
   lastSync?: Date;
   onRefresh?: () => void;
   onNavigate: (view: 'products' | 'sales' | 'customers' | 'quotes' | 'finance') => void;
+  onGenerateCoupon?: (customerId?: string, percentage?: number, customCode?: string) => Promise<string | undefined | null | any>;
 }
 
 const COLORS = ['#f43f5e', '#fbbf24', '#10b981', '#6366f1', '#8b5cf6'];
@@ -43,7 +44,8 @@ export default function JanluDashboard({
   onNavigateToCatalog,
   lastSync,
   onRefresh,
-  onNavigate 
+  onNavigate,
+  onGenerateCoupon
 }: JanluDashboardProps) {
   const [filter, setFilter] = useState<'all' | 'current_month' | 'current_year'>('all');
   const [showCalendar, setShowCalendar] = useState(false);
@@ -129,11 +131,27 @@ export default function JanluDashboard({
       });
   }, [customers]);
 
-  const handleSendBirthdayWpp = (customer: Customer) => {
-    const message = `¡Hola ${customer.name}! 🎂✨ Desde Janlu Velas te deseamos un muy feliz cumpleaños. Queremos celebrarlo con vos, así que tenés un 15% de DESCUENTO extra en tu próxima compra durante todo tu mes. ¡Esperamos que tengas un día increíble! 🕯️💖`;
-    const encodedMessage = encodeURIComponent(message);
-    const phone = customer.phone.replace(/\D/g, '');
-    window.open(`https://wa.me/${phone}?text=${encodedMessage}`, '_blank');
+  const handleSendBirthdayWpp = async (customer: Customer) => {
+    // 1. Preguntamos el porcentaje (por defecto 20)
+    const input = prompt(`¿Qué % de descuento deseas darle a ${customer.name}?`, '20');
+    if (!input) return; // Si cancela, abortamos
+    
+    const discount = parseInt(input, 10) || 20;
+
+    try {
+      // 2. Generamos el cupón con ese porcentaje
+      const code = onGenerateCoupon ? await onGenerateCoupon(customer.id, discount) : null;
+      const couponText = code ? code : `CUMPLE-${discount}`;
+      
+      // 3. Armamos el mensaje dinámico
+      const message = `¡Hola ${customer.name}! 🎂✨ Desde Janlu Velas te deseamos un muy feliz cumpleaños. Queremos celebrarlo con vos, así que te preparamos este regalo especial: un ${discount}% de DESCUENTO en tu próxima compra usando el código *${couponText}* en nuestra tienda web.\n\n¡Esperamos que tengas un día increíble! 🕯️💖`;
+      
+      const phone = customer.phone.replace(/\D/g, '');
+      window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
+    } catch (error) {
+      console.error('Error generando cupón:', error);
+      alert('Error al generar el cupón.');
+    }
   };
 
   const todayRevenue = todaySales.reduce((acc, s) => acc + s.amountPaid, 0);
