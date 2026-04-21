@@ -519,8 +519,8 @@ const PublicCampaignBanner = ({ campaign, onScrollToProducts }: { campaign: Camp
   );
 };
 
-const ProductSlider: React.FC<{ title: string; products: Product[]; isAdminMode: boolean; onEdit: (p: Product) => void; onDelete?: (id: string) => void; onUpdateCart: (p: Product, v: Variant, q: number) => void; activeOffers: Offer[]; activeCampaign: Campaign | null; formatCurrency: (n: number) => string; getEffectivePrice: (p: Product, v: Variant, q: number) => number; formatStock: (s: number) => string; cart: CartItem[]; rawMaterials: RawMaterial[]; storeSettings?: StoreSettings; onProductClick: (p: Product) => void; favorites: string[]; onToggleFavorite: (id: string, e: React.MouseEvent) => void; }> = ({ 
-  title, products, isAdminMode, onEdit, onDelete, onUpdateCart, activeOffers, activeCampaign, formatCurrency, getEffectivePrice, formatStock, cart, rawMaterials, storeSettings, onProductClick, favorites, onToggleFavorite 
+const ProductSlider: React.FC<{ title: string; products: Product[]; isAdminMode: boolean; onEdit: (p: Product) => void; onDelete?: (id: string) => void; onUpdateCart: (p: Product, v: Variant, q: number) => void; activeOffers: Offer[]; activeCampaign: Campaign | null; formatCurrency: (n: number) => string; getEffectivePrice: (p: Product, v: Variant, q: number) => number; formatStock: (s: number) => string; cart: CartItem[]; rawMaterials: RawMaterial[]; storeSettings?: StoreSettings; onProductClick: (p: Product) => void; favorites: string[]; onToggleFavorite: (id: string, e: React.MouseEvent) => void; onViewAll?: () => void; }> = ({ 
+  title, products, isAdminMode, onEdit, onDelete, onUpdateCart, activeOffers, activeCampaign, formatCurrency, getEffectivePrice, formatStock, cart, rawMaterials, storeSettings, onProductClick, favorites, onToggleFavorite, onViewAll 
 }) => {
   const { ref, onMouseDown, onMouseLeave, onMouseUp, onMouseMove, className, style } = useDraggableScroll();
 
@@ -538,7 +538,7 @@ const ProductSlider: React.FC<{ title: string; products: Product[]; isAdminMode:
       <div className="flex items-center justify-between mb-6 px-4 sm:px-0">
         <h2 className="text-xl sm:text-2xl font-serif text-stone-900 tracking-tight">{title}</h2>
         <div className="h-px flex-1 bg-stone-100 mx-6 hidden sm:block"></div>
-        <button className="text-[10px] uppercase tracking-[0.2em] text-stone-400 hover:text-stone-900 transition-colors">Ver todo</button>
+        <button onClick={onViewAll} className="text-[10px] uppercase tracking-[0.2em] text-stone-400 hover:text-stone-900 transition-colors">Ver todo</button>
       </div>
       
       <div className="relative">
@@ -1187,7 +1187,7 @@ export default function PublicCatalog({
 
   {/* ✨ CLASES AGREGADAS PARA EVITAR SCROLL HORIZONTAL */}
   return (
-    <div className="min-h-screen bg-white text-stone-900 font-sans selection:bg-stone-200 overflow-x-hidden w-full max-w-[100vw]">
+    <div className="min-h-screen bg-[#faf9f8] text-stone-900 font-sans selection:bg-stone-200 overflow-x-hidden w-full max-w-[100vw]">
       {/* Top Bar */}
       <div className="bg-stone-950 text-stone-100 text-[10px] sm:text-xs font-medium uppercase tracking-widest text-center py-2 px-4">
         {storeSettings?.topBarText || "20% OFF CON TRANSFERENCIA | ENVÍO GRATIS EN COMPRAS SUPERIORES A $50.000"}
@@ -1446,7 +1446,7 @@ export default function PublicCatalog({
                   <div key={cat} className="w-full">
                     <ProductSlider
                       title={cat}
-                      products={categoryProducts}
+                      products={categoryProducts.slice(0, 8)}
                       isAdminMode={isAdminMode}
                       onEdit={setEditingProduct}
                       onDelete={onDeleteProduct ? (id) => setConfirmAction({ type: 'product', id }) : undefined}
@@ -1465,6 +1465,11 @@ export default function PublicCatalog({
                       }}
                       favorites={favorites}
                       onToggleFavorite={toggleFavorite}
+                      onViewAll={() => {
+                        setSelectedCategory(cat);
+                        setActiveTab('productos');
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
                     />
                     <CategorySeparatorBanner index={index} />
                   </div>
