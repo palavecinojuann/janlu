@@ -1422,44 +1422,217 @@ export function useInventory() {
   return { valid: true, discount: coupon.percentage || coupon.discount || 0 };
 };
 
-  const deductRawMaterials = async (saleItems: Sale['items']) => {
+   // --- FUNCIONES DE MANEJO DE STOCK (COMPROMETIDO VS FÍSICO) ---
+  
+  // 1. COMPROMETER STOCK (Reserva al crear pedido)
+  const commitStock = async (saleItems: Sale['items']) => {
     const batch = writeBatch(db);
-    let newMaterials = [...rawMaterials];
-    let materialsToUpdate = new Set<string>();
-
     saleItems.forEach(item => {
       const product = products.find(p => p.id === item.productId);
       const variant = product?.variants.find(v => v.id === item.variantId);
-      if (variant && variant.recipe && variant.isFinishedGood === false) {
+      if (!product || !variant) return;
+
+      if (variant.isFinishedGood) {
+        const newCompromised = (variant.compromisedStock || 0) + item.quantity;
+        const updatedProduct = {
+          ...product,
+          variants: product.variants.map(v => v.id === variant.id ? { ...v, compromisedStock: newCompromised } : v)
+        };
+        batch.set(doc(db, 'products', product.id), cleanObject(updatedProduct), { merge: true });
+      } else if (variant.recipe) {
         variant.recipe.forEach(recipeItem => {
-          newMaterials = newMaterials.map(m => {
-            if (m.id === recipeItem.rawMaterialId) {
-              // Calculate effective unit and convert to UMB
-              const effectiveUnit = recipeItem.unit || m.baseUnit || UMB_FOR_DIMENSION[m.dimension || (m.unit ? UNIT_DIMENSIONS[m.unit as Unit] : 'units')];
-              const quantityUMB = toUMB(recipeItem.quantity, effectiveUnit as Unit);
-              
-              // We need to deduct: quantityUMB * item.quantity
-              const totalToDeduct = quantityUMB * item.quantity;
-              
-              materialsToUpdate.add(m.id);
-              return { ...m, stock: Math.max(0, m.stock - totalToDeduct) };
-            }
-            return m;
-          });
+          const rm = rawMaterials.find(r => r.id === recipeItem.rawMaterialId);
+          if (rm) {
+            const qtyToCommit = recipeItem.quantity * item.quantity;
+            const newCompromised = (rm.compromisedStock || 0) + qtyToCommit;
+            batch.set(doc(db, 'rawMaterials', rm.id), { compromisedStock: newCompromised }, { merge: true });
+          }
         });
       }
     });
+    await batch.commit();
+  };
+
+  // 2. LIBERAR STOCK (Cuando se Cancela un pedido que no estaba entregado)
+  const releaseStock = async (saleItems: Sale['items']) => {
+    const batch = writeBatch(db);
+    saleItems.forEach(item => {
+      const product = products.find(p => p.id === item.productId);
+      const variant = product?.variants.find(v => v.id === item.variantId);
+      if (!product || !variant) return;
+
+      if (variant.isFinishedGood) {
+        const newCompromised = Math.max(0, (variant.compromisedStock || 0) - item.quantity);
+        const updatedProduct = {
+          ...product,
+          variants: product.variants.map(v => v.id === variant.id ? { ...v, compromisedStock: newCompromised } : v)
+        };
+        batch.set(doc(db, 'products', product.id), cleanObject(updatedProduct), { merge: true });
+      } else if (variant.recipe) {
+        variant.recipe.forEach(recipeItem => {
+          const rm = rawMaterials.find(r => r.id === recipeItem.rawMaterialId);
+          if (rm) {
+            const qtyToRelease = recipeItem.quantity * item.quantity;
+            const newCompromised = Math.max(0, (rm.compromisedStock || 0) - qtyToRelease);
+            batch.set(doc(db, 'rawMaterials', rm.id), { compromisedStock: newCompromised }, { merge: true });
+          }
+        });
+      }
+    });
+    await batch.commit();
+  };
+
+  // 3. CONSUMIR STOCK DEFINITIVAMENTE (Al marcar como Entregado)
+  const consumeStockDefinitively = async (saleItems: Sale['items']) => {
+    const batch = writeBatch(db);
+    saleItems.forEach(item => {
+      const product = products.find(p => p.id === item.productId);
+      const variant = product?.variants.find(v => v.id === item.variantId);
+      if (!product || !variant) return;
+
+      if (variant.isFinishedGood) {
+        const newStock = Math.max(0, variant.stock - item.quantity);
+        const newCompromised = Math.max(0, (variant.compromisedStock || 0) - item.quantity);
+        const updatedProduct = {
+          ...product,
+          variants: product.variants.map(v => v.id === variant.id ? { ...v, stock: newStock, compromisedStock: newCompromised } : v)
+        };
+        batch.set(doc(db, 'products', product.id), cleanObject(updatedProduct), { merge: true });
+      } else if (variant.recipe) {
+        variant.recipe.forEach(recipeItem => {
+          const rm = rawMaterials.find(r => r.id === recipeItem.rawMaterialId);
+          if (rm) {
+            const qtyToConsume = recipeItem.quantity * item.quantity;
+            const newStock = Math.max(0, rm.stock - qtyToConsume);
+            const newCompromised = Math.max(0, (rm.compromisedStock || 0) - qtyToConsume);
+            batch.set(doc(db, 'rawMaterials', rm.id), { stock: newStock, compromisedStock: newCompromised }, { merge: true });
+          }
+        });
+      }
+    });
+    await batch.commit();
+  };
+
+  // 4. REVERTIR CONSUMO (Si marcaste entregado por error y lo devuelves a Preparación)
+  const revertConsumedStockToCommitted = async (saleItems: Sale['items']) => {
+    const batch = writeBatch(db);
+    saleItems.forEach(item => {
+      const product = products.find(p => p.id === item.productId);
+      const variant = product?.variants.find(v => v.id === item.variantId);
+      if (!product || !variant) return;
+
+      if (variant.isFinishedGood) {
+        const newStock = variant.stock + item.quantity;
+        const newCompromised = (variant.compromisedStock || 0) + item.quantity;
+        const updatedProduct = {
+          ...product,
+          variants: product.variants.map(v => v.id === variant.id ? { ...v, stock: newStock, compromisedStock: newCompromised } : v)
+        };
+        batch.set(doc(db, 'products', product.id), cleanObject(updatedProduct), { merge: true });
+      } else if (variant.recipe) {
+        variant.recipe.forEach(recipeItem => {
+          const rm = rawMaterials.find(r => r.id === recipeItem.rawMaterialId);
+          if (rm) {
+            const qtyToRevert = recipeItem.quantity * item.quantity;
+            const newStock = rm.stock + qtyToRevert;
+            const newCompromised = (rm.compromisedStock || 0) + qtyToRevert;
+            batch.set(doc(db, 'rawMaterials', rm.id), { stock: newStock, compromisedStock: newCompromised }, { merge: true });
+          }
+        });
+      }
+    });
+    await batch.commit();
+  };
+
+  // 🚀 LÓGICA DE REGISTRO DE VENTA (SISTEMA DE STOCK COMPROMETIDO)
+  const registerSale = async (saleData: Omit<Sale, 'id' | 'date'>) => {
+    let nextOrderNumber = 1000;
+    try {
+      const counterRef = doc(db, 'metadata', 'counters');
+      nextOrderNumber = await runTransaction(db, async (transaction) => {
+        const counterDoc = await transaction.get(counterRef);
+        let newOrderNumber = 1000;
+        if (counterDoc.exists() && typeof counterDoc.data().lastOrderNumber === 'number') {
+          newOrderNumber = counterDoc.data().lastOrderNumber + 1;
+        } else {
+          const localMax = sales.reduce((max, sale) => Math.max(max, sale.orderNumber || 0), 0);
+          newOrderNumber = Math.max(1000, localMax + 1);
+        }
+        transaction.set(counterRef, { lastOrderNumber: newOrderNumber }, { merge: true });
+        return newOrderNumber;
+      });
+    } catch (error) {
+      console.warn("No se pudo obtener el correlativo, usando fallback local", error);
+      const localMax = sales.reduce((max, sale) => Math.max(max, sale.orderNumber || 0), 0);
+      nextOrderNumber = Math.max(1000, localMax + 1);
+    }
+
+    const newSale: Sale = {
+      ...saleData,
+      id: uuidv4(),
+      orderNumber: nextOrderNumber,
+      date: new Date().toISOString(),
+      status: saleData.status || 'Nuevo'
+    };
 
     try {
-      materialsToUpdate.forEach(id => {
-        const material = newMaterials.find(m => m.id === id);
-        if (material) {
-          batch.set(doc(db, 'rawMaterials', id), cleanObject(material));
-        }
-      });
-      await batch.commit();
+      await setDoc(doc(db, 'sales', newSale.id), cleanObject(newSale));
+
+      // 🛡️ LÓGICA DE BLINDAJE: Solo comprometer stock, NO descontarlo físicamente aún
+      if (newSale.status !== 'Cancelado') {
+        await commitStock(newSale.items);
+      }
+
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'rawMaterials');
+      handleFirestoreError(error, OperationType.WRITE, 'sales');
+    }
+  };
+
+  // 🚀 LÓGICA DE UPDATE SALE (Manejo Inteligente de Estados)
+  const updateSale = async (updatedSale: Sale) => {
+    const roundedSale = {
+      ...updatedSale,
+      totalAmount: roundFinancial(updatedSale.totalAmount),
+      amountPaid: roundFinancial(updatedSale.amountPaid),
+      discount: roundFinancial(updatedSale.discount || 0),
+      items: updatedSale.items.map(item => ({
+        ...item,
+        price: roundFinancial(item.price),
+        total: roundFinancial(item.total)
+      })),
+      paymentHistory: updatedSale.paymentHistory?.map(p => ({
+        ...p,
+        amount: roundFinancial(p.amount)
+      }))
+    };
+
+    const oldSale = sales.find(sale => sale.id === roundedSale.id);
+    if (!oldSale) return;
+
+    try {
+      await setDoc(doc(db, 'sales', roundedSale.id), cleanObject(roundedSale));
+
+      // 🛡️ LÓGICA DE TRANSICIÓN DE ESTADOS DE STOCK
+      
+      // Caso 1: Se Cancela un pedido activo (Liberar el stock comprometido para que vuelva a la tienda)
+      if (oldSale.status !== 'Cancelado' && roundedSale.status === 'Cancelado') {
+        await releaseStock(roundedSale.items);
+      }
+      // Caso 2: Se Reactiva un pedido cancelado (Volver a comprometer stock)
+      else if (oldSale.status === 'Cancelado' && roundedSale.status !== 'Cancelado' && roundedSale.status !== 'Entregado') {
+        await commitStock(roundedSale.items);
+      }
+      // Caso 3: Se marca ENTREGADO (El cliente se llevó la vela, se descuenta de tu cera física)
+      else if (oldSale.status !== 'Entregado' && roundedSale.status === 'Entregado') {
+        await consumeStockDefinitively(roundedSale.items);
+      }
+      // Caso 4: Se des-entrega un pedido por error del Admin (Vuelve el stock físico a tu taller, pero sigue comprometido en sistema)
+      else if (oldSale.status === 'Entregado' && roundedSale.status !== 'Entregado' && roundedSale.status !== 'Cancelado') {
+        await revertConsumedStockToCommitted(roundedSale.items);
+      }
+
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'sales');
     }
   };
 
