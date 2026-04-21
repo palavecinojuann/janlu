@@ -96,7 +96,7 @@ export default function App() {
     simulations, saveSimulation, deleteSimulation, updateMultipleProducts, updateMultipleRawMaterials,
     preAuthorizedAdmins, addPreAuth, updatePreAuthRole, removePreAuth,
     auditLogs, clearAuditLogs, storeSettings, isSettingsLoaded, validateCoupon,
-    coupons, updateCoupon, deleteCoupon, addSubscriber
+    coupons, generateCoupon, updateCoupon, deleteCoupon, addSubscriber
   } = useInventoryContext();
   
   const [currentView, setCurrentView] = useState<View>('dashboard');
