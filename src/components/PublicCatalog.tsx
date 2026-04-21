@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Product, RawMaterial, Offer, Variant, Campaign, Sale, SaleStatus, StoreSettings, Course } from '../types';
-import { Search, Filter, Wind, Droplet, Flame, ShoppingBag, Instagram, Facebook, Phone, Lock, Unlock, Plus, Edit2, Trash2, X, Tag, Clock, Calendar, ShoppingCart, Minus, ChevronRight, ChevronLeft, AlertTriangle, Package, LayoutDashboard, ArrowRightLeft, Upload, CheckCircle, Timer, Zap, LogOut, Loader2, Gift, Shield, Music2, ShieldCheck, Truck, Mail, MapPin, GraduationCap, Copy } from 'lucide-react';
+import { Search, Filter, Wind, Droplet, Flame, ShoppingBag, Instagram, Facebook, Phone, Lock, Unlock, Plus, Edit2, Trash2, X, Tag, Clock, Calendar, ShoppingCart, Minus, ChevronRight, ChevronLeft, AlertTriangle, Package, LayoutDashboard, ArrowRightLeft, Upload, CheckCircle, Timer, Zap, LogOut, Loader2, Gift, Shield, Music2, ShieldCheck, Truck, Mail, MapPin, GraduationCap, Copy, Heart } from 'lucide-react';
 import ProductForm from './ProductForm';
 import ProductModal from './ProductModal';
 import { getVariantStock } from '../utils/stockUtils';
@@ -106,8 +106,9 @@ interface ProductCardProps {
   cart: CartItem[];
   rawMaterials: RawMaterial[];
   storeSettings?: StoreSettings;
-  onClick?: () => void;
   stockErrorId?: string | null;
+  isFavorite: boolean;
+  onToggleFavorite: (e: React.MouseEvent) => void;
 }
 
 const ProductCard: React.FC<ProductCardProps> = React.memo(({
@@ -125,7 +126,9 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({
   rawMaterials,
   storeSettings,
   onClick,
-  stockErrorId
+  stockErrorId,
+  isFavorite,
+  onToggleFavorite
 }) => {
   const [localVariant, setLocalVariant] = useState<Variant | null>(
     product.variants.find(v => getVariantStock(v, rawMaterials) > 0) || product.variants[0] || null
@@ -181,6 +184,15 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({
       onClick={onClick}
     >
       <div className="aspect-[3/4] bg-stone-50 relative overflow-hidden mb-4">
+        <button 
+          onClick={onToggleFavorite}
+          className="absolute top-3 right-3 z-20 p-2 rounded-full bg-white/60 backdrop-blur-md hover:bg-white transition-all duration-300 shadow-sm"
+        >
+          <Heart 
+            size={16} 
+            className={`transition-colors duration-300 ${isFavorite ? 'fill-rose-500 text-rose-500' : 'text-stone-500'}`} 
+          />
+        </button>
         {product.photoUrl ? (
           <img 
             src={product.photoUrl} 
@@ -507,8 +519,8 @@ const PublicCampaignBanner = ({ campaign, onScrollToProducts }: { campaign: Camp
   );
 };
 
-const ProductSlider: React.FC<{ title: string; products: Product[]; isAdminMode: boolean; onEdit: (p: Product) => void; onDelete?: (id: string) => void; onUpdateCart: (p: Product, v: Variant, q: number) => void; activeOffers: Offer[]; activeCampaign: Campaign | null; formatCurrency: (n: number) => string; getEffectivePrice: (p: Product, v: Variant, q: number) => number; formatStock: (s: number) => string; cart: CartItem[]; rawMaterials: RawMaterial[]; storeSettings?: StoreSettings; onProductClick: (p: Product) => void; }> = ({ 
-  title, products, isAdminMode, onEdit, onDelete, onUpdateCart, activeOffers, activeCampaign, formatCurrency, getEffectivePrice, formatStock, cart, rawMaterials, storeSettings, onProductClick 
+const ProductSlider: React.FC<{ title: string; products: Product[]; isAdminMode: boolean; onEdit: (p: Product) => void; onDelete?: (id: string) => void; onUpdateCart: (p: Product, v: Variant, q: number) => void; activeOffers: Offer[]; activeCampaign: Campaign | null; formatCurrency: (n: number) => string; getEffectivePrice: (p: Product, v: Variant, q: number) => number; formatStock: (s: number) => string; cart: CartItem[]; rawMaterials: RawMaterial[]; storeSettings?: StoreSettings; onProductClick: (p: Product) => void; favorites: string[]; onToggleFavorite: (id: string, e: React.MouseEvent) => void; }> = ({ 
+  title, products, isAdminMode, onEdit, onDelete, onUpdateCart, activeOffers, activeCampaign, formatCurrency, getEffectivePrice, formatStock, cart, rawMaterials, storeSettings, onProductClick, favorites, onToggleFavorite 
 }) => {
   const { ref, onMouseDown, onMouseLeave, onMouseUp, onMouseMove, className, style } = useDraggableScroll();
 
@@ -567,6 +579,8 @@ const ProductSlider: React.FC<{ title: string; products: Product[]; isAdminMode:
                 rawMaterials={rawMaterials}
                 storeSettings={storeSettings}
                 onClick={() => onProductClick(product)}
+                isFavorite={favorites.includes(product.id)}
+                onToggleFavorite={(e) => onToggleFavorite(product.id, e)}
               />
             </div>
           ))}
@@ -670,6 +684,24 @@ export default function PublicCatalog({
   });
 
   const [stockErrorId, setStockErrorId] = useState<string | null>(null);
+
+  const [favorites, setFavorites] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('janlu_favorites');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('janlu_favorites', JSON.stringify(favorites));
+  }, [favorites]);
+
+  const toggleFavorite = useCallback((productId: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Evita que se abra el modal del producto al hacer clic en el corazón
+    setFavorites(prev => prev.includes(productId) ? prev.filter(id => id !== productId) : [...prev, productId]);
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('janlu_cart', JSON.stringify(cart));
@@ -1387,6 +1419,8 @@ export default function PublicCatalog({
                     setSelectedProduct(p);
                     setIsModalOpen(true);
                   }}
+                  favorites={favorites}
+                  onToggleFavorite={toggleFavorite}
                 />
               ))}
             </div>
@@ -1461,6 +1495,8 @@ export default function PublicCatalog({
                     setIsModalOpen(true);
                   }}
                   stockErrorId={stockErrorId}
+                  isFavorite={favorites.includes(product.id)}
+                  onToggleFavorite={(e) => toggleFavorite(product.id, e)}
                 />
               ))}
             </div>
