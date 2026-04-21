@@ -633,7 +633,10 @@ export default function PublicCatalog({
   const productsGridRef = useRef<HTMLDivElement>(null);
 
   const scrollToProducts = useCallback(() => {
-    productsGridRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setActiveTab('productos');
+    setTimeout(() => {
+      productsGridRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
   }, []);
 
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -1265,72 +1268,64 @@ export default function PublicCatalog({
         {activeTab === 'inicio' && (
           <>
             {/* Hero Carousel */}
-            <div className="relative w-full h-[60vh] sm:h-[70vh] bg-stone-100 overflow-hidden group">
-              {!isSettingsLoaded ? (
-                <div className="absolute inset-0 bg-stone-200 animate-pulse flex items-center justify-center">
-                  <div className="text-stone-400 flex flex-col items-center gap-2">
-                    <Loader2 className="animate-spin" size={32} />
-                    <span className="text-xs uppercase tracking-widest font-bold">Cargando Janlu...</span>
-                  </div>
-                </div>
-              ) : (
-                heroSlides.map((slide, index) => (
-                  <div 
+            {/* Hero Carousel */}
+            {heroSlides.length > 0 && (
+              <div className="relative w-full h-[65vh] sm:h-[85vh] overflow-hidden bg-stone-950">
+                {heroSlides.map((slide, index) => (
+                  <div
                     key={index}
-                    className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${index === currentSlide ? 'opacity-100' : 'opacity-0'}`}
+                    className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
+                      index === currentSlide ? 'opacity-100 z-10' : 'opacity-0 z-0'
+                    }`}
                   >
-                    <img 
-                      src={slide.image || "https://images.unsplash.com/photo-1602928321679-560bb453f190?q=80&w=2000&auto=format&fit=crop"} 
-                      alt={slide.title} 
-                      className="w-full h-full object-cover"
+                    {/* Imagen con efecto de Zoom Lento (Ken Burns) */}
+                    <img
+                      src={(slide as any).image || slide}
+                      alt={`Janlu Colección ${index + 1}`}
+                      loading={index === 0 ? "eager" : "lazy"}
+                      className={`w-full h-full object-cover transition-transform duration-[10000ms] ease-out ${
+                        index === currentSlide ? 'scale-110' : 'scale-100'
+                      }`}
                     />
-                    <div className="absolute inset-0 bg-black/20 flex flex-col items-center justify-center text-center px-4">
-                      <h2 className="text-4xl md:text-6xl font-serif text-white mb-4 drop-shadow-lg transform transition-transform duration-1000 translate-y-0 opacity-100">
-                        {slide.title}
+                    
+                    {/* Gradiente oscuro en la parte inferior para legibilidad */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-stone-950/90 via-stone-900/30 to-transparent"></div>
+
+                    {/* Textos y Botón Call to Action */}
+                    <div className="absolute inset-0 flex flex-col items-center justify-end pb-20 sm:pb-32 text-center px-6">
+                      <h2 className="text-white text-4xl sm:text-6xl font-serif tracking-tight mb-4 drop-shadow-md">
+                        COLECCIÓN EXCLUSIVA
                       </h2>
-                      <p className="text-stone-100 text-sm md:text-base max-w-xl uppercase tracking-widest drop-shadow-md mb-8">
-                        {slide.subtitle}
+                      <p className="text-stone-200 text-[10px] sm:text-xs tracking-[0.3em] uppercase mb-8 max-w-lg drop-shadow-sm">
+                        Donde empieza la calma · Velas aromáticas premium hechas para inspirar cada momento
                       </p>
-                      {slide.buttonText && (
-                        <button 
-                          onClick={() => {
-                            if (slide.buttonLink?.startsWith('category:')) {
-                              const category = slide.buttonLink.split(':')[1];
-                              setSelectedCategory(category);
-                              setActiveTab('productos');
-                              window.scrollTo({ top: 0, behavior: 'smooth' });
-                            } else if (slide.buttonLink === '#') {
-                              setActiveTab('productos');
-                              setSelectedCategory('all');
-                              window.scrollTo({ top: 0, behavior: 'smooth' });
-                            } else if (slide.buttonLink) {
-                              window.location.href = slide.buttonLink;
-                            }
-                          }}
-                          className="px-8 py-4 bg-white text-stone-900 text-xs font-bold uppercase tracking-[0.2em] hover:bg-stone-100 transition-all shadow-xl"
-                        >
-                          {slide.buttonText}
-                        </button>
-                      )}
+                      <button
+                        onClick={scrollToProducts}
+                        className="bg-white text-stone-900 px-8 py-3.5 text-[10px] sm:text-xs font-bold tracking-[0.2em] uppercase hover:bg-stone-100 transition-colors shadow-lg"
+                      >
+                        Descubrir la colección
+                      </button>
                     </div>
                   </div>
-                ))
-              )}
-              
-              {/* Carousel Controls */}
-              {isSettingsLoaded && heroSlides.length > 1 && (
-                <div className="absolute bottom-6 left-0 right-0 flex justify-center gap-2 z-20">
+                ))}
+
+                {/* Indicadores de diapositiva (Dots) */}
+                <div className="absolute bottom-6 left-0 right-0 z-20 flex justify-center gap-3">
                   {heroSlides.map((_, index) => (
                     <button
                       key={index}
                       onClick={() => setCurrentSlide(index)}
-                      className={`w-2 h-2 rounded-full transition-all ${index === currentSlide ? 'bg-white w-6' : 'bg-white/50 hover:bg-white/80'}`}
-                      aria-label={`Go to slide ${index + 1}`}
+                      className={`transition-all duration-500 rounded-full ${
+                        index === currentSlide 
+                          ? 'w-8 h-1.5 bg-white' 
+                          : 'w-1.5 h-1.5 bg-white/50 hover:bg-white/80'
+                      }`}
+                      aria-label={`Ir a diapositiva ${index + 1}`}
                     />
                   ))}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* Offers Section */}
             {activeOffers.length > 0 && (
