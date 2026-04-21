@@ -111,7 +111,7 @@ export function useInventory() {
   const [lastSync, setLastSync] = useState<Date>(new Date());
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const hasFetchedNonCritical = useRef(false);
-  
+
   // Memorias para evitar consumos duplicados
   const productsStringRef = useRef<string>('');
   const rawMaterialsStringRef = useRef<string>('');
@@ -130,12 +130,12 @@ export function useInventory() {
 
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
-      
+
       if (unsubUserDoc) {
         unsubUserDoc();
         unsubUserDoc = null;
       }
-      
+
       if (user) {
         // Optimistic admin grant for the owner to prevent UI flicker
         if (user.email === 'palavecinojuann@gmail.com') {
@@ -145,12 +145,12 @@ export function useInventory() {
         // Check if user is admin with a timeout for offline/quota resilience
         try {
           const getDocPromise = getDoc(doc(db, 'users', user.uid));
-          const timeoutPromise = new Promise((_, reject) => 
+          const timeoutPromise = new Promise((_, reject) =>
             setTimeout(() => reject(new Error('Timeout fetching user role')), 5000)
           );
-          
+
           const userDoc = await Promise.race([getDocPromise, timeoutPromise]) as DocumentSnapshot<DocumentData>;
-          
+
           if (!userDoc.exists()) {
             if (user.email === 'palavecinojuann@gmail.com') {
               const newAdmin = {
@@ -251,10 +251,10 @@ export function useInventory() {
         setIsAdmin(prev => prev !== false ? false : prev);
         setUserProfile(null);
       }
-      
+
       setIsAuthReady(true);
     });
-    
+
     return () => {
       unsubscribe();
       if (unsubUserDoc) unsubUserDoc();
@@ -269,10 +269,11 @@ export function useInventory() {
       console.warn(`[Public collection error] ${path}:`, e);
     };
 
+    // NOTA: Se utiliza limit() en esta consulta para gestionar y reducir las cuotas de lectura de Firebase.
     const unsubRawMaterials = onSnapshot(query(collection(db, 'rawMaterials'), limit(100)), (snapshot) => {
       const newData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as RawMaterial));
       const newDataString = JSON.stringify(newData);
-      
+
       if (newDataString !== rawMaterialsStringRef.current) {
         rawMaterialsStringRef.current = newDataString;
         setRawMaterials(newData);
@@ -280,25 +281,29 @@ export function useInventory() {
       }
     }, (e) => handlePublicError(e, OperationType.GET, 'rawMaterials'));
 
+    // NOTA: Se utiliza limit() en esta consulta para gestionar y reducir las cuotas de lectura de Firebase.
     const unsubProducts = onSnapshot(query(collection(db, 'products'), limit(200)), (snapshot) => {
       const newData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Product));
       const newDataString = JSON.stringify(newData);
-      
+
       if (newDataString !== productsStringRef.current) {
         productsStringRef.current = newDataString;
         setProducts(newData);
         console.log("✅ Productos actualizados (Cambio real detectado)");
       }
     }, (e) => handlePublicError(e, OperationType.GET, 'products'));
-    
-   const unsubCampaigns = onSnapshot(query(collection(db, 'campaigns'), limit(20)), (snapshot) => {
+
+    // NOTA: Se utiliza limit() en esta consulta para gestionar y reducir las cuotas de lectura de Firebase.
+    const unsubCampaigns = onSnapshot(query(collection(db, 'campaigns'), limit(20)), (snapshot) => {
       setCampaigns(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Campaign)));
     }, (e) => handlePublicError(e, OperationType.GET, 'campaigns'));
-    
+
+    // NOTA: Se utiliza limit() en esta consulta para gestionar y reducir las cuotas de lectura de Firebase.
     const unsubOffers = onSnapshot(query(collection(db, 'offers'), limit(20)), (snapshot) => {
       setOffers(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Offer)));
     }, (e) => handlePublicError(e, OperationType.GET, 'offers'));
 
+    // NOTA: Se utiliza limit() en esta consulta para gestionar y reducir las cuotas de lectura de Firebase.
     const unsubCourses = onSnapshot(query(collection(db, 'courses'), limit(20)), (snapshot) => {
       setCourses(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Course)));
     }, (e) => handlePublicError(e, OperationType.GET, 'courses'));
@@ -350,7 +355,8 @@ export function useInventory() {
     const thirtyDaysAgoISO = thirtyDaysAgo.toISOString();
     const todayStr = now.toISOString().split('T')[0];
 
-   const unsubCoupons = onSnapshot(query(collection(db, 'coupons'), limit(50)), (snapshot) => {
+    // NOTA: Se utiliza limit() en esta consulta para gestionar y reducir las cuotas de lectura de Firebase.
+    const unsubCoupons = onSnapshot(query(collection(db, 'coupons'), limit(50)), (snapshot) => {
       setCoupons(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Coupon)));
     }, (e) => handleAdminError(e, OperationType.GET, 'coupons'));
 
@@ -362,11 +368,12 @@ export function useInventory() {
       setSales(Array.from(merged.values()).sort((a, b) => b.date.localeCompare(a.date)));
     };
 
+    // NOTA: Se utiliza limit() en esta consulta para gestionar y reducir las cuotas de lectura de Firebase.
     const unsubSalesActive = onSnapshot(query(collection(db, 'sales'), where('status', 'in', ['nuevo', 'en_preparacion', 'listo_para_entregar']), limit(30)), (snapshot) => {
       salesCache.active = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Sale));
       updateSales();
     }, (e) => handleAdminError(e, OperationType.GET, 'sales_active'));
-    
+
     const quotesCache = { recent: [] as Quote[], active: [] as Quote[] };
     const updateQuotes = () => {
       const merged = new Map<string, Quote>();
@@ -375,6 +382,7 @@ export function useInventory() {
       setQuotes(Array.from(merged.values()).sort((a, b) => b.date.localeCompare(a.date)));
     };
 
+    // NOTA: Se utiliza limit() en esta consulta para gestionar y reducir las cuotas de lectura de Firebase.
     const unsubQuotesActive = onSnapshot(query(collection(db, 'quotes'), where('validUntil', '>=', todayStr), limit(30)), (snapshot) => {
       quotesCache.active = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Quote));
       updateQuotes();
@@ -388,35 +396,42 @@ export function useInventory() {
       setProductionOrders(Array.from(merged.values()).sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
     };
 
+    // NOTA: Se utiliza limit() en esta consulta para gestionar y reducir las cuotas de lectura de Firebase.
     const unsubOrdersActive = onSnapshot(query(collection(db, 'productionOrders'), where('status', '==', 'pending'), limit(30)), (snapshot) => {
       ordersCache.active = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as ProductionOrder));
       updateOrders();
     }, (e) => handleAdminError(e, OperationType.GET, 'orders_active'));
 
-   const fetchNonCriticalData = async () => {
+    const fetchNonCriticalData = async () => {
       if (hasFetchedNonCritical.current) return;
       hasFetchedNonCritical.current = true;
-      
+
       console.log("Fetching non-critical static data (Optimized Limits)...");
       try {
+        // NOTA: Se utiliza limit() en esta consulta para gestionar y reducir las cuotas de lectura de Firebase.
         const auditLogsSnap = await getDocs(query(collection(db, 'auditLogs'), orderBy('timestamp', 'desc'), limit(15)));
         setAuditLogs(auditLogsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as AuditLog)));
 
+        // NOTA: Se utiliza limit() en esta consulta para gestionar y reducir las cuotas de lectura de Firebase.
         const customersSnap = await getDocs(query(collection(db, 'customers'), limit(15)));
         setCustomers(customersSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Customer)));
 
+        // NOTA: Se utiliza limit() en esta consulta para gestionar y reducir las cuotas de lectura de Firebase.
         const salesRecentSnap = await getDocs(query(collection(db, 'sales'), where('date', '>=', thirtyDaysAgoStr), orderBy('date', 'desc'), limit(15)));
         salesCache.recent = salesRecentSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Sale));
         updateSales();
 
+        // NOTA: Se utiliza limit() en esta consulta para gestionar y reducir las cuotas de lectura de Firebase.
         const quotesRecentSnap = await getDocs(query(collection(db, 'quotes'), where('date', '>=', thirtyDaysAgoStr), orderBy('date', 'desc'), limit(15)));
         quotesCache.recent = quotesRecentSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Quote));
         updateQuotes();
 
+        // NOTA: Se utiliza limit() en esta consulta para gestionar y reducir las cuotas de lectura de Firebase.
         const ordersRecentSnap = await getDocs(query(collection(db, 'productionOrders'), where('createdAt', '>=', thirtyDaysAgoISO), orderBy('createdAt', 'desc'), limit(15)));
         ordersCache.recent = ordersRecentSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as ProductionOrder));
         updateOrders();
 
+        // NOTA: Se utiliza limit() en esta consulta para gestionar y reducir las cuotas de lectura de Firebase.
         const usersSnap = await getDocs(query(collection(db, 'users'), limit(15)));
         setUsers(usersSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as any as User)));
 
@@ -434,12 +449,15 @@ export function useInventory() {
           }
         }
 
+        // NOTA: Se utiliza limit() en esta consulta para gestionar y reducir las cuotas de lectura de Firebase.
         const financialDocsSnap = await getDocs(query(collection(db, 'financialDocs'), limit(15)));
         setFinancialDocs(financialDocsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as FinancialDocument)));
 
+        // NOTA: Se utiliza limit() en esta consulta para gestionar y reducir las cuotas de lectura de Firebase.
         const activitiesSnap = await getDocs(query(collection(db, 'activities'), limit(15)));
         setActivities(activitiesSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Activity)));
 
+        // NOTA: Se utiliza limit() en esta consulta para gestionar y reducir las cuotas de lectura de Firebase.
         const simulationsSnap = await getDocs(query(collection(db, 'simulations'), limit(10)));
         setSimulations(simulationsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Simulation)));
 
@@ -508,7 +526,7 @@ export function useInventory() {
       for (let i = 0; i < newProducts.length; i += BATCH_SIZE) {
         const chunk = newProducts.slice(i, i + BATCH_SIZE);
         const batch = writeBatch(db);
-        
+
         chunk.forEach(product => {
           const rounded = {
             ...product,
@@ -521,7 +539,7 @@ export function useInventory() {
           };
           batch.set(doc(db, 'products', product.id), cleanObject(rounded));
         });
-        
+
         console.log(`Committing batch of ${chunk.length} products...`);
         await batch.commit();
         console.log(`Batch committed successfully`);
@@ -575,7 +593,7 @@ export function useInventory() {
     try {
       const prev = products.find(p => p.id === id);
       console.log('Producto encontrado para eliminar:', prev);
-      
+
       const linkedRawMaterial = rawMaterials.find(rm => rm.linkedProductId === id);
       if (linkedRawMaterial) {
         await setDoc(doc(db, 'rawMaterials', linkedRawMaterial.id), cleanObject({
@@ -647,12 +665,12 @@ export function useInventory() {
     try {
       const normalizeEmail = (e?: string) => e?.trim().toLowerCase() || '';
       const normalizePhone = (p?: string) => p?.replace(/\D/g, '') || '';
-      
+
       const nEmail = normalizeEmail(customer.email);
       const nPhone = normalizePhone(customer.phone);
 
-      const isDuplicate = customers.some(c => 
-        (nEmail && normalizeEmail(c.email) === nEmail) || 
+      const isDuplicate = customers.some(c =>
+        (nEmail && normalizeEmail(c.email) === nEmail) ||
         (nPhone && normalizePhone(c.phone) === nPhone)
       );
 
@@ -660,7 +678,7 @@ export function useInventory() {
         throw new Error('Ya existe un cliente con este email o teléfono.');
       }
 
-      let finalCustomer = { 
+      let finalCustomer = {
         ...customer,
         welcomeDiscountUsed: customer.welcomeDiscountUsed ?? false,
         discountPercentage: customer.discountPercentage ?? 10,
@@ -682,7 +700,7 @@ export function useInventory() {
 
       console.log("Final customer object to save:", finalCustomer);
       const cleaned = cleanObject(finalCustomer);
-      
+
       await setDoc(doc(db, 'customers', finalCustomer.id), cleaned);
       await logAction('create', 'customers', finalCustomer.id, cleaned);
       console.log("Customer added successfully:", finalCustomer.id);
@@ -695,13 +713,13 @@ export function useInventory() {
     try {
       const normalizeEmail = (e?: string) => e?.trim().toLowerCase() || '';
       const normalizePhone = (p?: string) => p?.replace(/\D/g, '') || '';
-      
+
       const nEmail = normalizeEmail(updated.email);
       const nPhone = normalizePhone(updated.phone);
 
-      const isDuplicate = customers.some(c => 
+      const isDuplicate = customers.some(c =>
         c.id !== updated.id && (
-          (nEmail && normalizeEmail(c.email) === nEmail) || 
+          (nEmail && normalizeEmail(c.email) === nEmail) ||
           (nPhone && normalizePhone(c.phone) === nPhone)
         )
       );
@@ -798,7 +816,7 @@ export function useInventory() {
   const updateRawMaterial = async (updated: RawMaterial) => {
     try {
       let linkedProductId = updated.linkedProductId;
-      
+
       if (updated.sellAsProduct) {
         if (!linkedProductId) {
           linkedProductId = uuidv4();
@@ -987,9 +1005,9 @@ export function useInventory() {
         // Revert old order stock
         const oldProduct = products.find(p => p.id === oldOrder.productId);
         const oldVariant = oldProduct?.variants.find(v => v.id === oldOrder.variantId);
-        
+
         let currentMaterials = [...rawMaterials];
-        
+
         if (oldProduct && oldVariant) {
           // Revert product stock (decrease)
           const updatedOldProduct = {
@@ -1019,11 +1037,11 @@ export function useInventory() {
           // Apply new order stock
           const newProduct = products.find(p => p.id === order.productId);
           const newVariant = newProduct?.variants.find(v => v.id === order.variantId);
-          
+
           if (newProduct && newVariant) {
             // Apply product stock (increase)
             const productToUpdate = (oldProduct.id === newProduct.id) ? updatedOldProduct : newProduct;
-            
+
             const finalNewProduct = {
               ...productToUpdate,
               variants: productToUpdate.variants.map(v => {
@@ -1033,9 +1051,9 @@ export function useInventory() {
                 return v;
               })
             };
-            
+
             if (oldProduct.id !== newProduct.id) {
-               await setDoc(doc(db, 'products', updatedOldProduct.id), cleanObject(updatedOldProduct));
+              await setDoc(doc(db, 'products', updatedOldProduct.id), cleanObject(updatedOldProduct));
             }
             await setDoc(doc(db, 'products', finalNewProduct.id), cleanObject(finalNewProduct));
 
@@ -1054,7 +1072,7 @@ export function useInventory() {
             }
           }
         }
-        
+
         // Save materials
         for (const material of currentMaterials) {
           await setDoc(doc(db, 'rawMaterials', material.id), cleanObject(material));
@@ -1063,9 +1081,9 @@ export function useInventory() {
         // Revert old order stock, don't apply new stock
         const oldProduct = products.find(p => p.id === oldOrder.productId);
         const oldVariant = oldProduct?.variants.find(v => v.id === oldOrder.variantId);
-        
+
         let currentMaterials = [...rawMaterials];
-        
+
         if (oldProduct && oldVariant) {
           // Revert product stock (decrease)
           const updatedOldProduct = {
@@ -1100,9 +1118,9 @@ export function useInventory() {
         // Apply new order stock
         const newProduct = products.find(p => p.id === order.productId);
         const newVariant = newProduct?.variants.find(v => v.id === order.variantId);
-        
+
         let currentMaterials = [...rawMaterials];
-        
+
         if (newProduct && newVariant) {
           // Check for sufficient raw material stock first
           if (newVariant.recipe) {
@@ -1312,13 +1330,13 @@ export function useInventory() {
 
   const addPreAuth = async (email: string, role: string = 'admin') => {
     try {
-      await setDoc(doc(db, 'preAuthorizedAdmins', email), { 
+      await setDoc(doc(db, 'preAuthorizedAdmins', email), {
         email,
         role,
         addedAt: new Date().toISOString(),
         addedBy: currentUser?.email || 'unknown'
       });
-      
+
       // Also update existing user if they have already logged in
       const existingUser = users.find(u => u.email === email);
       if (existingUser) {
@@ -1333,7 +1351,7 @@ export function useInventory() {
   const updatePreAuthRole = async (email: string, role: string) => {
     try {
       await updateDoc(doc(db, 'preAuthorizedAdmins', email), { role });
-      
+
       // Also update existing user if they have already logged in
       const existingUser = users.find(u => u.email === email);
       if (existingUser) {
@@ -1378,52 +1396,52 @@ export function useInventory() {
     }
   };
 
- const validateCoupon = async (code: string, customerEmail?: string): Promise<{ valid: boolean; discount?: number; error?: string }> => {
-  console.log("Validating coupon:", code, "for customer:", customerEmail);
+  const validateCoupon = async (code: string, customerEmail?: string): Promise<{ valid: boolean; discount?: number; error?: string }> => {
+    console.log("Validating coupon:", code, "for customer:", customerEmail);
 
-  // 1. Buscar el código en tu estado local de cupones
-  const coupon = coupons.find(c => c.code.toUpperCase() === code.trim().toUpperCase());
+    // 1. Buscar el código en tu estado local de cupones
+    const coupon = coupons.find(c => c.code.toUpperCase() === code.trim().toUpperCase());
 
-  if (!coupon) {
-    return { valid: false, error: 'Cupón no encontrado o inactivo' };
-  }
-
-  // 2. 🛡️ LÓGICA DE BLINDAJE: Cupón de Bienvenida
-  if (coupon.code.toUpperCase().includes('BIENVENIDA') || coupon.type === 'bienvenida') {
-    
-    // Filtro A: Exigir el email
-    if (!customerEmail || customerEmail.trim() === '') {
-      return { 
-        valid: false, 
-        error: 'Por favor, ingresa tu email en los datos de contacto antes de aplicar este cupón.' 
-      };
+    if (!coupon) {
+      return { valid: false, error: 'Cupón no encontrado o inactivo' };
     }
 
-    // Filtro B: Verificar el historial de ventas usando la memoria local (Costo $0 en Firebase)
-    const hasPreviousPurchases = sales.some(sale => 
-      sale.customerEmail?.toLowerCase() === customerEmail.toLowerCase() && 
-      sale.status !== 'Cancelado'
-    );
+    // 2. 🛡️ LÓGICA DE BLINDAJE: Cupón de Bienvenida
+    if (coupon.code.toUpperCase().includes('BIENVENIDA') || coupon.type === 'bienvenida') {
 
-    if (hasPreviousPurchases) {
-      return { 
-        valid: false, 
-        error: 'Este cupón es exclusivo para tu primera compra en Janlu Velas.' 
-      };
+      // Filtro A: Exigir el email
+      if (!customerEmail || customerEmail.trim() === '') {
+        return {
+          valid: false,
+          error: 'Por favor, ingresa tu email en los datos de contacto antes de aplicar este cupón.'
+        };
+      }
+
+      // Filtro B: Verificar el historial de ventas usando la memoria local (Costo $0 en Firebase)
+      const hasPreviousPurchases = sales.some(sale =>
+        sale.customerEmail?.toLowerCase() === customerEmail.toLowerCase() &&
+        sale.status !== 'Cancelado'
+      );
+
+      if (hasPreviousPurchases) {
+        return {
+          valid: false,
+          error: 'Este cupón es exclusivo para tu primera compra en Janlu Velas.'
+        };
+      }
     }
-  }
 
-  // 3. Validar caducidad del cupón
-  if (coupon.expiresAt && new Date(coupon.expiresAt) < new Date()) {
-    return { valid: false, error: 'Este cupón ha expirado' };
-  }
+    // 3. Validar caducidad del cupón
+    if (coupon.expiresAt && new Date(coupon.expiresAt) < new Date()) {
+      return { valid: false, error: 'Este cupón ha expirado' };
+    }
 
-  // ¡Aprobado! Retornamos el porcentaje o descuento fijo
-  return { valid: true, discount: coupon.percentage || coupon.discount || 0 };
-};
+    // ¡Aprobado! Retornamos el porcentaje o descuento fijo
+    return { valid: true, discount: coupon.percentage || coupon.discount || 0 };
+  };
 
-   // --- FUNCIONES DE MANEJO DE STOCK (COMPROMETIDO VS FÍSICO) ---
-  
+  // --- FUNCIONES DE MANEJO DE STOCK (COMPROMETIDO VS FÍSICO) ---
+
   // 1. COMPROMETER STOCK (Reserva al crear pedido)
   const commitStock = async (saleItems: Sale['items']) => {
     const batch = writeBatch(db);
@@ -1613,7 +1631,7 @@ export function useInventory() {
       await setDoc(doc(db, 'sales', roundedSale.id), cleanObject(roundedSale));
 
       // 🛡️ LÓGICA DE TRANSICIÓN DE ESTADOS DE STOCK
-      
+
       // Caso 1: Se Cancela un pedido activo (Liberar el stock comprometido para que vuelva a la tienda)
       if (oldSale.status !== 'Cancelado' && roundedSale.status === 'Cancelado') {
         await releaseStock(roundedSale.items);
@@ -1697,7 +1715,7 @@ export function useInventory() {
 
   const approveQuote = async (quote: Quote) => {
     if (!isAdmin) return;
-    
+
     try {
       const saleData: Omit<Sale, 'id' | 'date'> = {
         customerId: quote.customerId,
@@ -1854,7 +1872,7 @@ export function useInventory() {
       p.variants.forEach(v => {
         const stock = getVariantStock(v, rawMaterials);
         variantDataMap.set(v.id, { cost: v.cost, price: v.price, stock });
-        
+
         totalStock += stock;
         totalValueCost += v.cost * stock;
         totalValuePrice += v.price * stock;
@@ -1864,7 +1882,7 @@ export function useInventory() {
 
     // 2. Filter and process sales in a single pass
     const validSales = sales.filter(s => s.status !== 'cancelado');
-    
+
     let grossProfit = 0;
     let netProfit = 0;
     let totalRevenue = 0;
@@ -1880,10 +1898,10 @@ export function useInventory() {
         }
       });
 
-      const additionalCosts = 
-        (sale.packagingCost || 0) + 
-        (sale.shippingCost || 0) + 
-        (sale.laborCost || 0) + 
+      const additionalCosts =
+        (sale.packagingCost || 0) +
+        (sale.shippingCost || 0) +
+        (sale.laborCost || 0) +
         (sale.paymentGatewayFee || 0);
 
       const saleGrossProfit = sale.totalAmount - saleCost;
@@ -1893,11 +1911,11 @@ export function useInventory() {
       totalPendingPayment += (sale.totalAmount - sale.amountPaid);
 
       // Map payment methods to metrics categories
-      const method = sale.paymentMethod === 'efectivo' || !sale.paymentMethod ? 'efectivo' : 
-                     sale.paymentMethod === 'transferencia' ? 'transferencia' :
-                     sale.paymentMethod === 'tarjeta' ? 'tarjeta' :
-                     sale.paymentMethod === 'mixto' ? 'mixto' : 'efectivo';
-      
+      const method = sale.paymentMethod === 'efectivo' || !sale.paymentMethod ? 'efectivo' :
+        sale.paymentMethod === 'transferencia' ? 'transferencia' :
+          sale.paymentMethod === 'tarjeta' ? 'tarjeta' :
+            sale.paymentMethod === 'mixto' ? 'mixto' : 'efectivo';
+
       if (method in revenueByMethod) {
         revenueByMethod[method as keyof typeof revenueByMethod] += sale.amountPaid;
       }
