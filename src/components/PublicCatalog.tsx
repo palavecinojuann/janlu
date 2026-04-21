@@ -598,6 +598,51 @@ const ProductSlider: React.FC<{ title: string; products: Product[]; isAdminMode:
   );
 };
 
+const CategorySeparatorBanner = ({ index }: { index: number }) => {
+  // Arreglo de imágenes atmosféricas de alta gama (puedes reemplazarlas con tus fotos de Firebase Storage luego)
+  const atmosphericBanners = [
+    { 
+      img: "https://images.unsplash.com/photo-1603006905003-be475563bc59?q=80&w=2070&auto=format&fit=crop", 
+      title: "ESENCIA NATURAL", 
+      subtitle: "Aromas que transforman tu espacio" 
+    },
+    { 
+      img: "https://images.unsplash.com/photo-1596433809252-260c2745ce7f?q=80&w=2070&auto=format&fit=crop", 
+      title: "MOMENTOS ÚNICOS", 
+      subtitle: "Luz y calidez en cada detalle" 
+    },
+    { 
+      img: "https://images.unsplash.com/photo-1602615576820-ea14cf3e476a?q=80&w=2070&auto=format&fit=crop", 
+      title: "RITUALES DE CALMA", 
+      subtitle: "Diseño premium hecho a mano" 
+    }
+  ];
+
+  // Lógica de ritmo: Solo mostramos un banner cada 2 filas para no saturar la vista
+  if (index % 2 !== 0) return null; 
+
+  const banner = atmosphericBanners[(index / 2) % atmosphericBanners.length];
+
+  return (
+    <div className="relative w-full h-[25vh] sm:h-[35vh] overflow-hidden my-16 sm:my-24 bg-stone-950 group">
+      <img
+        src={banner.img}
+        alt={banner.title}
+        className="w-full h-full object-cover opacity-50 group-hover:scale-105 transition-transform duration-[20000ms] ease-out"
+        loading="lazy"
+      />
+      <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-4 bg-gradient-to-t from-stone-950/60 to-transparent">
+        <h3 className="text-white text-2xl sm:text-4xl font-serif tracking-widest mb-3 drop-shadow-lg">
+          {banner.title}
+        </h3>
+        <p className="text-stone-300 text-[9px] sm:text-[10px] uppercase tracking-[0.4em] drop-shadow-md">
+          {banner.subtitle}
+        </p>
+      </div>
+    </div>
+  );
+};
+
 export default function PublicCatalog({ 
   products, 
   rawMaterials = [], 
@@ -1393,31 +1438,38 @@ export default function PublicCatalog({
 
             {/* Categories Sliders */}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-              {categories.map(cat => (
-                <ProductSlider
-                  key={cat}
-                  title={cat}
-                  products={products.filter(p => p.category === cat && (isAdminMode || (p.showInCatalog !== false)))}
-                  isAdminMode={isAdminMode}
-                  onEdit={setEditingProduct}
-                  onDelete={onDeleteProduct ? (id) => setConfirmAction({ type: 'product', id }) : undefined}
-                  onUpdateCart={handleUpdateCart}
-                  activeOffers={activeOffers}
-                  activeCampaign={activeCampaign}
-                  formatCurrency={formatCurrency}
-                  getEffectivePrice={getEffectivePrice}
-                  formatStock={formatStock}
-                  cart={cart}
-                  rawMaterials={rawMaterials}
-                  storeSettings={storeSettings}
-                  onProductClick={(p) => {
-                    setSelectedProduct(p);
-                    setIsModalOpen(true);
-                  }}
-                  favorites={favorites}
-                  onToggleFavorite={toggleFavorite}
-                />
-              ))}
+              {categories.map((cat, index) => {
+                const categoryProducts = products.filter(p => p.category === cat && (isAdminMode || (p.showInCatalog !== false)));
+                if (categoryProducts.length === 0) return null;
+
+                return (
+                  <div key={cat} className="w-full">
+                    <ProductSlider
+                      title={cat}
+                      products={categoryProducts}
+                      isAdminMode={isAdminMode}
+                      onEdit={setEditingProduct}
+                      onDelete={onDeleteProduct ? (id) => setConfirmAction({ type: 'product', id }) : undefined}
+                      onUpdateCart={handleUpdateCart}
+                      activeOffers={activeOffers}
+                      activeCampaign={activeCampaign}
+                      formatCurrency={formatCurrency}
+                      getEffectivePrice={getEffectivePrice}
+                      formatStock={formatStock}
+                      cart={cart}
+                      rawMaterials={rawMaterials}
+                      storeSettings={storeSettings}
+                      onProductClick={(p) => {
+                        setSelectedProduct(p);
+                        setIsModalOpen(true);
+                      }}
+                      favorites={favorites}
+                      onToggleFavorite={toggleFavorite}
+                    />
+                    <CategorySeparatorBanner index={index} />
+                  </div>
+                );
+              })}
             </div>
           </>
         )}
