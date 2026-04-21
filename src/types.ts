@@ -99,6 +99,7 @@ export interface RawMaterial {
   stock: number; // Stored in UMB
   costPerUnit: number; // Cost per UMB
   minStock: number; // Stored in UMB
+  compromisedStock?: number; // 🛡️ NUEVO: Stock reservado en pedidos no entregados
   createdAt: string;
   updatedAt: string;
   barcode?: string;
