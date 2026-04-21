@@ -48,19 +48,31 @@ export default function RawMaterialForm({ initialData, products, onSave, onCance
     }
   }, [dimension, initialData]);
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        alert('La imagen es demasiado grande. Por favor, selecciona una imagen de menos de 5MB.');
-        return;
-      }
-      setSelectedFile(file);
+    if (!file) return;
+
+    try {
+      setIsUploading(true);
+      const options = {
+        maxSizeMB: 0.2, 
+        maxWidthOrHeight: 1024,
+        useWebWorker: true,
+        fileType: 'image/webp'
+      };
+      const compressedFile = await imageCompression(file, options);
+
+      setSelectedFile(compressedFile);
       const reader = new FileReader();
       reader.onloadend = () => {
         setPhotoUrl(reader.result as string);
+        setIsUploading(false);
       };
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(compressedFile);
+    } catch (error) {
+      console.error('Error al comprimir la imagen:', error);
+      alert('Hubo un error al procesar la imagen. Intenta con otra.');
+      setIsUploading(false);
     }
   };
 
@@ -71,18 +83,11 @@ export default function RawMaterialForm({ initialData, products, onSave, onCance
     let finalPhotoUrl = photoUrl;
     if (selectedFile) {
       try {
-        const options = {
-          maxSizeMB: 0.1,
-          maxWidthOrHeight: 800,
-          useWebWorker: true
-        };
-        const compressedFile = await imageCompression(selectedFile, options);
-        
         const reader = new FileReader();
         finalPhotoUrl = await new Promise<string>((resolve, reject) => {
           reader.onloadend = () => resolve(reader.result as string);
           reader.onerror = reject;
-          reader.readAsDataURL(compressedFile);
+          reader.readAsDataURL(selectedFile);
         });
       } catch (error: any) {
         console.error('Error handling image:', error);
