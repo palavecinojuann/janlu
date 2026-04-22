@@ -265,7 +265,6 @@ export default function OrderConfirmationImage({ sale, storeSettings, customerPh
           </div>
         </div>
       </div>
-    </div>
-  </>
-);
+    </>
+  );
 }
