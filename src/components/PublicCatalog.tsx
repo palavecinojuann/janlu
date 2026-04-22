@@ -761,6 +761,17 @@ export default function PublicCatalog({
 
   const [isCartOpen, setIsCartOpen] = useState(false);
 
+  // Sensor de Scroll para el Menú Flotante
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 50);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   // 1. Registrar cambios de pestaña en el historial del celular
   useEffect(() => {
     // Evitamos duplicar el historial si el usuario ya está en esa pestaña
@@ -1227,123 +1238,130 @@ export default function PublicCatalog({
       </div>
 
       {/* Header */}
-      <header className="absolute w-full z-50 bg-transparent text-white transition-all duration-300 px-4 sm:px-8 py-4 sm:py-6 flex justify-between items-center">
-        {/* PublicCampaignBanner se mantiene pero el header ahora es absoluto */}
-        <div className="absolute top-0 left-0 w-full">
-           <PublicCampaignBanner campaign={activeCampaign} onScrollToProducts={scrollToProducts} />
-        </div>
-        <div className="flex items-center justify-between w-full mt-8 sm:mt-10">
-          {/* Logo */}
-          <div className="flex-shrink-0 flex items-center cursor-pointer" onClick={() => setActiveTab('inicio')}>
-            <h1 className="text-3xl font-cinzel font-bold text-white tracking-tight">JANLU</h1>
-            {isAdminMode && (
-              <span className="ml-2 px-2 py-0.5 bg-stone-100 text-stone-500 text-[10px] uppercase tracking-widest rounded-full">
-                Admin
-              </span>
-            )}
+        {/* Header Dinámico (Transparente -> Glassmorphism) */}
+        <div 
+          className={`w-full z-50 transition-all duration-500 px-4 sm:px-8 flex justify-between items-center text-white ${
+            isScrolled 
+              ? 'fixed top-0 left-0 bg-stone-950/85 backdrop-blur-md shadow-lg py-3 sm:py-4' 
+              : 'absolute top-8 sm:top-10 bg-transparent py-4 sm:py-6'
+          }`}
+        >
+          {/* PublicCampaignBanner se mantiene pero el header ahora es absoluto */}
+          <div className="absolute top-0 left-0 w-full">
+             <PublicCampaignBanner campaign={activeCampaign} onScrollToProducts={scrollToProducts} />
           </div>
-
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center justify-center flex-1 px-8 space-x-8">
-            {[
-              { id: 'inicio', label: 'Inicio' },
-              { id: 'productos', label: 'Productos' },
-              { id: 'workshops', label: 'Workshops' },
-              { id: 'mayorista', label: 'Mayorista' },
-              { id: 'politicas', label: 'Políticas' },
-              { id: 'contacto', label: 'Contacto' }
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`text-[10px] uppercase tracking-[0.2em] transition-all relative py-2 ${
-                  activeTab === tab.id 
-                    ? 'text-white font-bold after:absolute after:bottom-0 after:left-0 after:w-full after:h-[2px] after:bg-white' 
-                    : 'text-white/70 hover:text-white'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </nav>
-          
-          {/* Actions */}
-          <div className="flex items-center space-x-3 sm:space-x-6">
-            {isAdmin && (
-              <button 
-                onClick={() => setIsAdminMode(!isAdminMode)}
-                className={`flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all ${
-                  isAdminMode 
-                    ? 'bg-stone-900 text-white' 
-                    : 'bg-stone-100 text-stone-500 hover:bg-stone-200'
-                }`}
-                title={isAdminMode ? 'Modo Admin Activado' : 'Modo Admin Desactivado'}
-              >
-                <Shield size={12} />
-                <span className="hidden sm:inline">{isAdminMode ? 'Admin On' : 'Admin Off'}</span>
-              </button>
-            )}
-            {onBackToAdmin && (
-              <button 
-                onClick={onBackToAdmin}
-                className="flex items-center gap-1.5 text-stone-500 hover:text-stone-900 transition-colors"
-                title={isAdmin ? "Ir al Dashboard" : "Cerrar Sesión"}
-              >
-                {isAdmin ? <LayoutDashboard size={18} /> : <LogOut size={18} />}
-                <span className="hidden sm:inline text-xs uppercase tracking-widest font-medium">
-                  {isAdmin ? "Dashboard" : "Salir"}
-                </span>
-              </button>
-            )}
-            <button 
-              onClick={() => setIsCartOpen(true)}
-              className="relative text-white hover:text-stone-200 transition-colors ml-2"
-            >
-              <ShoppingBag size={20} strokeWidth={1.5} />
-              {cartItemsCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 bg-stone-900 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
-                  {cartItemsCount}
+          <div className="flex items-center justify-between w-full mt-8 sm:mt-10">
+            {/* Logo */}
+            <div className="flex-shrink-0 flex items-center cursor-pointer" onClick={() => setActiveTab('inicio')}>
+              <h1 className="text-3xl font-cinzel font-bold text-white tracking-tight">JANLU</h1>
+              {isAdminMode && (
+                <span className="ml-2 px-2 py-0.5 bg-stone-100 text-stone-500 text-[10px] uppercase tracking-widest rounded-full">
+                  Admin
                 </span>
               )}
-            </button>
+            </div>
+
+            {/* Desktop Navigation */}
+            <nav className="hidden md:flex items-center justify-center flex-1 px-8 space-x-8">
+              {[
+                { id: 'inicio', label: 'Inicio' },
+                { id: 'productos', label: 'Productos' },
+                { id: 'workshops', label: 'Workshops' },
+                { id: 'mayorista', label: 'Mayorista' },
+                { id: 'politicas', label: 'Políticas' },
+                { id: 'contacto', label: 'Contacto' }
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`text-[10px] uppercase tracking-[0.2em] transition-all relative py-2 ${
+                    activeTab === tab.id 
+                      ? 'text-white font-bold after:absolute after:bottom-0 after:left-0 after:w-full after:h-[2px] after:bg-white' 
+                      : 'text-white/70 hover:text-white'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </nav>
+            
+            {/* Actions */}
+            <div className="flex items-center space-x-3 sm:space-x-6">
+              {isAdmin && (
+                <button 
+                  onClick={() => setIsAdminMode(!isAdminMode)}
+                  className={`flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all ${
+                    isAdminMode 
+                      ? 'bg-stone-900 text-white' 
+                      : 'bg-stone-100 text-stone-500 hover:bg-stone-200'
+                  }`}
+                  title={isAdminMode ? 'Modo Admin Activado' : 'Modo Admin Desactivado'}
+                >
+                  <Shield size={12} />
+                  <span className="hidden sm:inline">{isAdminMode ? 'Admin On' : 'Admin Off'}</span>
+                </button>
+              )}
+              {onBackToAdmin && (
+                <button 
+                  onClick={onBackToAdmin}
+                  className="flex items-center gap-1.5 text-stone-500 hover:text-stone-900 transition-colors"
+                  title={isAdmin ? "Ir al Dashboard" : "Cerrar Sesión"}
+                >
+                  {isAdmin ? <LayoutDashboard size={18} /> : <LogOut size={18} />}
+                  <span className="hidden sm:inline text-xs uppercase tracking-widest font-medium">
+                    {isAdmin ? "Dashboard" : "Salir"}
+                  </span>
+                </button>
+              )}
+              <button 
+                onClick={() => setIsCartOpen(true)}
+                className="relative text-white hover:text-stone-200 transition-colors ml-2"
+              >
+                <ShoppingBag size={20} strokeWidth={1.5} />
+                {cartItemsCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 bg-stone-900 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                    {cartItemsCount}
+                  </span>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Mobile Navigation (Transparente) */}
+          <div className="md:hidden border-t border-white/10 overflow-x-auto hide-scrollbar">
+            <nav className="flex items-center px-4 py-3 space-x-6 min-w-max">
+              {isAdmin && onBackToAdmin && (
+                <button
+                  onClick={onBackToAdmin}
+                  className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] transition-all py-1 text-white font-bold"
+                >
+                  <LayoutDashboard size={12} />
+                  Dashboard
+                </button>
+              )}
+              {[
+                { id: 'inicio', label: 'Inicio' },
+                { id: 'productos', label: 'Productos' },
+                { id: 'workshops', label: 'Workshops' },
+                { id: 'mayorista', label: 'Mayorista' },
+                { id: 'politicas', label: 'Políticas' },
+                { id: 'contacto', label: 'Contacto' }
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`text-[10px] uppercase tracking-[0.2em] transition-all relative py-1 ${
+                    activeTab === tab.id 
+                      ? 'text-white font-bold after:absolute after:bottom-0 after:left-0 after:w-full after:h-[2px] after:bg-white' 
+                      : 'text-white/70 hover:text-white'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </nav>
           </div>
         </div>
-
-        {/* Mobile Navigation (Transparente) */}
-        <div className="md:hidden border-t border-white/10 overflow-x-auto hide-scrollbar">
-          <nav className="flex items-center px-4 py-3 space-x-6 min-w-max">
-            {isAdmin && onBackToAdmin && (
-              <button
-                onClick={onBackToAdmin}
-                className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] transition-all py-1 text-white font-bold"
-              >
-                <LayoutDashboard size={12} />
-                Dashboard
-              </button>
-            )}
-            {[
-              { id: 'inicio', label: 'Inicio' },
-              { id: 'productos', label: 'Productos' },
-              { id: 'workshops', label: 'Workshops' },
-              { id: 'mayorista', label: 'Mayorista' },
-              { id: 'politicas', label: 'Políticas' },
-              { id: 'contacto', label: 'Contacto' }
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`text-[10px] uppercase tracking-[0.2em] transition-all relative py-1 ${
-                  activeTab === tab.id 
-                    ? 'text-white font-bold after:absolute after:bottom-0 after:left-0 after:w-full after:h-[2px] after:bg-white' 
-                    : 'text-white/70 hover:text-white'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </nav>
-        </div>
-      </header>
 
       <main>
         {activeTab === 'inicio' && (
@@ -1369,7 +1387,7 @@ export default function PublicCatalog({
                       }`}
                     />
                     
-                    {/* Gradiente oscuro y difuminado superior para proteger la legibilidad del menú */}
+                    {/* Gradiente oscuro difuminado para que el menú blanco siempre se lea */}
                     <div className="absolute top-0 left-0 right-0 h-32 sm:h-48 bg-gradient-to-b from-stone-950/80 via-stone-950/30 to-transparent z-10 pointer-events-none"></div>
                     
                     {/* Gradiente oscuro en la parte inferior para legibilidad */}
