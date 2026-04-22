@@ -1227,12 +1227,15 @@ export default function PublicCatalog({
       </div>
 
       {/* Header */}
-      <header className="bg-white sticky top-0 z-50 border-b border-stone-100">
-        <PublicCampaignBanner campaign={activeCampaign} onScrollToProducts={scrollToProducts} />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between w-full">
+      <header className="absolute w-full z-50 bg-transparent text-white transition-all duration-300 px-4 sm:px-8 py-4 sm:py-6 flex justify-between items-center">
+        {/* PublicCampaignBanner se mantiene pero el header ahora es absoluto */}
+        <div className="absolute top-0 left-0 w-full">
+           <PublicCampaignBanner campaign={activeCampaign} onScrollToProducts={scrollToProducts} />
+        </div>
+        <div className="flex items-center justify-between w-full mt-8 sm:mt-10">
           {/* Logo */}
           <div className="flex-shrink-0 flex items-center cursor-pointer" onClick={() => setActiveTab('inicio')}>
-            <h1 className="text-3xl font-cinzel font-bold text-stone-900 tracking-tight">JANLU</h1>
+            <h1 className="text-3xl font-cinzel font-bold text-white tracking-tight">JANLU</h1>
             {isAdminMode && (
               <span className="ml-2 px-2 py-0.5 bg-stone-100 text-stone-500 text-[10px] uppercase tracking-widest rounded-full">
                 Admin
@@ -1255,8 +1258,8 @@ export default function PublicCatalog({
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`text-[10px] uppercase tracking-[0.2em] transition-all relative py-2 ${
                   activeTab === tab.id 
-                    ? 'text-stone-900 font-bold after:absolute after:bottom-0 after:left-0 after:w-full after:h-[2px] after:bg-stone-900' 
-                    : 'text-stone-400 hover:text-stone-900'
+                    ? 'text-white font-bold after:absolute after:bottom-0 after:left-0 after:w-full after:h-[2px] after:bg-white' 
+                    : 'text-white/70 hover:text-white'
                 }`}
               >
                 {tab.label}
@@ -1294,7 +1297,7 @@ export default function PublicCatalog({
             )}
             <button 
               onClick={() => setIsCartOpen(true)}
-              className="relative text-stone-900 hover:text-stone-600 transition-colors ml-2"
+              className="relative text-white hover:text-stone-200 transition-colors ml-2"
             >
               <ShoppingBag size={20} strokeWidth={1.5} />
               {cartItemsCount > 0 && (
@@ -1306,13 +1309,13 @@ export default function PublicCatalog({
           </div>
         </div>
 
-        {/* Mobile Navigation (Scrollable Tabs) */}
-        <div className="md:hidden border-t border-stone-100 overflow-x-auto hide-scrollbar">
+        {/* Mobile Navigation (Transparente) */}
+        <div className="md:hidden border-t border-white/10 overflow-x-auto hide-scrollbar">
           <nav className="flex items-center px-4 py-3 space-x-6 min-w-max">
             {isAdmin && onBackToAdmin && (
               <button
                 onClick={onBackToAdmin}
-                className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] transition-all py-1 text-indigo-600 font-bold"
+                className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] transition-all py-1 text-white font-bold"
               >
                 <LayoutDashboard size={12} />
                 Dashboard
@@ -1331,8 +1334,8 @@ export default function PublicCatalog({
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`text-[10px] uppercase tracking-[0.2em] transition-all relative py-1 ${
                   activeTab === tab.id 
-                    ? 'text-stone-900 font-bold after:absolute after:bottom-0 after:left-0 after:w-full after:h-[2px] after:bg-stone-900' 
-                    : 'text-stone-400 hover:text-stone-900'
+                    ? 'text-white font-bold after:absolute after:bottom-0 after:left-0 after:w-full after:h-[2px] after:bg-white' 
+                    : 'text-white/70 hover:text-white'
                 }`}
               >
                 {tab.label}
@@ -1365,6 +1368,9 @@ export default function PublicCatalog({
                         index === currentSlide ? 'scale-110' : 'scale-100'
                       }`}
                     />
+                    
+                    {/* Gradiente oscuro y difuminado superior para proteger la legibilidad del menú */}
+                    <div className="absolute top-0 left-0 right-0 h-32 sm:h-48 bg-gradient-to-b from-stone-950/80 via-stone-950/30 to-transparent z-10 pointer-events-none"></div>
                     
                     {/* Gradiente oscuro en la parte inferior para legibilidad */}
                     <div className="absolute inset-0 bg-gradient-to-t from-stone-950/90 via-stone-900/30 to-transparent"></div>
