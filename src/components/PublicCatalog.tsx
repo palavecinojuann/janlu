@@ -1238,12 +1238,14 @@ export default function PublicCatalog({
       </div>
 
       {/* Header */}
-        {/* Header Dinámico (Transparente -> Glassmorphism) */}
+        {/* Header Inteligente: Transparente en Inicio, Sticky y Oscuro en otras pestañas */}
         <div 
           className={`w-full z-50 transition-all duration-500 px-4 sm:px-8 flex justify-between items-center text-white ${
-            isScrolled 
-              ? 'fixed top-0 left-0 bg-stone-950/85 backdrop-blur-md shadow-lg py-3 sm:py-4' 
-              : 'absolute top-8 sm:top-10 bg-transparent py-4 sm:py-6'
+            activeTab === 'inicio'
+              ? isScrolled 
+                ? 'fixed top-0 left-0 bg-stone-950/85 backdrop-blur-md shadow-lg py-3 sm:py-4' 
+                : 'absolute top-8 sm:top-10 bg-transparent py-4 sm:py-6'
+              : 'sticky top-0 bg-stone-950 shadow-md py-4 sm:py-5'
           }`}
         >
           {/* PublicCampaignBanner se mantiene pero el header ahora es absoluto */}
