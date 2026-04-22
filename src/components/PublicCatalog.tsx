@@ -1315,7 +1315,7 @@ export default function PublicCatalog({
               )}
               <button 
                 onClick={() => setIsCartOpen(true)}
-                className="relative text-white hover:text-stone-200 transition-colors ml-2"
+                className="relative text-white hover:text-stone-200 transition-colors ml-2 mr-4 sm:mr-6"
               >
                 <ShoppingBag size={20} strokeWidth={1.5} />
                 {cartItemsCount > 0 && (
