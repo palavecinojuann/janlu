@@ -760,6 +760,35 @@ export default function PublicCatalog({
   }, [cart]);
 
   const [isCartOpen, setIsCartOpen] = useState(false);
+
+  // 1. Registrar cambios de pestaña en el historial del celular
+  useEffect(() => {
+    // Evitamos duplicar el historial si el usuario ya está en esa pestaña
+    if (window.history.state?.tab !== activeTab) {
+      // Usamos el formato #catalog?tab=... que es compatible con tu App.tsx
+      window.history.pushState({ tab: activeTab }, '', `#catalog?tab=${activeTab}`);
+    }
+  }, [activeTab]);
+
+  // 2. Escuchar el botón "Atrás" físico del celular (Evento popstate)
+  useEffect(() => {
+    const handlePopState = (e: PopStateEvent) => {
+      // Por precaución, si van hacia atrás, cerramos el carrito y cualquier producto ampliado
+      setIsCartOpen(false);
+      setSelectedProduct(null);
+
+      // Leemos a qué pestaña querían volver
+      if (e.state && e.state.tab) {
+        setActiveTab(e.state.tab);
+      } else {
+        // Si retrocedieron hasta el inicio de la navegación, forzamos la vitrina
+        setActiveTab('inicio');
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
   const [checkoutStep, setCheckoutStep] = useState<'cart' | 'details' | 'success'>('cart');
   const [customerDetails, setCustomerDetails] = useState({ name: '', email: '', phone: '' });
   const [deliveryMethod, setDeliveryMethod] = useState<'retiro' | 'envio'>('retiro');
