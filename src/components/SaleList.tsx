@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Sale, Product, Customer, SaleStatus, StoreSettings } from '../types';
-import { ShoppingCart, Plus, Printer, Eye, X, FileText, Link as LinkIcon, MessageCircle, AlertTriangle, CheckCircle, Search, Upload, Loader2, CreditCard, Calendar, Clock } from 'lucide-react';
+import { ShoppingCart, Plus, Printer, Eye, X, FileText, Link as LinkIcon, MessageCircle, AlertTriangle, CheckCircle, Search, Upload, Loader2, CreditCard, Calendar, Clock, DollarSign } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import Barcode from 'react-barcode';
 import OrderConfirmationImage from './OrderConfirmationImage';
@@ -49,6 +49,12 @@ export default function SaleList({ sales, products, customers, storeSettings, on
   const [editPaymentDate, setEditPaymentDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [adjustmentAmount, setAdjustmentAmount] = useState<number>(0);
   const [originalAmountPaid, setOriginalAmountPaid] = useState<number>(0);
+
+  // Estados para el Modal de Pagos
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [saleForPayment, setSaleForPayment] = useState<Sale | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState<string>('');
+  const [paymentMethod, setPaymentMethod] = useState<'transferencia' | 'efectivo' | 'mercadopago'>('transferencia');
 
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFrom, setDateFrom] = useState('');
@@ -235,6 +241,32 @@ export default function SaleList({ sales, products, customers, storeSettings, on
       }
       setCancellingSaleId(null);
     }
+  };
+
+  const handleRegisterPayment = () => {
+    if (!saleForPayment || !paymentAmount || !onUpdateSale) return;
+    const amount = parseFloat(paymentAmount);
+    if (isNaN(amount) || amount <= 0) return;
+
+    const newPayment = {
+      amount,
+      method: paymentMethod,
+      date: new Date().toISOString()
+    };
+
+    const newAmountPaid = (saleForPayment.amountPaid || 0) + amount;
+    
+    const updatedSale: Sale = {
+      ...saleForPayment,
+      amountPaid: newAmountPaid,
+      paymentHistory: [...(saleForPayment.paymentHistory || []), newPayment]
+    };
+
+    // 🚀 Actualización Optimista
+    setLocalSales(prev => prev.map(s => s.id === saleForPayment.id ? updatedSale : s));
+    onUpdateSale(updatedSale);
+    setIsPaymentModalOpen(false);
+    setPaymentAmount('');
   };
 
   const formatCurrency = (value: number) => new Intl.NumberFormat('es-AR', { 
@@ -1148,10 +1180,21 @@ export default function SaleList({ sales, products, customers, storeSettings, on
                       <span className="font-bold text-emerald-600 dark:text-emerald-400 print:text-emerald-700">${saleToPreview.amountPaid.toLocaleString('es-AR')}</span>
                     </div>
                     {saleToPreview.totalAmount > saleToPreview.amountPaid ? (
-                      <div className="flex justify-between items-center pt-2 mt-2 border-t border-gray-100 dark:border-stone-800 print:border-gray-100">
-                        <span className="text-stone-800 dark:text-stone-200 print:text-black font-bold">Pendiente de Pago:</span>
-                        <span className="font-bold text-rose-600 dark:text-rose-400 print:text-rose-700 text-lg">${(saleToPreview.totalAmount - saleToPreview.amountPaid).toLocaleString('es-AR')}</span>
-                      </div>
+                      <>
+                        <div className="flex justify-between items-center pt-2 mt-2 border-t border-gray-100 dark:border-stone-800 print:border-gray-100">
+                          <span className="text-stone-800 dark:text-stone-200 print:text-black font-bold">Pendiente de Pago:</span>
+                          <span className="font-bold text-rose-600 dark:text-rose-400 print:text-rose-700 text-lg">${(saleToPreview.totalAmount - saleToPreview.amountPaid).toLocaleString('es-AR')}</span>
+                        </div>
+                        {/* Botón de Registrar Pago */}
+                        {saleToPreview.status !== 'cancelado' && (
+                          <button 
+                            onClick={() => { setSaleForPayment(saleToPreview); setIsPaymentModalOpen(true); }}
+                            className="mt-4 w-full px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold transition-colors flex items-center justify-center gap-2 print:hidden"
+                          >
+                            <DollarSign size={16} /> Registrar Pago
+                          </button>
+                        )}
+                      </>
                     ) : (
                       <div className="flex justify-between items-center pt-2 mt-2 border-t border-gray-100 dark:border-stone-800 print:border-gray-100">
                         <span className="text-stone-800 dark:text-stone-200 print:text-black font-bold">Estado:</span>
@@ -1417,6 +1460,57 @@ export default function SaleList({ sales, products, customers, storeSettings, on
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Modal de Registro de Pago Parcial/Total */}
+      {isPaymentModalOpen && saleForPayment && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-stone-950/60 backdrop-blur-sm">
+          <div className="bg-white dark:bg-stone-900 rounded-3xl shadow-2xl max-w-md w-full p-6 relative">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-serif font-bold text-stone-900 dark:text-stone-100">Registrar Pago</h3>
+              <button onClick={() => setIsPaymentModalOpen(false)} className="text-stone-400 hover:text-stone-600"><X size={24} /></button>
+            </div>
+            
+            <div className="mb-6 bg-stone-50 dark:bg-stone-800 p-4 rounded-2xl border border-stone-100 dark:border-stone-700">
+              <p className="text-sm text-stone-500 dark:text-stone-400 mb-1">Saldo Pendiente</p>
+              <p className="text-2xl font-bold text-rose-600">
+                ${(saleForPayment.totalAmount - (saleForPayment.amountPaid || 0)).toLocaleString('es-AR')}
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-stone-500 dark:text-stone-400 uppercase tracking-wider mb-2">Monto a registrar ($)</label>
+                <input 
+                  type="number" 
+                  value={paymentAmount}
+                  onChange={(e) => setPaymentAmount(e.target.value)}
+                  placeholder="Ej: 15000"
+                  className="w-full px-4 py-3 bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-800 rounded-xl focus:ring-2 focus:ring-stone-900 dark:focus:ring-indigo-500 outline-none dark:text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-stone-500 dark:text-stone-400 uppercase tracking-wider mb-2">Método de Pago</label>
+                <select 
+                  value={paymentMethod}
+                  onChange={(e) => setPaymentMethod(e.target.value as any)}
+                  className="w-full px-4 py-3 bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-800 rounded-xl focus:ring-2 focus:ring-stone-900 dark:focus:ring-indigo-500 outline-none dark:text-white"
+                >
+                  <option value="transferencia">Transferencia</option>
+                  <option value="efectivo">Efectivo</option>
+                  <option value="mercadopago">MercadoPago</option>
+                </select>
+              </div>
+            </div>
+
+            <button 
+              onClick={handleRegisterPayment}
+              disabled={!paymentAmount}
+              className="mt-8 w-full bg-stone-900 dark:bg-indigo-600 hover:bg-stone-800 dark:hover:bg-indigo-700 text-white py-4 rounded-xl font-medium transition-colors disabled:opacity-50"
+            >
+              Confirmar Pago
+            </button>
           </div>
         </div>
       )}

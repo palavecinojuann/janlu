@@ -537,8 +537,20 @@ const ProductSlider: React.FC<{ title: string; products: Product[]; isAdminMode:
     <div className="mb-12 group/slider">
       <div className="flex items-center justify-between mb-6 px-4 sm:px-0">
         <h2 className="text-xl sm:text-2xl font-serif text-stone-900 tracking-tight">{title}</h2>
-        <div className="h-px flex-1 bg-stone-100 mx-6 hidden sm:block"></div>
-        <button onClick={onViewAll} className="text-[10px] uppercase tracking-[0.2em] text-stone-400 hover:text-stone-900 transition-colors">Ver todo</button>
+        <div className="h-px flex-1 bg-stone-100 mx-4 hidden sm:block"></div>
+        
+        <div className="flex items-center gap-4">
+          {/* Controles de Carrusel (Visibles en Móvil y PC) */}
+          <div className="flex gap-2">
+            <button onClick={() => handleScroll('left')} className="p-2 rounded-full bg-stone-50 border border-stone-200 text-stone-600 hover:bg-stone-100 transition-colors shadow-sm">
+              <ChevronLeft size={18} />
+            </button>
+            <button onClick={() => handleScroll('right')} className="p-2 rounded-full bg-stone-50 border border-stone-200 text-stone-600 hover:bg-stone-100 transition-colors shadow-sm">
+              <ChevronRight size={18} />
+            </button>
+          </div>
+          <button onClick={onViewAll} className="text-[10px] uppercase tracking-[0.2em] text-stone-400 hover:text-stone-900 transition-colors hidden sm:block">Ver todo</button>
+        </div>
       </div>
       
       <div className="relative">
@@ -1494,6 +1506,28 @@ export default function PublicCatalog({
                 </div>
               </div>
             )}
+
+            {/* Barra de Búsqueda Premium */}
+            <div className="px-4 sm:px-8 mb-8 mt-6">
+              <div className="relative max-w-2xl mx-auto">
+                <input
+                  type="text"
+                  placeholder="Buscar fragancias, velas, difusores..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full bg-[#faf9f8] border border-stone-200 text-stone-900 px-12 py-3 sm:py-4 rounded-full focus:outline-none focus:ring-2 focus:ring-stone-400 transition-all placeholder:text-stone-400 text-sm sm:text-base shadow-sm"
+                />
+                <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-stone-400" size={18} />
+                {searchTerm && (
+                  <button 
+                    onClick={() => setSearchTerm('')} 
+                    className="absolute right-5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-900 bg-stone-100 p-1 rounded-full transition-colors"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+            </div>
 
             {/* Categories Sliders */}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
