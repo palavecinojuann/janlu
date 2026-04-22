@@ -1976,526 +1976,539 @@ export default function PublicCatalog({
         </div>
       )}
 
-      {/* Cart Drawer */}
-      {isCartOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[120] flex justify-end">
-          <div className="bg-white w-full max-w-md h-[100dvh] shadow-2xl flex flex-col animate-in slide-in-from-right">
-            <div className="p-6 border-b border-stone-100 flex items-center justify-between">
-              <h2 className="text-xl font-serif font-medium text-stone-900 flex items-center">
-                {checkoutStep === 'cart' && <><ShoppingCart className="mr-2 text-rose-500" /> Mi Pedido</>}
-                {checkoutStep === 'details' && <><ShoppingCart className="mr-2 text-rose-500" /> Mis Datos</>}
-                {checkoutStep === 'success' && <><CheckCircle className="mr-2 text-emerald-500" /> ¡Pedido Exitoso!</>}
-              </h2>
-              <button 
-                onClick={() => {
-                  setIsCartOpen(false);
-                  if (checkoutStep === 'success') {
-                    setCheckoutStep('cart');
-                  }
-                  setGeneratedCoupon(null);
-                }}
-                className="p-2 text-stone-400 hover:text-stone-600 bg-stone-50 rounded-full"
-              >
-                <X size={20} />
-              </button>
-            </div>
+      {/* 🛒 CARRITO DE COMPRAS (PREMIUM DRAWER) */}
+      <div 
+        className={`fixed inset-0 z-[120] transition-all duration-500 ${
+          isCartOpen ? 'opacity-100 visible' : 'opacity-0 invisible'
+        }`}
+      >
+        {/* Fondo oscuro con desenfoque de cristal (Glassmorphism) */}
+        <div 
+          className={`absolute inset-0 bg-stone-950/40 backdrop-blur-sm transition-opacity duration-500 ease-in-out ${
+            isCartOpen ? 'opacity-100' : 'opacity-0'
+          }`}
+          onClick={() => setIsCartOpen(false)}
+        />
 
-            <div className="flex-1 overflow-y-auto p-6 min-h-0">
+        {/* Panel lateral del carrito (Drawer) */}
+        <div 
+          className={`absolute top-0 right-0 h-full w-full sm:w-[420px] bg-[#faf9f8] shadow-2xl flex flex-col transform transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+            isCartOpen ? 'translate-x-0' : 'translate-x-full'
+          }`}
+        >
+          {/* Cabecera del Carrito */}
+          <div className="flex items-center justify-between p-6 sm:px-8 sm:py-6 border-b border-stone-200/50 shrink-0">
+            <div className="flex items-baseline gap-3">
+              <h2 className="text-2xl font-serif text-stone-900 tracking-tight">
+                {checkoutStep === 'cart' && 'Tu Carrito'}
+                {checkoutStep === 'details' && 'Mis Datos'}
+                {checkoutStep === 'success' && '¡Pedido Exitoso!'}
+              </h2>
               {checkoutStep === 'cart' && (
-                cart.length === 0 ? (
-                  <div className="h-full flex flex-col items-center justify-center text-stone-400">
-                    <ShoppingBag size={48} className="mb-4 opacity-20" />
-                    <p>Tu carrito está vacío</p>
-                  </div>
-                ) : (
-                  <div className="space-y-6">
-                    {cart.map((item) => (
-                      <div key={item.course ? item.course.id : `${item.product?.id}-${item.variant?.id}`} className="flex gap-4">
-                        <div className="w-20 h-20 rounded-xl bg-stone-50 border border-stone-100 overflow-hidden shrink-0">
-                          {item.course ? (
-                            item.course.imageUrl ? (
-                              <img src={item.course.imageUrl} alt={item.course.title} className="w-full h-full object-cover" referrerPolicy="no-referrer" loading="lazy" />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center text-stone-300">
-                                <GraduationCap size={24} />
-                              </div>
-                            )
-                          ) : item.product?.photoUrl ? (
-                            <img src={item.product.photoUrl} alt={item.product.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" loading="lazy" />
+                <span className="text-[10px] text-stone-400 uppercase tracking-widest font-bold">
+                  {cart.reduce((sum, item) => sum + item.quantity, 0)} {cart.reduce((sum, item) => sum + item.quantity, 0) === 1 ? 'Ítem' : 'Ítems'}
+                </span>
+              )}
+            </div>
+            <button 
+              onClick={() => {
+                setIsCartOpen(false);
+                if (checkoutStep === 'success') {
+                  setCheckoutStep('cart');
+                }
+                setGeneratedCoupon(null);
+              }}
+              className="p-2 text-stone-400 hover:text-stone-900 transition-transform duration-300 hover:rotate-90 bg-white rounded-full shadow-sm hover:shadow-md"
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          {/* Área de Productos con Scroll Independiente */}
+          <div className="flex-1 overflow-y-auto p-6 sm:p-8 custom-scrollbar">
+            {checkoutStep === 'cart' && (
+              cart.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-center opacity-50">
+                  <ShoppingBag size={48} strokeWidth={1} className="mb-4 text-stone-300" />
+                  <p className="text-xs uppercase tracking-[0.2em] font-bold text-stone-500">Tu carrito está vacío</p>
+                  <button onClick={() => setIsCartOpen(false)} className="mt-8 text-[10px] uppercase tracking-widest border-b border-stone-400 pb-1 hover:text-stone-900 transition-colors">Volver a la tienda</button>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {cart.map((item) => (
+                    <div key={item.course ? item.course.id : `${item.product?.id}-${item.variant?.id}`} className="flex gap-4">
+                      <div className="w-20 h-20 rounded-xl bg-stone-50 border border-stone-100 overflow-hidden shrink-0">
+                        {item.course ? (
+                          item.course.imageUrl ? (
+                            <img src={item.course.imageUrl} alt={item.course.title} className="w-full h-full object-cover" referrerPolicy="no-referrer" loading="lazy" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-stone-300">
-                              <Flame size={24} />
+                              <GraduationCap size={24} />
                             </div>
-                          )}
-                        </div>
-                        <div className="flex-1 flex flex-col">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <h4 className="font-medium text-stone-900 line-clamp-1">
-                                {item.course ? item.course.title : item.product?.name}
-                              </h4>
-                              <input
-                                type="text"
-                                value={item.customDescription}
-                                onChange={(e) => {
-                                  const newDescription = e.target.value;
-                                  setCart(prev => prev.map(i => {
-                                    if (item.course && i.course?.id === item.course.id) {
-                                      return { ...i, customDescription: newDescription };
-                                    }
-                                    if (item.product && i.product?.id === item.product.id && item.variant?.id === item.variant?.id) {
-                                      return { ...i, customDescription: newDescription };
-                                    }
-                                    return i;
-                                  }));
-                                }}
-                                className="text-xs text-stone-500 border-none p-0 focus:ring-0 w-full"
-                              />
-                              <p className="text-[10px] text-stone-400 mt-0.5">
-                                {item.course 
-                                  ? formatCurrency(item.course.price)
-                                  : item.product && item.variant ? `${formatCurrency(getEffectivePrice(item.product, item.variant, item.quantity))} c/u` : ''}
-                              </p>
-                            </div>
-                            <button 
-                              onClick={() => removeFromCart(item.product?.id, item.variant?.id, item.course?.id)}
-                              className="text-stone-400 hover:text-rose-500 p-1"
-                            >
-                              <Trash2 size={14} />
-                            </button>
+                          )
+                        ) : item.product?.photoUrl ? (
+                          <img src={item.product.photoUrl} alt={item.product.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" loading="lazy" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-stone-300">
+                            <Flame size={24} />
                           </div>
-                          <div className="mt-auto flex items-center justify-between">
-                            <div className="flex items-center space-x-2 bg-stone-50 rounded-lg p-1 border border-stone-200">
-                              <button 
-                                onClick={() => updateCartQuantity(item.product?.id, item.variant?.id, item.quantity - 1, item.course?.id)}
-                                className="w-6 h-6 flex items-center justify-center rounded bg-white text-stone-600 shadow-sm hover:text-rose-600"
-                              >
-                                <Minus size={12} />
-                              </button>
-                              <input 
-                                type="number"
-                                min="1"
-                                step="any"
-                                value={item.quantity}
-                                onChange={(e) => {
-                                  const val = parseFloat(e.target.value);
-                                  updateCartQuantity(item.product?.id, item.variant?.id, isNaN(val) ? 1 : val, item.course?.id);
-                                }}
-                                className={`w-10 text-center text-sm bg-transparent border-none focus:ring-0 p-0 transition-all duration-300 transform ${stockErrorId === item.variant?.id ? 'text-rose-600 scale-125 font-bold animate-pulse' : 'font-medium text-stone-900'}`}
-                              />
-                              <button 
-                                onClick={() => updateCartQuantity(item.product?.id, item.variant?.id, item.quantity + 1, item.course?.id)}
-                                className="w-6 h-6 flex items-center justify-center rounded bg-white text-stone-600 shadow-sm hover:text-rose-600"
-                              >
-                                <Plus size={12} />
-                              </button>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-xs text-stone-400 mb-0.5">Subtotal</p>
-                              <p className="font-bold text-emerald-600">
-                                {item.course 
-                                  ? formatCurrency(item.course.price * item.quantity)
-                                  : item.product && item.variant ? formatCurrency(getEffectivePrice(item.product, item.variant, item.quantity) * item.quantity) : ''}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
+                        )}
                       </div>
-                    ))}
-                    
-                    <div className="mt-6 pt-6 border-t border-stone-100">
-                      <div className="flex gap-2">
-                        <div className="relative flex-1">
-                          <Tag className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" size={16} />
-                          <input
-                            type="text"
-                            value={couponCode}
-                            onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                            placeholder="¿Tienes un cupón?"
-                            className="w-full pl-10 pr-4 py-2 bg-stone-50 border border-stone-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
-                          />
-                        </div>
-                        <button
-                          onClick={handleApplyCoupon}
-                          disabled={isValidatingCoupon || !couponCode.trim()}
-                          className="px-4 py-2 bg-stone-800 text-white rounded-lg text-sm font-medium hover:bg-stone-900 transition-colors disabled:opacity-50"
-                        >
-                          {isValidatingCoupon ? <Loader2 size={16} className="animate-spin" /> : 'Aplicar'}
-                        </button>
-                      </div>
-                      {appliedCoupon && (
-                        <div className="mt-2 flex items-center justify-between p-2 bg-emerald-50 border border-emerald-100 rounded-lg">
-                          <div className="flex items-center gap-2 text-emerald-700 text-xs font-medium">
-                            <CheckCircle size={14} />
-                            <span>Cupón aplicado: {appliedCoupon.code}</span>
+                      <div className="flex-1 flex flex-col">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h4 className="font-medium text-stone-900 line-clamp-1">
+                              {item.course ? item.course.title : item.product?.name}
+                            </h4>
+                            <input
+                              type="text"
+                              value={item.customDescription}
+                              onChange={(e) => {
+                                const newDescription = e.target.value;
+                                setCart(prev => prev.map(i => {
+                                  if (item.course && i.course?.id === item.course.id) {
+                                    return { ...i, customDescription: newDescription };
+                                  }
+                                  if (item.product && i.product?.id === item.product.id && item.variant?.id === item.variant?.id) {
+                                    return { ...i, customDescription: newDescription };
+                                  }
+                                  return i;
+                                }));
+                              }}
+                              className="text-xs text-stone-500 border-none p-0 focus:ring-0 w-full bg-transparent"
+                            />
+                            <p className="text-[10px] text-stone-400 mt-0.5">
+                              {item.course 
+                                ? formatCurrency(item.course.price)
+                                : item.product && item.variant ? `${formatCurrency(getEffectivePrice(item.product, item.variant, item.quantity))} c/u` : ''}
+                            </p>
                           </div>
                           <button 
-                            onClick={() => setAppliedCoupon(null)}
-                            className="text-emerald-700 hover:text-rose-500"
+                            onClick={() => removeFromCart(item.product?.id, item.variant?.id, item.course?.id)}
+                            className="text-stone-400 hover:text-rose-500 p-1"
                           >
-                            <X size={14} />
+                            <Trash2 size={14} />
                           </button>
                         </div>
-                      )}
+                        <div className="mt-auto flex items-center justify-between">
+                          <div className="flex items-center space-x-2 bg-white rounded-lg p-1 border border-stone-200">
+                            <button 
+                              onClick={() => updateCartQuantity(item.product?.id, item.variant?.id, item.quantity - 1, item.course?.id)}
+                              className="w-6 h-6 flex items-center justify-center rounded bg-stone-50 text-stone-600 shadow-sm hover:text-rose-600"
+                            >
+                              <Minus size={12} />
+                            </button>
+                            <input 
+                              type="number"
+                              min="1"
+                              step="any"
+                              value={item.quantity}
+                              onChange={(e) => {
+                                const val = parseFloat(e.target.value);
+                                updateCartQuantity(item.product?.id, item.variant?.id, isNaN(val) ? 1 : val, item.course?.id);
+                              }}
+                              className={`w-10 text-center text-sm bg-transparent border-none focus:ring-0 p-0 transition-all duration-300 transform ${stockErrorId === item.variant?.id ? 'text-rose-600 scale-125 font-bold animate-pulse' : 'font-medium text-stone-900'}`}
+                            />
+                            <button 
+                              onClick={() => updateCartQuantity(item.product?.id, item.variant?.id, item.quantity + 1, item.course?.id)}
+                              className="w-6 h-6 flex items-center justify-center rounded bg-stone-50 text-stone-600 shadow-sm hover:text-rose-600"
+                            >
+                              <Plus size={12} />
+                            </button>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs text-stone-400 mb-0.5">Subtotal</p>
+                            <p className="font-bold text-stone-900">
+                              {item.course 
+                                ? formatCurrency(item.course.price * item.quantity)
+                                : item.product && item.variant ? formatCurrency(getEffectivePrice(item.product, item.variant, item.quantity) * item.quantity) : ''}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                )
-              )}
-
-              {checkoutStep === 'details' && (
-                <div className="space-y-6">
-                  <div>
-                    <label className="block text-sm font-medium text-stone-700 mb-1">Nombre de contacto *</label>
-                    <input
-                      type="text"
-                      value={customerDetails.name}
-                      onChange={(e) => setCustomerDetails(prev => ({ ...prev, name: e.target.value }))}
-                      className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
-                      placeholder="Ej. Juan Pérez"
-                    />
-                  </div>
-
-                  {!currentUser && (
-                    <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                      <label className="block text-sm font-medium text-stone-700 mb-1">Número de Teléfono / WhatsApp *</label>
-                      <input
-                        type="tel"
-                        value={customerDetails.phone}
-                        onChange={(e) => setCustomerDetails(prev => ({ ...prev, phone: e.target.value }))}
-                        className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
-                        placeholder="Ej. +54 9 11 1234 5678"
-                      />
-                    </div>
-                  )}
-
-                  <div>
-                    <label className="block text-sm font-medium text-stone-700 mb-3">Método de Entrega *</label>
-                    <div className="grid grid-cols-2 gap-3">
+                  ))}
+                  
+                  <div className="mt-6 pt-6 border-t border-stone-200/50">
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <Tag className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" size={16} />
+                        <input
+                          type="text"
+                          value={couponCode}
+                          onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                          placeholder="¿Tienes un cupón?"
+                          className="w-full pl-10 pr-4 py-3 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-stone-900 focus:border-stone-900 transition-all"
+                        />
+                      </div>
                       <button
-                        onClick={() => setDeliveryMethod('retiro')}
-                        className={`p-4 rounded-xl border-2 flex flex-col items-center justify-center gap-2 transition-all ${
-                          deliveryMethod === 'retiro' 
-                            ? 'border-indigo-600 bg-indigo-50 text-indigo-700' 
-                            : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300'
-                        }`}
+                        onClick={handleApplyCoupon}
+                        disabled={isValidatingCoupon || !couponCode.trim()}
+                        className="px-6 py-3 bg-stone-900 text-white rounded-xl text-xs uppercase tracking-widest font-bold hover:bg-stone-800 transition-colors disabled:opacity-50"
                       >
-                        <ShoppingBag size={24} />
-                        <span className="text-sm font-medium text-center">Retiro por el taller</span>
-                      </button>
-                      <button
-                        onClick={() => setDeliveryMethod('envio')}
-                        className={`p-4 rounded-xl border-2 flex flex-col items-center justify-center gap-2 transition-all ${
-                          deliveryMethod === 'envio' 
-                            ? 'border-indigo-600 bg-indigo-50 text-indigo-700' 
-                            : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300'
-                        }`}
-                      >
-                        <Package size={24} />
-                        <span className="text-sm font-medium text-center">Envío</span>
+                        {isValidatingCoupon ? <Loader2 size={16} className="animate-spin" /> : 'Aplicar'}
                       </button>
                     </div>
-                    {deliveryMethod === 'retiro' && storeSettings?.workshopAddress && (
-                      <div className="mt-3 p-3 bg-stone-50 border border-stone-200 rounded-lg animate-in fade-in slide-in-from-top-1 duration-300">
-                        <p className="text-xs text-stone-500 font-medium uppercase mb-1">Dirección de retiro:</p>
-                        <p className="text-sm text-stone-800">{storeSettings.workshopAddress}</p>
+                    {appliedCoupon && (
+                      <div className="mt-3 flex items-center justify-between p-3 bg-emerald-50/50 border border-emerald-100 rounded-xl">
+                        <div className="flex items-center gap-2 text-emerald-700 text-xs font-medium">
+                          <CheckCircle size={14} />
+                          <span>Cupón aplicado: {appliedCoupon.code}</span>
+                        </div>
+                        <button 
+                          onClick={() => setAppliedCoupon(null)}
+                          className="text-emerald-700 hover:text-rose-500 transition-colors"
+                        >
+                          <X size={14} />
+                        </button>
                       </div>
                     )}
                   </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-stone-700 mb-3">Forma de Pago preferida *</label>
-                    <div className="grid grid-cols-1 gap-3">
-                      <button
-                        onClick={() => setPaymentMethod('transferencia')}
-                        className={`p-4 rounded-xl border-2 flex items-center gap-4 transition-all ${
-                          paymentMethod === 'transferencia' 
-                            ? 'border-indigo-600 bg-indigo-50 text-indigo-700' 
-                            : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300'
-                        }`}
-                      >
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${paymentMethod === 'transferencia' ? 'bg-indigo-600 text-white' : 'bg-stone-100 text-stone-400'}`}>
-                          <ArrowRightLeft size={20} />
-                        </div>
-                        <div className="text-left">
-                          <p className="text-sm font-bold">Transferencia o Depósito</p>
-                          <p className="text-xs opacity-80">
-                            Pago mediante transferencia bancaria
-                          </p>
-                        </div>
-                      </button>
-
-                      <button
-                        onClick={() => setPaymentMethod('efectivo')}
-                        className={`p-4 rounded-xl border-2 flex items-center gap-4 transition-all ${
-                          paymentMethod === 'efectivo' 
-                            ? 'border-indigo-600 bg-indigo-50 text-indigo-700' 
-                            : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300'
-                        }`}
-                      >
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${paymentMethod === 'efectivo' ? 'bg-indigo-600 text-white' : 'bg-stone-100 text-stone-400'}`}>
-                          <ShoppingCart size={20} />
-                        </div>
-                        <div className="text-left">
-                          <p className="text-sm font-bold">Efectivo</p>
-                          <p className="text-xs opacity-80">
-                            {storeSettings?.cashDiscountPercentage 
-                              ? `Obtén un ${storeSettings.cashDiscountPercentage}% OFF pagando en billete físico` 
-                              : 'Pago al momento de la entrega/retiro'}
-                          </p>
-                        </div>
-                      </button>
-
-                      <button
-                        onClick={() => setPaymentMethod('acordar')}
-                        className={`p-4 rounded-xl border-2 flex items-center gap-4 transition-all ${
-                          paymentMethod === 'acordar' 
-                            ? 'border-indigo-600 bg-indigo-50 text-indigo-700' 
-                            : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300'
-                        }`}
-                      >
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${paymentMethod === 'acordar' ? 'bg-indigo-600 text-white' : 'bg-stone-100 text-stone-400'}`}>
-                          <Phone size={20} />
-                        </div>
-                        <div className="text-left">
-                          <p className="text-sm font-bold">Acordar con el vendedor</p>
-                          <p className="text-xs opacity-80">Nos comunicaremos para coordinar</p>
-                        </div>
-                      </button>
-                    </div>
-                  </div>
-
-                  {deliveryMethod === 'envio' && (
-                    <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                      <label className="block text-sm font-medium text-stone-700 mb-1">Email *</label>
-                      <input
-                        type="email"
-                        value={customerDetails.email}
-                        onChange={(e) => setCustomerDetails(prev => ({ ...prev, email: e.target.value }))}
-                        className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
-                        placeholder="Ej. juan@email.com"
-                      />
-                    </div>
-                  )}
-
-                  {/* Banner de Registro */}
-                  <div className="mt-8 border-t border-stone-100 pt-6">
-                    <div className={`p-5 rounded-2xl border-2 transition-all duration-300 ${
-                      isRegistering 
-                        ? 'border-indigo-200 bg-indigo-50/30' 
-                        : 'border-amber-100 bg-amber-50/50 hover:border-amber-200'
-                    }`}>
-                      <div className="flex items-start gap-4">
-                        <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center shrink-0 text-amber-500">
-                          <Gift size={24} />
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="text-stone-900 font-bold text-lg leading-tight">
-                            ¡Regístrate y obtén un descuento especial!
-                          </h4>
-                          <p className="text-stone-600 text-sm mt-1">
-                            Únete a nuestra comunidad y recibe un cupón exclusivo para tu próxima compra.
-                          </p>
-                          
-                          <button
-                            onClick={() => setIsRegistering(!isRegistering)}
-                            className="mt-4 flex items-center gap-2 text-indigo-600 font-bold text-sm hover:text-indigo-700 transition-colors"
-                          >
-                            <div className={`w-10 h-5 rounded-full relative transition-colors duration-200 ${isRegistering ? 'bg-indigo-600' : 'bg-stone-300'}`}>
-                              <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all duration-200 ${isRegistering ? 'left-6' : 'left-1'}`} />
-                            </div>
-                            {isRegistering ? 'Sí, quiero registrarme' : 'Quiero registrarme'}
-                          </button>
-                        </div>
-                      </div>
-
-                      {isRegistering && (
-                        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-4 duration-500">
-                          <div className="sm:col-span-1">
-                            <label className="block text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-1">Nombre *</label>
-                            <input
-                              type="text"
-                              value={registrationData.firstName}
-                              onChange={(e) => setRegistrationData(prev => ({ ...prev, firstName: e.target.value }))}
-                              className="w-full px-4 py-2.5 bg-white border border-stone-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-sm"
-                              placeholder="Tu nombre"
-                            />
-                          </div>
-                          <div className="sm:col-span-1">
-                            <label className="block text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-1">Apellido *</label>
-                            <input
-                              type="text"
-                              value={registrationData.lastName}
-                              onChange={(e) => setRegistrationData(prev => ({ ...prev, lastName: e.target.value }))}
-                              className="w-full px-4 py-2.5 bg-white border border-stone-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-sm"
-                              placeholder="Tu apellido"
-                            />
-                          </div>
-                          <div className="sm:col-span-1">
-                            <label className="block text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-1">Teléfono *</label>
-                            <input
-                              type="tel"
-                              value={registrationData.phone}
-                              onChange={(e) => setRegistrationData(prev => ({ ...prev, phone: e.target.value }))}
-                              className="w-full px-4 py-2.5 bg-white border border-stone-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-sm"
-                              placeholder="Ej. +54 9 11 ..."
-                            />
-                          </div>
-                          <div className="sm:col-span-1">
-                            <label className="block text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-1">Email *</label>
-                            <input
-                              type="email"
-                              value={registrationData.email}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setRegistrationData(prev => ({ ...prev, email: val }));
-                                if (deliveryMethod === 'envio') {
-                                  setCustomerDetails(prev => ({ ...prev, email: val }));
-                                }
-                              }}
-                              className="w-full px-4 py-2.5 bg-white border border-stone-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-sm"
-                              placeholder="tu@email.com"
-                            />
-                          </div>
-                          <div className="sm:col-span-2">
-                            <label className="block text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-1">Fecha de Nacimiento *</label>
-                            <input
-                              type="date"
-                              value={registrationData.birthDate}
-                              onChange={(e) => setRegistrationData(prev => ({ ...prev, birthDate: e.target.value }))}
-                              className="w-full px-4 py-2.5 bg-white border border-stone-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-sm"
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {checkoutError && (
-                    <div className="p-3 bg-rose-50 text-rose-600 rounded-lg text-sm flex items-start gap-2">
-                      <AlertTriangle size={16} className="mt-0.5 shrink-0" />
-                      <p>{checkoutError}</p>
-                    </div>
-                  )}
                 </div>
-              )}
+              )
+            )}
 
-              {checkoutStep === 'success' && (
-                <div className="h-full flex flex-col items-center justify-center text-center space-y-4">
-                  <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-2">
-                    <CheckCircle size={40} />
-                  </div>
-                  <h3 className="text-2xl font-serif font-medium text-stone-900">¡Pedido Recibido!</h3>
-                  <p className="text-stone-600 max-w-sm mb-4">
-                    Gracias por tu compra. Hemos recibido tu pedido y nos pondremos en contacto contigo pronto por WhatsApp.
-                  </p>
-
-                  {generatedCoupon && (
-                    <div className="bg-stone-900 text-white p-6 rounded-2xl shadow-xl shadow-stone-900/20 w-full max-w-sm animate-in zoom-in-95 duration-500">
-                      <div className="flex justify-center mb-2 text-amber-400">
-                        <Gift size={28} />
-                      </div>
-                      <p className="text-[10px] uppercase tracking-widest font-bold opacity-80 mb-1">Tu regalo de bienvenida</p>
-                      <p className="text-sm mb-4">Guarda este código para tu próxima compra:</p>
-                      
-                      <div className="bg-white/10 border border-white/20 p-4 rounded-xl flex items-center justify-between mb-4">
-                        <span className="font-mono text-2xl font-bold tracking-widest text-amber-400">{generatedCoupon.code}</span>
-                        <button 
-                          onClick={() => {
-                            navigator.clipboard.writeText(generatedCoupon.code);
-                            alert('¡Código copiado!');
-                          }}
-                          className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
-                          title="Copiar código"
-                        >
-                          <Copy size={18} />
-                        </button>
-                      </div>
-                      
-                      <p className="text-[10px] text-stone-400 uppercase tracking-widest flex items-center justify-center gap-1">
-                        <Timer size={12} />
-                        Válido hasta: {generatedCoupon.expiry}
-                      </p>
-                    </div>
-                  )}
-
-                  <button
-                    onClick={() => {
-                      setIsCartOpen(false);
-                      setCheckoutStep('cart');
-                      setGeneratedCoupon(null);
-                    }}
-                    className="mt-8 px-6 py-3 bg-stone-100 text-stone-900 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-stone-200 transition-colors"
-                  >
-                    Volver al catálogo
-                  </button>
+            {checkoutStep === 'details' && (
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-[10px] uppercase tracking-[0.2em] font-bold text-stone-500 mb-2">Nombre de contacto *</label>
+                  <input
+                    type="text"
+                    value={customerDetails.name}
+                    onChange={(e) => setCustomerDetails(prev => ({ ...prev, name: e.target.value }))}
+                    className="w-full px-4 py-3 bg-white border border-stone-200 rounded-xl focus:ring-2 focus:ring-stone-900 focus:border-stone-900 transition-all text-sm"
+                    placeholder="Ej. Juan Pérez"
+                  />
                 </div>
-              )}
-            </div>
 
-            {cart.length > 0 && checkoutStep !== 'success' && (
-              <div className="p-6 border-t border-stone-100 bg-stone-50 shrink-0">
-                <div className="space-y-2 mb-6">
-                  <div className="flex items-center justify-between text-stone-600">
-                    <span>Subtotal</span>
-                    <span>{formatCurrency(cartTotal)}</span>
+                {!currentUser && (
+                  <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                    <label className="block text-[10px] uppercase tracking-[0.2em] font-bold text-stone-500 mb-2">Teléfono / WhatsApp *</label>
+                    <input
+                      type="tel"
+                      value={customerDetails.phone}
+                      onChange={(e) => setCustomerDetails(prev => ({ ...prev, phone: e.target.value }))}
+                      className="w-full px-4 py-3 bg-white border border-stone-200 rounded-xl focus:ring-2 focus:ring-stone-900 focus:border-stone-900 transition-all text-sm"
+                      placeholder="Ej. +54 9 11 1234 5678"
+                    />
                   </div>
-                  {appliedCoupon && (
-                    <div className="flex items-center justify-between text-emerald-600 font-medium">
-                      <div className="flex items-center gap-1">
-                        <Tag size={14} />
-                        <span>Descuento Cupón ({appliedCoupon.code})</span>
-                      </div>
-                      <span>-{formatCurrency(cartTotal - finalTotal)}</span>
-                    </div>
-                  )}
-                  <div className="flex items-center justify-between pt-2 border-t border-stone-200">
-                    <span className="text-stone-900 font-bold">Total</span>
-                    <span className="text-2xl font-bold text-stone-900">
-                      {formatCurrency(finalTotal)}
-                    </span>
-                  </div>
-                </div>
-                
-                {checkoutStep === 'cart' && (
-                  <button
-                    disabled={hasExceededStock}
-                    onClick={() => setCheckoutStep('details')}
-                    className="w-full py-4 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {hasExceededStock ? 'Modifica las cantidades' : 'Continuar para Enviar'}
-                    {!hasExceededStock && <ChevronRight size={18} />}
-                  </button>
                 )}
 
-                {checkoutStep === 'details' && (
-                  <div className="flex gap-3">
+                <div>
+                  <label className="block text-[10px] uppercase tracking-[0.2em] font-bold text-stone-500 mb-3">Método de Entrega *</label>
+                  <div className="grid grid-cols-2 gap-3">
                     <button
-                      onClick={() => setCheckoutStep('cart')}
-                      className="px-4 py-4 bg-white text-stone-600 border border-stone-200 rounded-xl font-medium hover:bg-stone-50 transition-colors"
+                      onClick={() => setDeliveryMethod('retiro')}
+                      className={`p-4 rounded-xl border-2 flex flex-col items-center justify-center gap-2 transition-all ${
+                        deliveryMethod === 'retiro' 
+                          ? 'border-stone-900 bg-stone-50 text-stone-900' 
+                          : 'border-stone-200 bg-white text-stone-500 hover:border-stone-300'
+                      }`}
                     >
-                      Volver
+                      <ShoppingBag size={20} />
+                      <span className="text-xs font-bold uppercase tracking-wider text-center">Retiro por taller</span>
                     </button>
                     <button
-                      onClick={submitOrder}
-                      disabled={isSubmitting}
-                      className="flex-1 py-4 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                      onClick={() => setDeliveryMethod('envio')}
+                      className={`p-4 rounded-xl border-2 flex flex-col items-center justify-center gap-2 transition-all ${
+                        deliveryMethod === 'envio' 
+                          ? 'border-stone-900 bg-stone-50 text-stone-900' 
+                          : 'border-stone-200 bg-white text-stone-500 hover:border-stone-300'
+                      }`}
                     >
-                      {isSubmitting ? (
-                        <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <>
-                          Enviar Pedido por WhatsApp
-                          <ShoppingBag size={18} />
-                        </>
-                      )}
+                      <Package size={20} />
+                      <span className="text-xs font-bold uppercase tracking-wider text-center">Envío</span>
                     </button>
+                  </div>
+                  {deliveryMethod === 'retiro' && storeSettings?.workshopAddress && (
+                    <div className="mt-3 p-4 bg-white border border-stone-200 rounded-xl animate-in fade-in slide-in-from-top-1 duration-300">
+                      <p className="text-[10px] text-stone-400 font-bold uppercase tracking-widest mb-1">Dirección de retiro:</p>
+                      <p className="text-sm text-stone-900 font-medium">{storeSettings.workshopAddress}</p>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-[10px] uppercase tracking-[0.2em] font-bold text-stone-500 mb-3">Forma de Pago *</label>
+                  <div className="grid grid-cols-1 gap-3">
+                    <button
+                      onClick={() => setPaymentMethod('transferencia')}
+                      className={`p-4 rounded-xl border-2 flex items-center gap-4 transition-all ${
+                        paymentMethod === 'transferencia' 
+                          ? 'border-stone-900 bg-stone-50 text-stone-900' 
+                          : 'border-stone-200 bg-white text-stone-500 hover:border-stone-300'
+                      }`}
+                    >
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${paymentMethod === 'transferencia' ? 'bg-stone-900 text-white' : 'bg-stone-100 text-stone-400'}`}>
+                        <ArrowRightLeft size={16} />
+                      </div>
+                      <div className="text-left">
+                        <p className="text-xs font-bold uppercase tracking-wider">Transferencia</p>
+                        <p className="text-[10px] text-stone-500 tracking-wide mt-0.5">Pago bancario</p>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => setPaymentMethod('efectivo')}
+                      className={`p-4 rounded-xl border-2 flex items-center gap-4 transition-all ${
+                        paymentMethod === 'efectivo' 
+                          ? 'border-stone-900 bg-stone-50 text-stone-900' 
+                          : 'border-stone-200 bg-white text-stone-500 hover:border-stone-300'
+                      }`}
+                    >
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${paymentMethod === 'efectivo' ? 'bg-stone-900 text-white' : 'bg-stone-100 text-stone-400'}`}>
+                        <ShoppingCart size={16} />
+                      </div>
+                      <div className="text-left">
+                        <p className="text-xs font-bold uppercase tracking-wider">Efectivo</p>
+                        <p className="text-[10px] text-stone-500 tracking-wide mt-0.5">
+                          {storeSettings?.cashDiscountPercentage 
+                            ? `${storeSettings.cashDiscountPercentage}% OFF pagando físico` 
+                            : 'Al entregar/retirar'}
+                        </p>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => setPaymentMethod('acordar')}
+                      className={`p-4 rounded-xl border-2 flex items-center gap-4 transition-all ${
+                        paymentMethod === 'acordar' 
+                          ? 'border-stone-900 bg-stone-50 text-stone-900' 
+                          : 'border-stone-200 bg-white text-stone-500 hover:border-stone-300'
+                      }`}
+                    >
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${paymentMethod === 'acordar' ? 'bg-stone-900 text-white' : 'bg-stone-100 text-stone-400'}`}>
+                        <Phone size={16} />
+                      </div>
+                      <div className="text-left">
+                        <p className="text-xs font-bold uppercase tracking-wider">Acordar</p>
+                        <p className="text-[10px] text-stone-500 tracking-wide mt-0.5">Coordinar por WhatsApp</p>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                {deliveryMethod === 'envio' && (
+                  <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                    <label className="block text-[10px] uppercase tracking-[0.2em] font-bold text-stone-500 mb-2">Email *</label>
+                    <input
+                      type="email"
+                      value={customerDetails.email}
+                      onChange={(e) => setCustomerDetails(prev => ({ ...prev, email: e.target.value }))}
+                      className="w-full px-4 py-3 bg-white border border-stone-200 rounded-xl focus:ring-2 focus:ring-stone-900 focus:border-stone-900 transition-all text-sm"
+                      placeholder="Ej. juan@email.com"
+                    />
+                  </div>
+                )}
+
+                {/* Banner de Registro */}
+                <div className="mt-8 border-t border-stone-200/50 pt-6">
+                  <div className={`p-5 rounded-2xl border-2 transition-all duration-300 ${
+                    isRegistering 
+                      ? 'border-stone-200 bg-white' 
+                      : 'border-amber-100 bg-amber-50/50 hover:border-amber-200'
+                  }`}>
+                    <div className="flex items-start gap-4">
+                      <div className="w-10 h-10 bg-white rounded-full shadow-sm flex items-center justify-center shrink-0 text-amber-500 border border-stone-100">
+                        <Gift size={18} />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-stone-900 font-serif text-lg leading-tight">
+                          Regístrate y obtén un descuento
+                        </h4>
+                        <p className="text-stone-500 text-xs mt-1">
+                          Únete a nuestra comunidad y recibe un cupón exclusivo.
+                        </p>
+                        
+                        <button
+                          onClick={() => setIsRegistering(!isRegistering)}
+                          className="mt-4 flex items-center gap-2 text-stone-900 font-bold text-xs uppercase tracking-wider hover:text-stone-600 transition-colors"
+                        >
+                          <div className={`w-8 h-4 rounded-full relative transition-colors duration-200 ${isRegistering ? 'bg-stone-900' : 'bg-stone-300'}`}>
+                            <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all duration-200 ${isRegistering ? 'left-4' : 'left-1'}`} />
+                          </div>
+                          {isRegistering ? 'Sí, quiero registrarme' : 'Quiero registrarme'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {isRegistering && (
+                      <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-4 duration-500">
+                        <div className="sm:col-span-1">
+                          <label className="block text-[9px] font-bold text-stone-400 uppercase tracking-widest mb-1">Nombre *</label>
+                          <input
+                            type="text"
+                            value={registrationData.firstName}
+                            onChange={(e) => setRegistrationData(prev => ({ ...prev, firstName: e.target.value }))}
+                            className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:ring-1 focus:ring-stone-900 focus:border-stone-900 transition-all text-sm"
+                            placeholder="Tu nombre"
+                          />
+                        </div>
+                        <div className="sm:col-span-1">
+                          <label className="block text-[9px] font-bold text-stone-400 uppercase tracking-widest mb-1">Apellido *</label>
+                          <input
+                            type="text"
+                            value={registrationData.lastName}
+                            onChange={(e) => setRegistrationData(prev => ({ ...prev, lastName: e.target.value }))}
+                            className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:ring-1 focus:ring-stone-900 focus:border-stone-900 transition-all text-sm"
+                            placeholder="Tu apellido"
+                          />
+                        </div>
+                        <div className="sm:col-span-1">
+                          <label className="block text-[9px] font-bold text-stone-400 uppercase tracking-widest mb-1">Teléfono *</label>
+                          <input
+                            type="tel"
+                            value={registrationData.phone}
+                            onChange={(e) => setRegistrationData(prev => ({ ...prev, phone: e.target.value }))}
+                            className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:ring-1 focus:ring-stone-900 focus:border-stone-900 transition-all text-sm"
+                            placeholder="Ej. +54 9 11 ..."
+                          />
+                        </div>
+                        <div className="sm:col-span-1">
+                          <label className="block text-[9px] font-bold text-stone-400 uppercase tracking-widest mb-1">Email *</label>
+                          <input
+                            type="email"
+                            value={registrationData.email}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setRegistrationData(prev => ({ ...prev, email: val }));
+                              if (deliveryMethod === 'envio') {
+                                setCustomerDetails(prev => ({ ...prev, email: val }));
+                              }
+                            }}
+                            className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:ring-1 focus:ring-stone-900 focus:border-stone-900 transition-all text-sm"
+                            placeholder="tu@email.com"
+                          />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <label className="block text-[9px] font-bold text-stone-400 uppercase tracking-widest mb-1">Fecha de Nacimiento *</label>
+                          <input
+                            type="date"
+                            value={registrationData.birthDate}
+                            onChange={(e) => setRegistrationData(prev => ({ ...prev, birthDate: e.target.value }))}
+                            className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:ring-1 focus:ring-stone-900 focus:border-stone-900 transition-all text-sm"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {checkoutError && (
+                  <div className="p-4 bg-rose-50 text-rose-700 rounded-xl text-sm flex items-start gap-3 border border-rose-100">
+                    <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+                    <p className="font-medium">{checkoutError}</p>
                   </div>
                 )}
               </div>
             )}
+
+            {checkoutStep === 'success' && (
+              <div className="h-full flex flex-col items-center justify-center text-center space-y-4">
+                <div className="w-20 h-20 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mb-4 border border-emerald-100">
+                  <CheckCircle size={32} />
+                </div>
+                <h3 className="text-3xl font-serif text-stone-900">¡Pedido Recibido!</h3>
+                <p className="text-stone-500 max-w-sm mb-6 text-sm">
+                  Gracias por tu compra. Hemos recibido tu pedido y nos pondremos en contacto contigo pronto por WhatsApp.
+                </p>
+
+                {generatedCoupon && (
+                  <div className="bg-stone-950 text-stone-50 p-6 rounded-2xl shadow-xl w-full max-w-sm animate-in zoom-in-95 duration-500">
+                    <div className="flex justify-center mb-4 text-amber-400">
+                      <Gift size={24} />
+                    </div>
+                    <p className="text-[10px] uppercase tracking-[0.2em] font-bold opacity-80 mb-2">Tu regalo de bienvenida</p>
+                    <p className="text-xs mb-6 text-stone-400">Guarda este código para tu próxima compra:</p>
+                    
+                    <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between mb-4">
+                      <span className="font-mono text-xl font-bold tracking-widest text-amber-400">{generatedCoupon.code}</span>
+                      <button 
+                        onClick={() => {
+                          navigator.clipboard.writeText(generatedCoupon.code);
+                          alert('¡Código copiado!');
+                        }}
+                        className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors text-white"
+                        title="Copiar código"
+                      >
+                        <Copy size={16} />
+                      </button>
+                    </div>
+                    
+                    <p className="text-[10px] text-stone-500 uppercase tracking-widest flex items-center justify-center gap-1.5 font-bold">
+                      <Timer size={12} />
+                      Válido hasta: {generatedCoupon.expiry}
+                    </p>
+                  </div>
+                )}
+
+                <button
+                  onClick={() => {
+                    setIsCartOpen(false);
+                    setCheckoutStep('cart');
+                    setGeneratedCoupon(null);
+                  }}
+                  className="mt-8 px-8 py-4 bg-stone-100 text-stone-900 rounded-full font-bold text-[10px] uppercase tracking-[0.2em] hover:bg-stone-200 transition-colors"
+                >
+                  Volver a la tienda
+                </button>
+              </div>
+            )}
           </div>
+
+          {/* Footer del Carrito (Subtotales y Checkout) */}
+          {cart.length > 0 && checkoutStep !== 'success' && (
+            <div className="border-t border-stone-200/50 bg-white p-6 sm:p-8 shrink-0">
+              <div className="flex justify-between items-end mb-6">
+                <div className="flex flex-col gap-1">
+                  <span className="text-[10px] uppercase tracking-[0.2em] font-bold text-stone-500">Subtotal {appliedCoupon && '(con desc.)'}</span>
+                </div>
+                <span className="text-2xl font-serif text-stone-900">{formatCurrency(finalTotal)}</span>
+              </div>
+              
+              {checkoutStep === 'cart' && (
+                <button 
+                  onClick={() => setCheckoutStep('details')}
+                  disabled={hasExceededStock}
+                  className="w-full bg-stone-900 text-white py-4 text-[10px] sm:text-xs font-bold uppercase tracking-[0.2em] hover:bg-stone-800 transition-colors shadow-xl disabled:opacity-50 flex items-center justify-center gap-2 group"
+                >
+                  {hasExceededStock ? 'Modifica las cantidades' : 'Iniciar Compra'}
+                  {!hasExceededStock && <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />}
+                </button>
+              )}
+
+              {checkoutStep === 'details' && (
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setCheckoutStep('cart')}
+                    className="px-6 py-4 bg-white text-stone-500 border border-stone-200 rounded-none font-bold text-[10px] sm:text-xs uppercase tracking-[0.2em] hover:bg-stone-50 hover:text-stone-900 transition-colors"
+                  >
+                    Volver
+                  </button>
+                  <button
+                    onClick={submitOrder}
+                    disabled={isSubmitting}
+                    className="flex-1 bg-stone-900 text-white py-4 text-[10px] sm:text-xs font-bold uppercase tracking-[0.2em] hover:bg-stone-800 transition-colors shadow-xl disabled:opacity-50 flex items-center justify-center gap-2 group"
+                  >
+                    {isSubmitting ? (
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        Enviar Pedido
+                        <ShoppingBag size={14} className="group-hover:translate-x-1 transition-transform" />
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+              
+              {checkoutStep === 'cart' && (
+                <p className="text-center mt-4 text-[9px] text-stone-400 tracking-widest uppercase">Pagos seguros e información en el siguiente paso</p>
+              )}
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
       {storeSettings?.whatsappNumber && (
         <a
