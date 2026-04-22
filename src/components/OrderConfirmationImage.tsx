@@ -174,93 +174,93 @@ export default function OrderConfirmationImage({ sale, storeSettings, customerPh
         <div ref={wrapperRef}>
           <div 
             ref={containerRef} 
-            className="w-[800px] min-h-[1422px] bg-[#faf9f8] text-stone-900 p-12 font-sans flex flex-col justify-between"
+            className="bg-[#faf9f8] text-stone-900 p-16 w-[800px] mx-auto flex flex-col justify-between min-h-[1422px]"
             style={{ fontFamily: "'Inter', sans-serif" }}
           >
             <div>
-              {/* PASO 2: Cabecera y Logo */}
-              <div className="flex flex-col items-center justify-center mb-8">
-                <h1 className="text-4xl font-serif font-bold text-stone-900 leading-none tracking-tight">JANLU</h1>
-                <p className="text-[10px] uppercase tracking-[0.4em] text-stone-500 mt-2">Aromas & Diseño</p>
+              {/* PASO 2: Cabecera y Logo Escalado */}
+              <div className="flex flex-col items-center justify-center mb-12">
+                <h1 className="text-[5.5rem] font-serif font-bold text-stone-900 leading-none tracking-tight">JANLU</h1>
+                <p className="text-lg uppercase tracking-[0.4em] text-stone-500 mt-4">Aromas & Diseño</p>
               </div>
 
               {/* PASO 3: Línea Divisoria Minimalista */}
-              <div className="w-full h-px bg-stone-200/60 my-6"></div>
+              <div className="w-full h-px bg-stone-200/60 my-10"></div>
 
-              {/* Body: Mensaje de confirmación */}
-              <div className="mb-10 text-center">
-                <p className="text-2xl font-serif text-stone-900 mb-2">¡Gracias por tu compra, {sale.customerName.split(' ')[0]}!</p>
-                <p className="text-sm text-stone-500 max-w-xs mx-auto">Tu pedido ha sido registrado con éxito. Estamos preparando cada detalle para vos.</p>
+              {/* PASO 3: Mensaje de Agradecimiento Escalado */}
+              <div className="mb-12 text-center">
+                <p className="text-4xl font-serif text-center mb-4 text-stone-900">¡Gracias por tu compra, {sale.customerName.split(' ')[0]}!</p>
+                <p className="text-xl text-stone-600 text-center mx-auto max-w-lg">Tu pedido ha sido registrado con éxito. Estamos preparando cada detalle para vos.</p>
               </div>
 
-              <div className="w-full h-px bg-stone-200/60 my-6"></div>
+              <div className="w-full h-px bg-stone-200/60 my-10"></div>
 
-              {/* PASO 4: Tipografía de Detalles y Totales */}
-              <div className="space-y-6">
-                <h3 className="text-[10px] uppercase tracking-[0.2em] font-bold text-stone-400 mb-4">Resumen de Compra</h3>
+              {/* PASO 4: Escalar Productos y Totales */}
+              <div className="space-y-8">
+                <h3 className="text-sm uppercase tracking-[0.2em] font-bold text-stone-400 mb-6">Resumen de Compra</h3>
                 {sale.items.map((item, idx) => (
                   <div key={idx} className="flex justify-between items-start">
                     <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-stone-400">{item.quantity}x</span>
-                        <span className="text-sm font-medium text-stone-800">{item.productName}</span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xl font-bold text-stone-400">{item.quantity}x</span>
+                        <span className="text-xl font-medium text-stone-800">{item.productName}</span>
                       </div>
-                      <p className="text-[10px] text-stone-400 ml-6">{item.variantName}</p>
+                      <p className="text-base text-stone-400 ml-10">{item.variantName}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-medium text-stone-900">{formatCurrency(item.price * item.quantity)}</p>
+                      <p className="text-xl font-medium text-stone-900">{formatCurrency(item.price * item.quantity)}</p>
                     </div>
                   </div>
                 ))}
               </div>
 
-              <div className="w-full h-px bg-stone-200/60 my-8"></div>
+              <div className="w-full h-px bg-stone-200/60 my-12"></div>
 
-              {/* Totales */}
-              <div className="space-y-3">
+              {/* Totales Escalados */}
+              <div className="space-y-5">
                 {sale.discount && sale.discount > 0 && (
-                  <div className="flex justify-between text-xs text-stone-500">
+                  <div className="flex justify-between text-lg text-stone-500">
                     <span className="uppercase tracking-widest">Subtotal</span>
                     <span>{formatCurrency(sale.totalAmount / (1 - sale.discount / 100))}</span>
                   </div>
                 )}
                 
-                <div className="flex justify-between items-center py-2">
-                  <span className="text-xs uppercase tracking-[0.2em] font-bold text-stone-400">Total Final</span>
-                  <span className="text-xl font-serif text-stone-900">{formatCurrency(sale.totalAmount)}</span>
+                <div className="flex justify-between items-center py-4">
+                  <span className="text-sm uppercase tracking-[0.2em] font-bold text-stone-400">TOTAL FINAL</span>
+                  <span className="text-3xl font-bold text-stone-900">{formatCurrency(sale.totalAmount)}</span>
                 </div>
 
-                <div className="flex justify-between items-center text-xs text-stone-500">
+                <div className="flex justify-between items-center text-lg text-stone-500">
                   <span className="uppercase tracking-widest">Monto Abonado</span>
                   <span className="font-medium text-emerald-600">{formatCurrency(sale.amountPaid)}</span>
                 </div>
 
                 {sale.totalAmount > sale.amountPaid && (
-                  <div className="flex justify-between items-center pt-4 border-t border-stone-100">
-                    <span className="text-[10px] uppercase tracking-[0.2em] font-bold text-rose-500">Saldo Pendiente</span>
-                    <span className="text-lg font-bold text-rose-600">{formatCurrency(sale.totalAmount - sale.amountPaid)}</span>
+                  <div className="flex justify-between items-center pt-6 border-t border-stone-100">
+                    <span className="text-base uppercase tracking-[0.2em] font-bold text-rose-500">Saldo Pendiente</span>
+                    <span className="text-2xl font-bold text-rose-600">{formatCurrency(sale.totalAmount - sale.amountPaid)}</span>
                   </div>
                 )}
               </div>
 
               {/* Cupón si existe */}
               {sale.generatedCouponCode && (
-                <div className="mt-12 p-6 rounded-2xl bg-white border border-stone-100 text-center">
-                  <p className="text-[9px] uppercase tracking-[0.3em] text-stone-400 mb-2 font-bold">Tu regalo de bienvenida</p>
-                  <p className="text-2xl font-mono font-bold text-stone-900 mb-1">{sale.generatedCouponCode}</p>
-                  <p className="text-[10px] text-stone-500 uppercase tracking-widest">15% OFF en tu próxima compra</p>
+                <div className="mt-16 p-10 rounded-3xl bg-white border border-stone-100 text-center shadow-sm">
+                  <p className="text-xs uppercase tracking-[0.3em] text-stone-400 mb-4 font-bold">Tu regalo de bienvenida</p>
+                  <p className="text-5xl font-mono font-bold text-stone-900 mb-2">{sale.generatedCouponCode}</p>
+                  <p className="text-base text-stone-500 uppercase tracking-widest">15% OFF en tu próxima compra</p>
                 </div>
               )}
             </div>
 
-            {/* PASO 5: Mensaje de Cierre */}
-            <div className="mt-8 text-center pb-8">
-              <div className="flex justify-center gap-6 mb-6 opacity-40">
-                {storeSettings?.instagramUrl && <Instagram size={14} />}
-                {storeSettings?.facebookUrl && <Facebook size={14} />}
+            {/* PASO 5: Escalar el Pie de Página */}
+            <div className="mt-16 text-center pb-8">
+              <div className="flex justify-center gap-10 mb-10 opacity-40">
+                {storeSettings?.instagramUrl && <Instagram size={24} />}
+                {storeSettings?.facebookUrl && <Facebook size={24} />}
               </div>
-              <p className="text-[11px] italic text-stone-400">Gracias por elegir la luz de Janlu.</p>
-              <p className="text-[9px] uppercase tracking-widest text-stone-300 mt-2">Orden #{sale.orderNumber || sale.id.slice(0,6)}</p>
+              <p className="text-xl italic text-stone-500">Gracias por elegir la luz de Janlu.</p>
+              <p className="text-base uppercase tracking-[0.3em] text-stone-400 mt-4">Orden #{sale.orderNumber || sale.id.slice(0,6)}</p>
             </div>
           </div>
         </div>
