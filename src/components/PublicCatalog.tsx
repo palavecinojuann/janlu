@@ -1813,51 +1813,7 @@ export default function PublicCatalog({
           </div>
         )}
 
-        {/* Newsletter Section */}
-        <section className="bg-stone-900 text-stone-50 py-20 px-6 mt-20">
-          <div className="max-w-2xl mx-auto text-center">
-            <Mail size={24} className="mx-auto mb-6 text-stone-400" strokeWidth={1.5} />
-            <h2 className="text-3xl md:text-4xl font-serif font-bold mb-4">Únete a nuestro universo</h2>
-            <p className="text-stone-400 text-sm md:text-base leading-relaxed mb-8">
-              Déjanos tu email y sé la primera en enterarte sobre nuevos aromas, ediciones limitadas y fechas de nuestros próximos workshops.
-            </p>
-            
-            {subscribed ? (
-              <div className="bg-stone-800/50 border border-stone-700 p-6 animate-in fade-in zoom-in duration-300">
-                <p className="text-[#C5D92D] font-bold tracking-widest uppercase text-xs">
-                  ¡Gracias por unirte! Revisa tu bandeja de entrada pronto.
-                </p>
-              </div>
-            ) : (
-              <form 
-                className="flex flex-col sm:flex-row gap-2 mt-8"
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  const form = e.target as HTMLFormElement;
-                  const emailInput = form.elements.namedItem('email') as HTMLInputElement;
-                  if (emailInput && emailInput.value && onAddSubscriber) {
-                    await onAddSubscriber(emailInput.value);
-                  }
-                  setSubscribed(true);
-                }}
-              >
-                <input 
-                  type="email" 
-                  name="email"
-                  required
-                  placeholder="Tu correo electrónico" 
-                  className="flex-1 bg-stone-800 border-none text-white placeholder:text-stone-500 px-6 py-4 rounded-none focus:ring-1 focus:ring-[#C5D92D] outline-none transition-all"
-                />
-                <button 
-                  type="submit"
-                  className="bg-[#C5D92D] text-stone-900 font-bold uppercase tracking-widest px-8 py-4 hover:bg-[#b5c928] transition-colors"
-                >
-                  Suscribirme
-                </button>
-              </form>
-            )}
-          </div>
-        </section>
+
       </main>
 
       {/* FOOTER INMERSIVO (Estilo Alta Gama) */}
