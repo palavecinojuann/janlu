@@ -953,12 +953,29 @@ export default function PublicCatalog({
   const filteredProducts = useMemo(() => {
     if (!Array.isArray(products)) return [];
     const filtered = products.filter(product => {
-      const name = product.name || '';
-      const description = product.description || '';
-      const matchesSearch = name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || 
-                            description.toLowerCase().includes(debouncedSearchTerm.toLowerCase());
+      const name = (product.name || '').toLowerCase();
+      const description = (product.description || '').toLowerCase();
+      const category = (product.category || '').toLowerCase();
+      
+      // .trim() elimina espacios vacíos accidentales del teclado
+      const searchTerm = debouncedSearchTerm.toLowerCase().trim();
+
+      // 1. Buscamos en el nombre, descripción o categoría principal
+      let matchesSearch = name.includes(searchTerm) || 
+                          description.includes(searchTerm) ||
+                          category.includes(searchTerm);
+
+      // 2. ESCÁNER PROFUNDO: Si no lo encontró, buscamos dentro de los nombres de todas sus variantes
+      if (!matchesSearch && product.variants && Array.isArray(product.variants)) {
+        matchesSearch = product.variants.some(variant => 
+          (variant.name || '').toLowerCase().includes(searchTerm) ||
+          (variant.sku || '').toLowerCase().includes(searchTerm)
+        );
+      }
+
       const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory;
       const isVisible = product.showInCatalog === true || product.showInCatalog === undefined;
+      
       return matchesSearch && matchesCategory && (isAdminMode || isVisible);
     });
 
