@@ -843,6 +843,14 @@ export default function PublicCatalog({
     };
   }, [searchTerm]);
 
+  // Auto-navegación inmediata al comenzar a buscar
+  useEffect(() => {
+    if (searchTerm.trim() !== '' && activeTab !== 'productos') {
+      setActiveTab('productos');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [searchTerm]);
+
   const getSocialLink = (platform: 'instagram' | 'facebook' | 'tiktok', value?: string) => {
     if (!value) return '#';
     const cleanValue = value.trim();
@@ -853,6 +861,14 @@ export default function PublicCatalog({
     if (platform === 'facebook') return `https://www.facebook.com/${handle}`;
     if (platform === 'tiktok') return `https://www.tiktok.com/@${handle}`;
     return cleanValue;
+  };
+
+  // Navegación Inteligente: Limpia la búsqueda y filtros al cambiar de pestaña manualmente
+  const handleNavigation = (tab: 'inicio' | 'productos' | 'workshops' | 'mayorista' | 'politicas' | 'contacto') => {
+    setActiveTab(tab);
+    setSearchTerm(''); // Vaciamos la barra de búsqueda
+    setSelectedCategory('all'); // Reiniciamos las categorías
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleApplyCoupon = async () => {
@@ -1283,7 +1299,7 @@ export default function PublicCatalog({
           </div>
           <div className="flex items-center justify-between w-full mt-8 sm:mt-10">
             {/* Logo */}
-            <div className="flex-shrink-0 flex items-center cursor-pointer" onClick={() => setActiveTab('inicio')}>
+            <div className="flex-shrink-0 flex items-center cursor-pointer" onClick={() => handleNavigation('inicio')}>
               <h1 className="text-3xl font-cinzel font-bold text-white tracking-tight">JANLU</h1>
               {isAdminMode && (
                 <span className="ml-2 px-2 py-0.5 bg-stone-100 text-stone-500 text-[10px] uppercase tracking-widest rounded-full">
@@ -1304,7 +1320,7 @@ export default function PublicCatalog({
               ].map((tab) => (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
+                  onClick={() => handleNavigation(tab.id as any)}
                   className={`text-[10px] uppercase tracking-[0.2em] transition-all relative py-2 ${
                     activeTab === tab.id 
                       ? 'text-white font-bold after:absolute after:bottom-0 after:left-0 after:w-full after:h-[2px] after:bg-white' 
@@ -1380,7 +1396,7 @@ export default function PublicCatalog({
               ].map((tab) => (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
+                  onClick={() => handleNavigation(tab.id as any)}
                   className={`text-[10px] uppercase tracking-[0.2em] transition-all relative py-1 ${
                     activeTab === tab.id 
                       ? 'text-white font-bold after:absolute after:bottom-0 after:left-0 after:w-full after:h-[2px] after:bg-white' 
@@ -1395,6 +1411,28 @@ export default function PublicCatalog({
         </div>
 
       <main>
+            {/* Barra de Búsqueda Premium */}
+            <div className="px-4 sm:px-8 mb-8 mt-6">
+              <div className="relative max-w-2xl mx-auto">
+                <input
+                  type="text"
+                  placeholder="Buscar fragancias, velas, difusores..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full bg-[#faf9f8] border border-stone-200 text-stone-900 px-12 py-3 sm:py-4 rounded-full focus:outline-none focus:ring-2 focus:ring-stone-400 transition-all placeholder:text-stone-400 text-sm sm:text-base shadow-sm"
+                />
+                <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-stone-400" size={18} />
+                {searchTerm && (
+                  <button 
+                    onClick={() => setSearchTerm('')} 
+                    className="absolute right-5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-900 bg-stone-100 p-1 rounded-full transition-colors"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+            </div>
+
         {activeTab === 'inicio' && (
           <>
             {/* Hero Carousel */}
@@ -1524,27 +1562,7 @@ export default function PublicCatalog({
               </div>
             )}
 
-            {/* Barra de Búsqueda Premium */}
-            <div className="px-4 sm:px-8 mb-8 mt-6">
-              <div className="relative max-w-2xl mx-auto">
-                <input
-                  type="text"
-                  placeholder="Buscar fragancias, velas, difusores..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full bg-[#faf9f8] border border-stone-200 text-stone-900 px-12 py-3 sm:py-4 rounded-full focus:outline-none focus:ring-2 focus:ring-stone-400 transition-all placeholder:text-stone-400 text-sm sm:text-base shadow-sm"
-                />
-                <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-stone-400" size={18} />
-                {searchTerm && (
-                  <button 
-                    onClick={() => setSearchTerm('')} 
-                    className="absolute right-5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-900 bg-stone-100 p-1 rounded-full transition-colors"
-                  >
-                    <X size={14} />
-                  </button>
-                )}
-              </div>
-            </div>
+
 
             {/* Categories Sliders */}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
@@ -1971,18 +1989,18 @@ export default function PublicCatalog({
             <div className="flex flex-col items-center sm:items-start">
               <h5 className="text-white text-[10px] font-bold uppercase tracking-[0.2em] mb-6">Explorar</h5>
               <ul className="space-y-4 text-xs text-stone-400">
-                <li><button onClick={() => { setActiveTab('inicio'); window.scrollTo(0,0); }} className="hover:text-white transition-colors">Inicio</button></li>
-                <li><button onClick={() => { setActiveTab('productos'); window.scrollTo(0,0); }} className="hover:text-white transition-colors">Nuestros Productos</button></li>
-                <li><button onClick={() => { setActiveTab('workshops'); window.scrollTo(0,0); }} className="hover:text-white transition-colors">Academy & Workshops</button></li>
+                <li><button onClick={() => handleNavigation('inicio')} className="hover:text-white transition-colors">Inicio</button></li>
+                <li><button onClick={() => handleNavigation('productos')} className="hover:text-white transition-colors">Nuestros Productos</button></li>
+                <li><button onClick={() => handleNavigation('workshops')} className="hover:text-white transition-colors">Academy & Workshops</button></li>
               </ul>
             </div>
 
             <div className="flex flex-col items-center sm:items-start">
               <h5 className="text-white text-[10px] font-bold uppercase tracking-[0.2em] mb-6">Soporte</h5>
               <ul className="space-y-4 text-xs text-stone-400">
-                <li><button onClick={() => { setActiveTab('contacto'); window.scrollTo(0,0); }} className="hover:text-white transition-colors">Atención al Cliente</button></li>
-                <li><button onClick={() => { setActiveTab('politicas'); window.scrollTo(0,0); }} className="hover:text-white transition-colors">Envíos y Retiros</button></li>
-                <li><button onClick={() => { setActiveTab('politicas'); window.scrollTo(0,0); }} className="hover:text-white transition-colors">Términos y Condiciones</button></li>
+                <li><button onClick={() => handleNavigation('contacto')} className="hover:text-white transition-colors">Atención al Cliente</button></li>
+                <li><button onClick={() => handleNavigation('politicas')} className="hover:text-white transition-colors">Envíos y Retiros</button></li>
+                <li><button onClick={() => handleNavigation('politicas')} className="hover:text-white transition-colors">Términos y Condiciones</button></li>
               </ul>
             </div>
 
