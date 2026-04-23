@@ -309,6 +309,7 @@ export default function SaleList({ sales, products, customers, storeSettings, on
         setLocalSales(prev => prev.map(s => s.id === sale.id ? updatedSale : s));
         onUpdateSale(updatedSale);
         setEditingPaymentSaleId(null);
+      }
     }
   };
 
