@@ -406,6 +406,7 @@ export default function App() {
           products={products} 
           courses={courses}
           rawMaterials={rawMaterials}
+          sales={sales}
           offers={offers}
           campaigns={campaigns}
           onAddProduct={isAdmin ? addProduct : undefined}

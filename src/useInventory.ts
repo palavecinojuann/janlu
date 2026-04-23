@@ -1581,9 +1581,10 @@ export function useInventory() {
         return newOrderNumber;
       });
     } catch (error) {
-      console.warn("No se pudo obtener el correlativo, usando fallback local", error);
-      const localMax = sales.reduce((max, sale) => Math.max(max, sale.orderNumber || 0), 0);
-      nextOrderNumber = Math.max(1000, localMax + 1);
+      console.error("Falla de transacción al obtener correlativo:", error);
+      // RED DE SEGURIDAD: En lugar de adivinar el número y arriesgar un duplicado local,
+      // generamos un número de 6 dígitos de alta entropía (Serie 900.000)
+      nextOrderNumber = 900000 + Math.floor(Math.random() * 90000);
     }
 
     const newSale: Sale = {

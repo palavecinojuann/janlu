@@ -28,6 +28,7 @@ interface PublicCatalogProps {
   isAdmin?: boolean;
   courses?: Course[];
   onAddSubscriber?: (email: string) => Promise<void>;
+  sales?: Sale[];
 }
 
 const CountdownTimer = ({ expiresAt }: { expiresAt: string }) => {
@@ -184,6 +185,23 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({
       onClick={onClick}
     >
       <div className="aspect-[3/4] bg-stone-50 relative overflow-hidden mb-4">
+        {/* Etiqueta de Edición Limitada (Si pertenece a una campaña activa) */}
+        {activeCampaign && (
+          <div className="absolute top-3 left-3 z-20">
+            <span className="bg-stone-950 text-stone-100 text-[7px] sm:text-[8px] font-medium uppercase tracking-[0.3em] px-3 py-1.5 shadow-sm">
+              Edición Limitada
+            </span>
+          </div>
+        )}
+
+        {/* Overlay Elegante de Agotado */}
+        {isOutOfStock && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-stone-100/30 backdrop-blur-[2px] transition-all duration-300">
+            <span className="bg-white/95 text-stone-900 text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.4em] px-6 py-2.5 shadow-sm border border-stone-200/50">
+              Agotado
+            </span>
+          </div>
+        )}
         <button 
           onClick={onToggleFavorite}
           className="absolute top-3 right-3 z-20 p-2 rounded-full bg-white/60 backdrop-blur-md hover:bg-white transition-all duration-300 shadow-sm"
@@ -220,13 +238,7 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({
             Oculto
           </div>
         )}
-        {isOutOfStock && (
-          <div className="absolute inset-0 bg-white/50 flex items-center justify-center backdrop-blur-[2px]">
-            <span className="text-stone-900 text-xs font-bold px-4 py-2 uppercase tracking-widest border border-stone-900 bg-white/80">
-              Agotado
-            </span>
-          </div>
-        )}
+
         {isAdminMode && (
           <div className="absolute top-3 left-3 flex gap-2">
             <button 
@@ -679,7 +691,8 @@ export default function PublicCatalog({
   currentUser,
   isAdmin = false,
   courses = [],
-  onAddSubscriber
+  onAddSubscriber,
+  sales = []
 }: PublicCatalogProps) {
   const [activeTab, setActiveTab] = useState<'inicio' | 'productos' | 'workshops' | 'mayorista' | 'politicas' | 'contacto'>('inicio');
   const [searchTerm, setSearchTerm] = useState('');
@@ -692,6 +705,23 @@ export default function PublicCatalog({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
   const productsGridRef = useRef<HTMLDivElement>(null);
+
+  const popularProducts = useMemo(() => {
+    if (!sales || sales.length === 0) return products.slice(0, 5); // Fallback si no hay ventas
+    
+    const salesCount: Record<string, number> = {};
+    sales.forEach(sale => {
+      if (sale.status !== 'cancelado') {
+        sale.items.forEach(item => {
+          salesCount[item.productId] = (salesCount[item.productId] || 0) + item.quantity;
+        });
+      }
+    });
+
+    return [...products]
+      .sort((a, b) => (salesCount[b.id] || 0) - (salesCount[a.id] || 0))
+      .slice(0, 5); // Tomamos el Top 5
+  }, [products, sales]);
 
   const scrollToProducts = useCallback(() => {
     setActiveTab('productos');
@@ -1411,27 +1441,7 @@ export default function PublicCatalog({
         </div>
 
       <main>
-            {/* Barra de Búsqueda Premium */}
-            <div className="px-4 sm:px-8 mb-8 mt-6">
-              <div className="relative max-w-2xl mx-auto">
-                <input
-                  type="text"
-                  placeholder="Buscar fragancias, velas, difusores..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full bg-[#faf9f8] border border-stone-200 text-stone-900 px-12 py-3 sm:py-4 rounded-full focus:outline-none focus:ring-2 focus:ring-stone-400 transition-all placeholder:text-stone-400 text-sm sm:text-base shadow-sm"
-                />
-                <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-stone-400" size={18} />
-                {searchTerm && (
-                  <button 
-                    onClick={() => setSearchTerm('')} 
-                    className="absolute right-5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-900 bg-stone-100 p-1 rounded-full transition-colors"
-                  >
-                    <X size={14} />
-                  </button>
-                )}
-              </div>
-            </div>
+
 
         {activeTab === 'inicio' && (
           <>
@@ -1497,6 +1507,55 @@ export default function PublicCatalog({
                 </div>
               </div>
             )}
+
+        {/* Buscador Minimalista (Reubicado debajo del Carrusel) */}
+        <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 mt-10 mb-8 z-20 relative">
+          <div className="relative group flex items-center">
+            <input
+              type="text"
+              placeholder="Buscar fragancias, velas, talleres..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-12 pr-4 py-3 bg-transparent border-b border-stone-300 focus:border-stone-900 focus:outline-none transition-colors text-stone-800 text-sm sm:text-base font-serif placeholder:text-stone-400 placeholder:font-sans placeholder:tracking-wide"
+            />
+            <Search 
+              className="absolute left-2 text-stone-400 group-focus-within:text-stone-900 transition-colors" 
+              size={20} 
+              strokeWidth={1.5}
+            />
+            {searchTerm && (
+              <button 
+                onClick={() => setSearchTerm('')}
+                className="absolute right-2 p-2 text-stone-400 hover:text-stone-600 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Carrusel Matemático de Productos Más Populares */}
+        <div className="mt-16 mb-8 w-full max-w-7xl mx-auto">
+          <ProductSlider 
+            title="Los Favoritos de Janlu"
+            products={popularProducts}
+            isAdminMode={isAdminMode}
+            onEdit={setEditingProduct}
+            onDelete={onDeleteProduct ? (id) => setConfirmAction({ type: 'product', id }) : undefined}
+            onUpdateCart={handleUpdateCart}
+            activeOffers={activeOffers}
+            activeCampaign={activeCampaign}
+            formatCurrency={formatCurrency}
+            getEffectivePrice={getEffectivePrice}
+            formatStock={formatStock}
+            cart={cart}
+            rawMaterials={rawMaterials}
+            storeSettings={storeSettings}
+            onProductClick={(p) => { setSelectedProduct(p); setIsModalOpen(true); }}
+            favorites={favorites}
+            onToggleFavorite={toggleFavorite}
+          />
+        </div>
 
             {/* Offers Section */}
             {activeOffers.length > 0 && (
