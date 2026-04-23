@@ -116,7 +116,6 @@ export default function InventoryView({
           />
         )}
       </div>
-      </div>
 
       {/* 🖨️ Plantilla de Impresión de Etiqueta (Solo visible al imprimir) */}
       {printingVariant && (
