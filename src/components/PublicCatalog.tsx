@@ -1292,9 +1292,9 @@ export default function PublicCatalog({
   {/* ✨ CLASES AGREGADAS PARA EVITAR SCROLL HORIZONTAL */}
   return (
     <div className="min-h-screen bg-[#faf9f8] text-stone-900 font-sans selection:bg-stone-200 overflow-x-hidden w-full max-w-[100vw]">
-      {/* Top Bar */}
-      <div className="bg-stone-950 text-stone-100 text-[10px] sm:text-xs font-medium uppercase tracking-widest text-center py-2 px-4">
-        {storeSettings?.topBarText || "20% OFF CON TRANSFERENCIA | ENVÍO GRATIS EN COMPRAS SUPERIORES A $50.000"}
+      {/*  Top Bar */} 
+      <div className="bg-stone-950 text-stone-100 text-[10px] sm:text-xs font-medium uppercase tracking-widest text-center py-2 px-4 min-h-[32px] sm:min-h-[36px] flex items-center justify-center transition-opacity duration-500"> 
+        {storeSettings?.topBarText || ""} 
       </div>
 
       {/* Header */}
