@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Sale, Product, Customer, SaleStatus, StoreSettings } from '../types';
-import { ShoppingCart, Plus, Printer, Eye, X, FileText, Link as LinkIcon, MessageCircle, AlertTriangle, CheckCircle, Search, Upload, Loader2, CreditCard, Calendar, Clock, DollarSign } from 'lucide-react';
+import { ShoppingCart, Plus, Printer, Eye, X, FileText, Link as LinkIcon, MessageCircle, AlertTriangle, CheckCircle, Search, Upload, Loader2, CreditCard, Calendar, Clock, DollarSign, Package } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import Barcode from 'react-barcode';
 import OrderConfirmationImage from './OrderConfirmationImage';

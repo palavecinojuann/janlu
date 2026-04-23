@@ -503,7 +503,7 @@ export default function JanluDashboard({
               </div>
             </div>
             <div className="h-72 w-full min-h-[288px]">
-              <ResponsiveContainer width="100%" height="100%" minWidth={300} minHeight={288}>
+              <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                 <LineChart data={dailyRevenue}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f5f5f4" />
                   <XAxis 
@@ -662,7 +662,7 @@ export default function JanluDashboard({
             <div className="bg-white p-8 rounded-3xl shadow-sm border border-stone-100/50">
               <h3 className="text-lg font-serif font-bold text-stone-900 mb-6">Distribución</h3>
               <div className="h-48 w-full min-h-[192px]">
-                <ResponsiveContainer width="100%" height="100%" minWidth={200} minHeight={192}>
+                <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                   <PieChart>
                     <Pie
                       data={pieData}
