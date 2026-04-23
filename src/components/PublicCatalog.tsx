@@ -110,6 +110,7 @@ interface ProductCardProps {
   stockErrorId?: string | null;
   isFavorite: boolean;
   onToggleFavorite: (e: React.MouseEvent) => void;
+  onClick?: () => void;
 }
 
 const ProductCard: React.FC<ProductCardProps> = React.memo(({
@@ -1446,7 +1447,6 @@ export default function PublicCatalog({
         {activeTab === 'inicio' && (
           <>
             {/* Hero Carousel */}
-            {/* Hero Carousel */}
             {heroSlides.length > 0 && (
               <div className="relative w-full h-[65vh] sm:h-[85vh] overflow-hidden bg-stone-950">
                 {heroSlides.map((slide, index) => (
@@ -1557,16 +1557,24 @@ export default function PublicCatalog({
           />
         </div>
 
-        {/* Banner de Ofertas Premium */}
+        {/* Banner de Ofertas Alta Gama - Alto Contraste con Live Dot */}
         {activeOffers.length > 0 && (
-          <div className="w-full bg-stone-100/80 backdrop-blur-md border-b border-stone-200 py-2.5 overflow-hidden z-40 relative">
-            <div className="max-w-7xl mx-auto px-4 flex items-center justify-center gap-3">
-               <Tag className="text-stone-400" size={14} strokeWidth={1.5} />
-               <div className="flex gap-6 text-[9px] sm:text-[10px] uppercase tracking-[0.25em] font-medium text-stone-700">
+          <div className="w-full bg-stone-950 border-y border-stone-800 py-3 sm:py-3.5 shadow-md z-40 relative">
+            <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-6">
+               <div className="flex items-center gap-3">
+                 <span className="relative flex h-2 w-2">
+                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                   <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+                 </span>
+                 <Tag className="text-stone-400" size={15} />
+               </div>
+               <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-[10px] sm:text-xs uppercase tracking-[0.25em] text-stone-300">
                  {activeOffers.map(offer => (
                     <span key={offer.id} className="flex items-center gap-2">
-                      <span className="font-bold text-stone-900">{offer.title}</span>
-                      <span className="text-stone-500">— {offer.discountPercentage}% OFF</span>
+                      <span className="font-bold text-white tracking-[0.3em]">{offer.title}</span>
+                      <span className="text-rose-400 font-bold bg-rose-950/50 px-2 py-0.5 rounded-sm">
+                        {offer.discountPercentage}% OFF
+                      </span>
                     </span>
                  ))}
                </div>
@@ -1574,86 +1582,75 @@ export default function PublicCatalog({
           </div>
         )}
 
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+          {categories.map((cat, index) => {
+            const categoryProducts = products.filter(p => p.category === cat && (isAdminMode || (p.showInCatalog !== false)));
+            if (categoryProducts.length === 0) return null;
 
-
-
-            {/* Categories Sliders */}
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-              {categories.map((cat, index) => {
-                const categoryProducts = products.filter(p => p.category === cat && (isAdminMode || (p.showInCatalog !== false)));
-                if (categoryProducts.length === 0) return null;
-
-                return (
-                  <div key={cat} className="w-full">
-                    <ProductSlider
-                      title={cat}
-                      products={categoryProducts.slice(0, 8)}
-                      isAdminMode={isAdminMode}
-                      onEdit={setEditingProduct}
-                      onDelete={onDeleteProduct ? (id) => setConfirmAction({ type: 'product', id }) : undefined}
-                      onUpdateCart={handleUpdateCart}
-                      activeOffers={activeOffers}
-                      activeCampaign={activeCampaign}
-                      formatCurrency={formatCurrency}
-                      getEffectivePrice={getEffectivePrice}
-                      formatStock={formatStock}
-                      cart={cart}
-                      rawMaterials={rawMaterials}
-                      storeSettings={storeSettings}
-                      onProductClick={(p) => {
-                        setSelectedProduct(p);
-                        setIsModalOpen(true);
-                      }}
-                      favorites={favorites}
-                      onToggleFavorite={toggleFavorite}
-                      onViewAll={() => {
-                        setSelectedCategory(cat);
-                        setActiveTab('productos');
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                      }}
-                    />
-                    <CategorySeparatorBanner index={index} storeSettings={storeSettings} />
-                  </div>
-                );
-              })}
-            </div>
-          </>
-        )}
+            return (
+              <div key={cat} className="w-full">
+                <ProductSlider
+                  title={cat}
+                  products={categoryProducts.slice(0, 8)}
+                  isAdminMode={isAdminMode}
+                  onEdit={setEditingProduct}
+                  onDelete={onDeleteProduct ? (id) => setConfirmAction({ type: 'product', id }) : undefined}
+                  onUpdateCart={handleUpdateCart}
+                  activeOffers={activeOffers}
+                  activeCampaign={activeCampaign}
+                  formatCurrency={formatCurrency}
+                  getEffectivePrice={getEffectivePrice}
+                  formatStock={formatStock}
+                  cart={cart}
+                  rawMaterials={rawMaterials}
+                  storeSettings={storeSettings}
+                  onProductClick={(p) => {
+                    setSelectedProduct(p);
+                    setIsModalOpen(true);
+                  }}
+                  favorites={favorites}
+                  onToggleFavorite={toggleFavorite}
+                  onViewAll={() => {
+                    setSelectedCategory(cat);
+                    setActiveTab('productos');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                />
+                <CategorySeparatorBanner index={index} storeSettings={storeSettings} />
+              </div>
+            );
+          })}
+        </div>
+      </>
+    )}
 
         {activeTab === 'productos' && (
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-12">
-              <div>
-                <h2 className="text-3xl font-serif text-stone-900 mb-2">Nuestra Colección</h2>
-                <p className="text-stone-500 text-sm uppercase tracking-widest">{filteredProducts.length} productos disponibles</p>
-              </div>
-              
-              <div className="flex flex-wrap gap-2">
-                <button 
-                  onClick={() => setSelectedCategory('all')}
-                  className={`px-4 py-2 text-[10px] uppercase tracking-widest border transition-all ${
-                    selectedCategory === 'all' 
-                      ? 'bg-stone-900 text-white border-stone-900' 
-                      : 'bg-white text-stone-500 border-stone-200 hover:border-stone-400'
-                  }`}
+        {/* Menú Editorial de Familias Olfativas */}
+        <div className="w-full max-w-5xl mx-auto px-4 mt-12 mb-16 z-20 relative">
+          <div className="flex flex-col items-center justify-center space-y-8">
+            <h3 className="text-[9px] sm:text-[10px] text-stone-400 uppercase tracking-[0.4em] font-bold flex items-center gap-3">
+              <Wind size={12} /> Explorar por Familia Olfativa <Wind size={12} />
+            </h3>
+            <div className="flex flex-wrap justify-center gap-x-10 gap-y-6">
+              <button
+                onClick={() => setSelectedCategory('all')}
+                className={`text-[10px] sm:text-xs uppercase tracking-[0.25em] transition-all duration-300 pb-2 border-b border-transparent ${selectedCategory === 'all' ? 'text-stone-900 border-stone-900 font-bold scale-105' : 'text-stone-400 hover:text-stone-600 hover:border-stone-300'}`}
+              >
+                Colección Completa
+              </button>
+              {categories.map(category => (
+                <button
+                  key={category}
+                  onClick={() => setSelectedCategory(category)}
+                  className={`text-[10px] sm:text-xs uppercase tracking-[0.25em] transition-all duration-300 pb-2 border-b border-transparent ${selectedCategory === category ? 'text-stone-900 border-stone-900 font-bold scale-105' : 'text-stone-400 hover:text-stone-600 hover:border-stone-300'}`}
                 >
-                  Todos
+                  {category}
                 </button>
-                {categories.map(cat => (
-                  <button
-                    key={cat}
-                    onClick={() => setSelectedCategory(cat)}
-                    className={`px-4 py-2 text-[10px] uppercase tracking-widest border transition-all ${
-                      selectedCategory === cat 
-                        ? 'bg-stone-900 text-white border-stone-900' 
-                        : 'bg-white text-stone-500 border-stone-200 hover:border-stone-400'
-                    }`}
-                  >
-                    {cat}
-                  </button>
-                ))}
-              </div>
+              ))}
             </div>
+          </div>
+        </div>
 
             {isAdminMode && onAddProduct && (
               <div className="mb-8 flex justify-end">
@@ -1745,7 +1742,7 @@ export default function PublicCatalog({
                               referrerPolicy="no-referrer"
                             />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center text-stone-200">
+                            <div className="w-full h-full flex items-center justify-center text-stone-300">
                               <GraduationCap size={48} strokeWidth={1} />
                             </div>
                           )}
