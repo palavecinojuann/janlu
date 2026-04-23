@@ -117,17 +117,23 @@ export default function InventoryView({
         )}
       </div>
 
-      {/* 🖨️ Plantilla de Impresión de Etiqueta (Solo visible al imprimir) */}
+      {/* 🖨️ Plantilla de Impresión de Etiqueta (CORREGIDA) */}
       {printingVariant && (
-        <div className="hidden print:flex fixed inset-0 bg-white z-[9999] flex-col items-center justify-center">
-          <div className="w-[50mm] h-[50mm] flex flex-col items-center justify-center text-center p-2 border border-dashed border-gray-300">
+        <div className="hidden print:block absolute inset-0 bg-white z-[9999]">
+          <style type="text/css" media="print">
+            {`
+              @page { size: auto; margin: 0; }
+              body * { visibility: hidden; }
+              #print-qr-container, #print-qr-container * { visibility: visible; }
+              #print-qr-container { position: absolute; left: 0; top: 0; width: 50mm; height: 50mm; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px; border: 1px dashed #ccc; background: white; }
+            `}
+          </style>
+          <div id="print-qr-container">
             <h1 className="text-[12px] font-serif font-bold tracking-widest uppercase mb-1">JANLU</h1>
-            <p className="text-[10px] text-gray-800 font-medium truncate w-full">{printingVariant.product.name}</p>
+            <p className="text-[10px] text-gray-800 font-medium truncate w-full text-center">{printingVariant.product.name}</p>
             <p className="text-[8px] text-gray-500 uppercase tracking-wider mb-2">{printingVariant.variant.name}</p>
-            
-            {/* Usamos QR como estándar principal */}
-            <QRCodeSVG value={printingVariant.variant.sku || printingVariant.variant.id} size={64} level="M" />
-            
+            {/* Renderizado forzado del SVG */}
+            <QRCodeSVG value={printingVariant.variant.sku || printingVariant.variant.id} size={64} level="M" includeMargin={false} />
             <p className="text-[6px] text-gray-400 mt-2">{printingVariant.variant.sku || printingVariant.variant.id.substring(0,8)}</p>
           </div>
         </div>

@@ -795,6 +795,16 @@ export default function SaleList({ sales, products, customers, storeSettings, on
                             >
                               <Eye size={16} />
                             </button>
+                            <button
+                              onClick={() => {
+                                setPreviewSaleId(sale.id);
+                                setTimeout(() => window.print(), 500);
+                              }}
+                              className="p-2 text-stone-400 hover:text-indigo-600 transition-colors"
+                              title="Imprimir Etiqueta de Envío"
+                            >
+                              <Package size={16} />
+                            </button>
                             {sale.status !== 'cancelado' && onUpdateSale && (
                               <button
                                 onClick={() => {
@@ -1509,6 +1519,49 @@ export default function SaleList({ sales, products, customers, storeSettings, on
             >
               Confirmar Pago
             </button>
+          </div>
+        </div>
+      )}
+      {/* 🖨️ Plantilla de Etiqueta de Envío */}
+      {saleToPreview && (
+        <div className="hidden print:block absolute inset-0 bg-white z-[9999]">
+           <style type="text/css" media="print">
+            {`
+              @page { size: auto; margin: 0; }
+              body * { visibility: hidden; }
+              #print-shipping-container, #print-shipping-container * { visibility: visible; }
+              #print-shipping-container { position: absolute; left: 0; top: 0; width: 100%; max-width: 100mm; padding: 20px; background: white; }
+            `}
+          </style>
+          <div id="print-shipping-container" className="border-2 border-stone-900 p-4 rounded-lg">
+            <div className="border-b-2 border-stone-900 pb-4 mb-4 flex justify-between items-end">
+              <div>
+                <h1 className="text-2xl font-serif font-bold tracking-widest uppercase">JANLU</h1>
+                <p className="text-[9px] text-stone-500 tracking-[0.3em]">AROMAS & DISEÑO</p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-bold">PEDIDO #{saleToPreview.orderNumber}</p>
+                <p className="text-[10px] text-stone-500">{new Date(saleToPreview.date).toLocaleDateString('es-AR')}</p>
+              </div>
+            </div>
+            
+            <div className="mb-6">
+              <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1">Destinatario</h3>
+              <p className="text-lg font-bold text-stone-900 uppercase">{saleToPreview.customerName}</p>
+              <p className="text-sm text-stone-800 mt-1">{customers.find(c => c.id === saleToPreview.customerId)?.address || 'Retiro en Local / Sin Dirección'}</p>
+              <p className="text-sm text-stone-800 mt-1">Tel: {customers.find(c => c.id === saleToPreview.customerId)?.phone}</p>
+            </div>
+
+            <div>
+              <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">Contenido del Paquete</h3>
+              <ul className="text-xs text-stone-800 space-y-1">
+                {saleToPreview.items.map((item, idx) => (
+                  <li key={idx} className="border-b border-stone-100 pb-1">
+                    • <span className="font-bold">{item.quantity}x</span> {item.productName} ({item.variantName})
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
         </div>
       )}
