@@ -1252,7 +1252,9 @@ export default function PublicCatalog({
       // Notificación automática por WhatsApp al Administrador
       const storePhone = storeSettings?.whatsappNumber?.replace(/\D/g, '');
       if (storePhone) {
-        let message = `Hola Janlu! Acabo de realizar un nuevo pedido en la web. 🛍️\n\n`;
+        let message = `*✨ 𝐉𝐀𝐍𝐋𝐔 - 𝐀𝐫𝐨𝐦𝐚𝐬 & 𝐃𝐢𝐬𝐞𝐧̃𝐨 ✨*\n`;
+        message += `--------------------------------------\n\n`;
+        message += `¡Hola! Acabo de realizar un nuevo pedido en la tienda online. 🛍️\n\n`;
         message += `*Mis Datos:*\n`;
         message += `Nombre: ${customerDetails.name}\n`;
         if (customerDetails.phone) message += `Tel: ${customerDetails.phone}\n`;
