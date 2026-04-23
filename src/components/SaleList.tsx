@@ -79,8 +79,8 @@ export default function SaleList({ sales, products, customers, storeSettings, on
         deliveryTimeRange: editDeliveryTimeRange
       };
       
-      // 🚀 Actualización Optimista: Lo mostramos instantáneamente en pantalla
-      setLocalSales(prev => prev.map(s => s.id === sale.id ? updatedSale : s));
+      // 🚀 Actualización Optimista de Entrega
+      setLocalSales(prev => prev.map(s => s.id === updatedSale.id ? updatedSale : s));
       onUpdateSale(updatedSale);
       setEditingDeliverySaleId(null);
     }
@@ -262,10 +262,11 @@ export default function SaleList({ sales, products, customers, storeSettings, on
       paymentHistory: [...(saleForPayment.paymentHistory || []), newPayment]
     };
 
-    // 🚀 Actualización Optimista
-    setLocalSales(prev => prev.map(s => s.id === saleForPayment.id ? updatedSale : s));
+    // 🚀 Actualización Optimista de Pagos
+    setLocalSales(prev => prev.map(s => s.id === updatedSale.id ? updatedSale : s));
     onUpdateSale(updatedSale);
     setIsPaymentModalOpen(false);
+    setSaleForPayment(null);
     setPaymentAmount('');
   };
 
@@ -304,11 +305,10 @@ export default function SaleList({ sales, products, customers, storeSettings, on
           paymentHistory: newHistory
         };
         
-        // 🚀 Actualización Optimista
+        // 🚀 Actualización Optimista de Edición de Pagos
         setLocalSales(prev => prev.map(s => s.id === sale.id ? updatedSale : s));
         onUpdateSale(updatedSale);
-      }
-      setEditingPaymentSaleId(null);
+        setEditingPaymentSaleId(null);
     }
   };
 
@@ -695,18 +695,15 @@ export default function SaleList({ sales, products, customers, storeSettings, on
                               value={saleStatus}
                               onChange={(e) => {
                                 const newStatus = e.target.value as SaleStatus;
-                                let newPaymentStatus = sale.paymentStatus;
+                                const updatedSale = { ...sale, status: newStatus };
                                 
-                                if (sale.status === 'nuevo' && newStatus !== 'nuevo' && newStatus !== 'cancelado') {
-                                  if (newPaymentStatus !== 'rejected') {
-                                    newPaymentStatus = 'verified';
-                                  }
-                                }
-                                
-                                const updatedSale = { ...sale, status: newStatus, paymentStatus: newPaymentStatus };
-                                // 🚀 Actualización Optimista: Cambia color al instante
+                                // 🚀 Actualización Optimista: Repintamos la UI al instante
                                 setLocalSales(prev => prev.map(s => s.id === sale.id ? updatedSale : s));
-                                onUpdateSale(updatedSale);
+                                
+                                // Enviamos el cambio a Firebase en segundo plano
+                                if (onUpdateSale) {
+                                  onUpdateSale(updatedSale);
+                                }
                               }}
                               className={`text-xs font-medium rounded-full px-2.5 py-1 border-none cursor-pointer focus:ring-2 focus:ring-indigo-500 outline-none ${statusColors[saleStatus]} dark:bg-stone-800 dark:text-stone-200`}
                             >
