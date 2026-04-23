@@ -205,7 +205,7 @@ export default function ProductList({
                         <div className="flex items-center space-x-3">
                           <div className="w-10 h-10 rounded-lg bg-stone-100 dark:bg-stone-800 flex items-center justify-center overflow-hidden border border-stone-200 dark:border-stone-700 shrink-0">
                             {product.photoUrl ? (
-                              <img src={product.photoUrl} alt={product.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                              <img src={product.photoUrl} alt={product.name} className="w-full h-full object-cover object-center" referrerPolicy="no-referrer" />
                             ) : (
                               <ImageIcon className="text-stone-400 dark:text-stone-500" size={20} />
                             )}

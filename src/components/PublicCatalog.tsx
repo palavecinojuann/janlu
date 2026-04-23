@@ -216,7 +216,7 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({
           <img 
             src={product.photoUrl} 
             alt={product.name} 
-            className={`w-full h-full object-contain bg-stone-50 transition-transform duration-700 ease-out ${isOutOfStock ? 'grayscale' : ''}`}
+            className={`w-full h-full object-cover object-center bg-stone-50 transition-transform duration-700 ease-out ${isOutOfStock ? 'grayscale' : ''}`}
             referrerPolicy="no-referrer"
             loading="lazy"
           />
