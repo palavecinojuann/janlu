@@ -17,90 +17,47 @@ export function useAuth() {
 
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
-
-      if (unsubUserDoc) {
-        unsubUserDoc();
-        unsubUserDoc = null;
-      }
-
       if (user) {
-        // Optimistic admin grant for the owner
-        if (user.email === 'palavecinojuann@gmail.com') {
-          setIsAdmin(true);
-        }
-
-        try {
-          const userRef = doc(db, 'users', user.uid);
-          const getDocPromise = getDoc(userRef);
-          const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Timeout fetching user role')), 5000)
-          );
-
-          const userDoc = await Promise.race([getDocPromise, timeoutPromise]) as DocumentSnapshot<DocumentData>;
-
-          if (!userDoc.exists()) {
-            if (user.email === 'palavecinojuann@gmail.com') {
-              const newAdmin = {
-                id: user.uid,
-                uid: user.uid,
-                email: user.email,
-                role: 'admin',
-                createdAt: new Date().toISOString(),
-                name: user.displayName || 'Juan Palavecino',
-                level: 'bronce',
-                referralCode: `JANLU-${user.uid.substring(0, 4).toUpperCase()}`,
-                referralPoints: 0,
-                joinedAt: new Date().toISOString(),
-              };
-              await setDoc(userRef, newAdmin);
-            } else {
-              let preAuthRole: string | null = null;
-              if (user.email) {
-                try {
-                  const preAuthDoc = await getDoc(doc(db, 'preAuthorizedAdmins', user.email));
-                  if (preAuthDoc.exists()) {
-                    preAuthRole = preAuthDoc.data().role || 'admin';
-                  }
-                } catch (e) {
-                  console.error("Error checking pre-auth:", e);
-                }
-              }
-
-              const newUser = {
-                id: user.uid,
-                uid: user.uid,
-                email: user.email,
-                role: preAuthRole || 'customer',
-                createdAt: new Date().toISOString(),
-                name: user.displayName || 'Nuevo Usuario',
-                level: 'bronce',
-                referralCode: `JANLU-${user.uid.substring(0, 4).toUpperCase()}`,
-                referralPoints: 0,
-                joinedAt: new Date().toISOString(),
-              };
-              await setDoc(userRef, newUser);
-            }
-          }
-
-          unsubUserDoc = onSnapshot(userRef, (docSnap) => {
-            if (docSnap.exists()) {
-              const profile = docSnap.data() as UserProfile;
-              setUserProfile(profile);
-              const adminStatus = profile.role === 'admin' || profile.role === 'collaborator';
-              setIsAdmin(adminStatus);
-            }
-          });
-
-        } catch (err) {
-          console.error("Error checking admin status:", err);
-          if (user.email === 'palavecinojuann@gmail.com') {
-            setIsAdmin(true);
+        const userRef = doc(db, 'users', user.uid);
+        unsubUserDoc = onSnapshot(userRef, async (docSnap) => {
+          if (docSnap.exists()) {
+            const userData = docSnap.data();
+            setIsAdmin(userData.role === 'admin' || userData.role === 'superadmin' || userData.role === 'collaborator');
+            setUserProfile(userData as UserProfile);
           } else {
-            setIsAdmin(false);
+            // Si no está en users, buscamos en preAuthorizedAdmins por su email
+            if (user.email) {
+              const preAuthRef = doc(db, 'preAuthorizedAdmins', user.email);
+              const preAuthSnap = await getDoc(preAuthRef);
+              if (preAuthSnap.exists()) {
+                const role = preAuthSnap.data().role || 'admin';
+                setIsAdmin(role === 'admin' || role === 'superadmin');
+                
+                // Creamos el perfil de usuario oficial
+                const newUser = {
+                  id: user.uid,
+                  uid: user.uid,
+                  email: user.email,
+                  role: role,
+                  createdAt: new Date().toISOString(),
+                  name: user.displayName || 'Administrador',
+                  level: 'bronce',
+                  referralCode: `JANLU-${user.uid.substring(0, 4).toUpperCase()}`,
+                  referralPoints: 0,
+                  joinedAt: new Date().toISOString()
+                };
+                await setDoc(userRef, newUser);
+              } else {
+                setIsAdmin(false);
+              }
+            } else {
+              setIsAdmin(false);
+            }
           }
-        }
+          setIsAuthReady(true);
+        });
 
-        // Ensure customer doc exists
+        // Aseguramos que el cliente también exista en la colección de clientes
         const checkCustomer = async () => {
           try {
             const customerRef = doc(db, 'customers', user.uid);
@@ -132,9 +89,9 @@ export function useAuth() {
       } else {
         setIsAdmin(false);
         setUserProfile(null);
+        if (unsubUserDoc) unsubUserDoc();
+        setIsAuthReady(true);
       }
-
-      setIsAuthReady(true);
     });
 
     return () => {
