@@ -149,6 +149,33 @@ export default function App() {
 
   // 🚀 LÓGICA DE NUMERACIÓN CORRELATIVA CORREGIDA (Y RETORNANDO DATOS AL CARRITO)
   const handleSmartRegisterSale = async (saleData: any) => {
+    // 🚀 Validación Estricta de Cliente por Teléfono (Fusión de Perfiles)
+    const normalizePhone = (p?: string) => p?.replace(/\D/g, '') || '';
+    const cleanIncomingPhone = normalizePhone(saleData.customerPhone || saleData.customer?.phone); 
+
+    if (cleanIncomingPhone) {
+      const existingCustomer = customers.find(c => normalizePhone(c.phone) === cleanIncomingPhone);
+
+      if (existingCustomer) {
+        saleData.customerId = existingCustomer.id;
+        if (saleData.customerName && existingCustomer.name.toLowerCase() !== saleData.customerName.toLowerCase()) {
+           updateCustomer({ ...existingCustomer, name: saleData.customerName });
+        }
+        saleData.customerName = existingCustomer.name;
+      } else if (!saleData.customerId) {
+        const newCustomerId = uuidv4();
+        const newCustomer = {
+           id: newCustomerId,
+           name: saleData.customerName || 'Cliente Invitado',
+           phone: cleanIncomingPhone,
+           email: saleData.customerEmail || '',
+           createdAt: new Date().toISOString()
+        };
+        addCustomer(newCustomer);
+        saleData.customerId = newCustomerId;
+      }
+    }
+
     // Buscamos con lupa el número de pedido más alto que ya existe
     const currentSales = sales || [];
     const maxOrderNumber = currentSales.reduce((max, sale) => {
