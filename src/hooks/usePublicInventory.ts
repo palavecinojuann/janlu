@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { db } from '../firebase';
 import { collection, doc, onSnapshot, query } from 'firebase/firestore';
-import { Product, Campaign, Offer, Course, StoreSettings } from '../types';
+import { Product, Campaign, Offer, Course, StoreSettings, RawMaterial } from '../types';
 import { OperationType } from '../utils/firebaseHelpers';
 
 export function usePublicInventory(isAuthReady: boolean) {
@@ -9,6 +9,7 @@ export function usePublicInventory(isAuthReady: boolean) {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [offers, setOffers] = useState<Offer[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
+  const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>([]);
   const [storeSettings, setStoreSettings] = useState<StoreSettings>({
     whatsappNumber: '',
     instagramUrl: '',
@@ -53,6 +54,11 @@ export function usePublicInventory(isAuthReady: boolean) {
       setCourses(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Course)));
     }, (e) => handlePublicError(e, OperationType.GET, 'courses'));
 
+    const unsubRawMaterials = onSnapshot(query(collection(db, 'rawMaterials')), (snapshot) => {
+      setRawMaterials(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as RawMaterial)));
+      console.log("✅ Insumos actualizados (Público)");
+    }, (e) => handlePublicError(e, OperationType.GET, 'rawMaterials'));
+
     const unsubSettings = onSnapshot(doc(db, 'settings', 'global'), (docSnap) => {
       if (docSnap.exists()) {
         setStoreSettings(docSnap.data() as StoreSettings);
@@ -68,6 +74,7 @@ export function usePublicInventory(isAuthReady: boolean) {
       unsubCampaigns();
       unsubOffers();
       unsubCourses();
+      unsubRawMaterials();
       unsubSettings();
     };
   }, [isAuthReady]);
@@ -78,6 +85,7 @@ export function usePublicInventory(isAuthReady: boolean) {
     offers,
     courses,
     storeSettings,
-    isSettingsLoaded
+    isSettingsLoaded,
+    rawMaterials
   };
 }

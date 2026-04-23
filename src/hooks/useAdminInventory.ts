@@ -4,13 +4,12 @@ import { collection, onSnapshot, query, orderBy, where, getDocs, startAfter, Doc
 import { Sale, Customer, RawMaterial, Quote, Activity, FinancialDocument, ProductionOrder, Simulation, PreAuthorizedAdmin, AuditLog, User, Coupon, Product } from '../types';
 import { getVariantStock } from '../utils/stockUtils';
 
-export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, products: Product[]) {
+export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, products: Product[], rawMaterials: RawMaterial[]) {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [realtimeSales, setRealtimeSales] = useState<Sale[]>([]);
   const [historicalSales, setHistoricalSales] = useState<Sale[]>([]);
   const [hasMoreSales, setHasMoreSales] = useState(false);
   const [quotes, setQuotes] = useState<Quote[]>([]);
-  const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [productionOrders, setProductionOrders] = useState<ProductionOrder[]>([]);
   const [simulations, setSimulations] = useState<Simulation[]>([]);
@@ -41,7 +40,6 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
       setRealtimeSales([]);
       setHistoricalSales([]);
       setQuotes([]);
-      setRawMaterials([]);
       setActivities([]);
       setProductionOrders([]);
       setAuditLogs([]);
@@ -61,10 +59,6 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
       setRealtimeSales(newSales);
     });
 
-    const unsubRawMaterials = onSnapshot(query(collection(db, 'rawMaterials')), (snapshot) => {
-      setRawMaterials(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as RawMaterial)));
-      console.log("✅ Insumos actualizados (Admin)");
-    });
 
     const todayStr = new Date().toISOString().split('T')[0];
     const unsubQuotesActive = onSnapshot(query(collection(db, 'quotes'), where('validUntil', '>=', todayStr)), (snapshot) => {
@@ -147,7 +141,6 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     return () => {
       unsubCoupons();
       unsubSalesActive();
-      unsubRawMaterials();
       unsubQuotesActive();
       unsubOrdersActive();
     };
@@ -235,7 +228,6 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     fetchMoreSales,
     hasMoreSales,
     quotes,
-    rawMaterials,
     activities,
     productionOrders,
     simulations,
