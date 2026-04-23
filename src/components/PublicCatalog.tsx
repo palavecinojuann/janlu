@@ -1557,69 +1557,23 @@ export default function PublicCatalog({
           />
         </div>
 
-            {/* Offers Section */}
-            {activeOffers.length > 0 && (
-              <div className="w-full bg-stone-900 overflow-hidden relative">
-                <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none opacity-20">
-                  <div className="absolute -top-24 -left-24 w-96 h-96 bg-rose-500 rounded-full blur-[100px]" />
-                  <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-emerald-500 rounded-full blur-[100px]" />
-                </div>
+        {/* Banner de Ofertas Premium */}
+        {activeOffers.length > 0 && (
+          <div className="w-full bg-stone-100/80 backdrop-blur-md border-b border-stone-200 py-2.5 overflow-hidden z-40 relative">
+            <div className="max-w-7xl mx-auto px-4 flex items-center justify-center gap-3">
+               <Tag className="text-stone-400" size={14} strokeWidth={1.5} />
+               <div className="flex gap-6 text-[9px] sm:text-[10px] uppercase tracking-[0.25em] font-medium text-stone-700">
+                 {activeOffers.map(offer => (
+                    <span key={offer.id} className="flex items-center gap-2">
+                      <span className="font-bold text-stone-900">{offer.title}</span>
+                      <span className="text-stone-500">— {offer.discountPercentage}% OFF</span>
+                    </span>
+                 ))}
+               </div>
+            </div>
+          </div>
+        )}
 
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 relative z-10">
-                  {activeOffers.map((offer, index) => (
-                    <div key={offer.id} className={`${index > 0 ? 'mt-8 pt-8 border-t border-white/10' : ''}`}>
-                      <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-                        <div className="text-center md:text-left flex-1">
-                          <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-400 text-[7px] sm:text-[8px] font-bold uppercase tracking-[0.2em] mb-2 border border-rose-500/30">
-                            <Tag size={7} className="sm:w-2 sm:h-2" />
-                            Oferta Especial
-                          </div>
-                          <h3 className="text-2xl sm:text-4xl font-cinzel font-bold text-white mb-2 tracking-tight leading-tight">
-                            {offer.title}
-                          </h3>
-                          <p className="text-stone-400 text-xs sm:text-base max-w-xl mb-4 leading-relaxed">
-                            {offer.description}
-                          </p>
-                          <div className="flex flex-wrap justify-center md:justify-start gap-4 sm:gap-6 items-center">
-                            {offer.type === 'discount' && offer.discountPercentage && (
-                              <div className="text-3xl sm:text-5xl font-bold text-emerald-400">
-                                {offer.discountPercentage}% <span className="text-xs sm:text-base uppercase tracking-widest text-white/50">OFF</span>
-                              </div>
-                            )}
-                            {offer.type !== 'discount' && offer.fixedPrice && (
-                              <div className="text-3xl sm:text-5xl font-bold text-emerald-400">
-                                {formatCurrency(offer.fixedPrice)}
-                              </div>
-                            )}
-                            {offer.type === 'bogo' && (
-                              <div className="text-3xl sm:text-5xl font-bold text-emerald-400">
-                                2x1 <span className="text-xs sm:text-base uppercase tracking-widest text-white/50">PROMO</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        {offer.expiresAt && (
-                          <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-5 sm:p-8 border border-white/10 shadow-2xl flex flex-col items-center w-full md:w-auto min-w-[200px]">
-                            <p className="text-stone-400 text-[8px] uppercase tracking-[0.3em] mb-3 font-bold">Termina en:</p>
-                            <CountdownTimer expiresAt={offer.expiresAt} />
-                            <div className="mt-6 w-full">
-                              <button 
-                                onClick={() => setActiveTab('productos')}
-                                className="w-full px-8 py-3 bg-white text-stone-900 rounded-full font-bold text-xs hover:bg-stone-100 transition-all shadow-lg hover:scale-105 active:scale-95 flex items-center justify-center gap-2 uppercase tracking-widest"
-                              >
-                                <ShoppingBag size={14} />
-                                Ver Productos
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
 
 
 
@@ -2268,38 +2222,34 @@ export default function PublicCatalog({
                     </div>
                   ))}
                   
-                  <div className="mt-6 pt-6 border-t border-stone-200/50">
-                    <div className="flex gap-2">
-                      <div className="relative flex-1">
-                        <Tag className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" size={16} />
+                  {/* Sección de Cupones Alta Gama */}
+                  <div className="mt-8 pt-6 border-t border-stone-200">
+                    <label className="block text-[9px] sm:text-[10px] uppercase tracking-[0.2em] text-stone-500 font-bold mb-4">
+                      ¿Tenés un código de invitación o descuento?
+                    </label>
+                    <div className="flex gap-3 items-end">
+                      <div className="flex-1 relative group">
                         <input
                           type="text"
                           value={couponCode}
                           onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                          placeholder="¿Tienes un cupón?"
-                          className="w-full pl-10 pr-4 py-3 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-stone-900 focus:border-stone-900 transition-all"
+                          placeholder="INGRESAR CÓDIGO"
+                          className="w-full bg-transparent border-b border-stone-300 pb-2 text-sm sm:text-base font-medium text-stone-800 placeholder:text-stone-300 focus:border-stone-900 focus:outline-none transition-colors uppercase tracking-widest"
                         />
                       </div>
                       <button
                         onClick={handleApplyCoupon}
                         disabled={isValidatingCoupon || !couponCode.trim()}
-                        className="px-6 py-3 bg-stone-900 text-white rounded-xl text-xs uppercase tracking-widest font-bold hover:bg-stone-800 transition-colors disabled:opacity-50"
+                        className="px-6 py-2.5 bg-stone-900 text-stone-100 text-[10px] uppercase tracking-[0.2em] font-bold hover:bg-stone-800 disabled:opacity-30 transition-all duration-300"
                       >
-                        {isValidatingCoupon ? <Loader2 size={16} className="animate-spin" /> : 'Aplicar'}
+                        {isValidatingCoupon ? 'Validando...' : 'Aplicar'}
                       </button>
                     </div>
+                    {checkoutError && <p className="text-rose-500 text-[10px] uppercase tracking-widest mt-3 font-medium">{checkoutError}</p>}
                     {appliedCoupon && (
-                      <div className="mt-3 flex items-center justify-between p-3 bg-emerald-50/50 border border-emerald-100 rounded-xl">
-                        <div className="flex items-center gap-2 text-emerald-700 text-xs font-medium">
-                          <CheckCircle size={14} />
-                          <span>Cupón aplicado: {appliedCoupon.code}</span>
-                        </div>
-                        <button 
-                          onClick={() => setAppliedCoupon(null)}
-                          className="text-emerald-700 hover:text-rose-500 transition-colors"
-                        >
-                          <X size={14} />
-                        </button>
+                      <div className="flex items-center gap-2 mt-3 text-emerald-600 text-[10px] uppercase tracking-widest font-bold">
+                        <CheckCircle size={14} />
+                        <span>Cupón {appliedCoupon.code} aplicado ({appliedCoupon.discount}% OFF)</span>
                       </div>
                     )}
                   </div>
