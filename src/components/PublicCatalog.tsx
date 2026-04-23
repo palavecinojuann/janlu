@@ -2109,99 +2109,115 @@ export default function PublicCatalog({
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {cart.map((item) => (
-                    <div key={item.course ? item.course.id : `${item.product?.id}-${item.variant?.id}`} className="flex gap-4">
-                      <div className="w-20 h-20 rounded-xl bg-stone-50 border border-stone-100 overflow-hidden shrink-0">
-                        {item.course ? (
-                          item.course.imageUrl ? (
-                            <img src={item.course.imageUrl} alt={item.course.title} className="w-full h-full object-cover" referrerPolicy="no-referrer" loading="lazy" />
+                  {cart.map((item) => {
+                    const originalPrice = item.variant?.price || item.course?.price || 0;
+                    const currentPrice = item.product && item.variant ? getEffectivePrice(item.product, item.variant, item.quantity) : originalPrice;
+                    const discountPercentage = originalPrice > currentPrice ? Math.round((1 - (currentPrice / originalPrice)) * 100) : 0;
+
+                    return (
+                      <div key={item.course ? item.course.id : `${item.product?.id}-${item.variant?.id}`} className="flex gap-4">
+                        <div className="w-20 h-20 rounded-xl bg-stone-50 border border-stone-100 overflow-hidden shrink-0">
+                          {item.course ? (
+                            item.course.imageUrl ? (
+                              <img src={item.course.imageUrl} alt={item.course.title} className="w-full h-full object-cover" referrerPolicy="no-referrer" loading="lazy" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-stone-300">
+                                <GraduationCap size={24} />
+                              </div>
+                            )
+                          ) : item.product?.photoUrl ? (
+                            <img src={item.product.photoUrl} alt={item.product.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" loading="lazy" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-stone-300">
-                              <GraduationCap size={24} />
+                              <Flame size={24} />
                             </div>
-                          )
-                        ) : item.product?.photoUrl ? (
-                          <img src={item.product.photoUrl} alt={item.product.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" loading="lazy" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-stone-300">
-                            <Flame size={24} />
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1 flex flex-col">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <h4 className="font-medium text-stone-900 line-clamp-1">
-                              {item.course ? item.course.title : item.product?.name}
-                            </h4>
-                            <input
-                              type="text"
-                              value={item.customDescription}
-                              onChange={(e) => {
-                                const newDescription = e.target.value;
-                                setCart(prev => prev.map(i => {
-                                  if (item.course && i.course?.id === item.course.id) {
-                                    return { ...i, customDescription: newDescription };
-                                  }
-                                  if (item.product && i.product?.id === item.product.id && item.variant?.id === item.variant?.id) {
-                                    return { ...i, customDescription: newDescription };
-                                  }
-                                  return i;
-                                }));
-                              }}
-                              className="text-xs text-stone-500 border-none p-0 focus:ring-0 w-full bg-transparent"
-                            />
-                            <p className="text-[10px] text-stone-400 mt-0.5">
-                              {item.course 
-                                ? formatCurrency(item.course.price)
-                                : item.product && item.variant ? `${formatCurrency(getEffectivePrice(item.product, item.variant, item.quantity))} c/u` : ''}
-                            </p>
-                          </div>
-                          <button 
-                            onClick={() => removeFromCart(item.product?.id, item.variant?.id, item.course?.id)}
-                            className="text-stone-400 hover:text-rose-500 p-1"
-                          >
-                            <Trash2 size={14} />
-                          </button>
+                          )}
                         </div>
-                        <div className="mt-auto flex items-center justify-between">
-                          <div className="flex items-center space-x-2 bg-white rounded-lg p-1 border border-stone-200">
+                        <div className="flex-1 flex flex-col">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h4 className="font-medium text-stone-900 line-clamp-1">
+                                {item.course ? item.course.title : item.product?.name}
+                              </h4>
+                              <input
+                                type="text"
+                                value={item.customDescription}
+                                onChange={(e) => {
+                                  const newDescription = e.target.value;
+                                  setCart(prev => prev.map(i => {
+                                    if (item.course && i.course?.id === item.course.id) {
+                                      return { ...i, customDescription: newDescription };
+                                    }
+                                    if (item.product && i.product?.id === item.product.id && item.variant?.id === item.variant?.id) {
+                                      return { ...i, customDescription: newDescription };
+                                    }
+                                    return i;
+                                  }));
+                                }}
+                                className="text-xs text-stone-500 border-none p-0 focus:ring-0 w-full bg-transparent"
+                              />
+                              <p className="text-[10px] text-stone-400 mt-0.5">
+                                {item.course 
+                                  ? formatCurrency(item.course.price)
+                                  : item.product && item.variant ? `${formatCurrency(getEffectivePrice(item.product, item.variant, item.quantity))} c/u` : ''}
+                              </p>
+                            </div>
                             <button 
-                              onClick={() => updateCartQuantity(item.product?.id, item.variant?.id, item.quantity - 1, item.course?.id)}
-                              className="w-6 h-6 flex items-center justify-center rounded bg-stone-50 text-stone-600 shadow-sm hover:text-rose-600"
+                              onClick={() => removeFromCart(item.product?.id, item.variant?.id, item.course?.id)}
+                              className="text-stone-400 hover:text-rose-500 p-1"
                             >
-                              <Minus size={12} />
-                            </button>
-                            <input 
-                              type="number"
-                              min="1"
-                              step="any"
-                              value={item.quantity}
-                              onChange={(e) => {
-                                const val = parseFloat(e.target.value);
-                                updateCartQuantity(item.product?.id, item.variant?.id, isNaN(val) ? 1 : val, item.course?.id);
-                              }}
-                              className={`w-10 text-center text-sm bg-transparent border-none focus:ring-0 p-0 transition-all duration-300 transform ${stockErrorId === item.variant?.id ? 'text-rose-600 scale-125 font-bold animate-pulse' : 'font-medium text-stone-900'}`}
-                            />
-                            <button 
-                              onClick={() => updateCartQuantity(item.product?.id, item.variant?.id, item.quantity + 1, item.course?.id)}
-                              className="w-6 h-6 flex items-center justify-center rounded bg-stone-50 text-stone-600 shadow-sm hover:text-rose-600"
-                            >
-                              <Plus size={12} />
+                              <Trash2 size={14} />
                             </button>
                           </div>
-                          <div className="text-right">
-                            <p className="text-xs text-stone-400 mb-0.5">Subtotal</p>
-                            <p className="font-bold text-stone-900">
-                              {item.course 
-                                ? formatCurrency(item.course.price * item.quantity)
-                                : item.product && item.variant ? formatCurrency(getEffectivePrice(item.product, item.variant, item.quantity) * item.quantity) : ''}
-                            </p>
+                          <div className="mt-auto flex items-center justify-between">
+                            <div className="flex items-center space-x-2 bg-white rounded-lg p-1 border border-stone-200">
+                              <button 
+                                onClick={() => updateCartQuantity(item.product?.id, item.variant?.id, item.quantity - 1, item.course?.id)}
+                                className="w-6 h-6 flex items-center justify-center rounded bg-stone-50 text-stone-600 shadow-sm hover:text-rose-600"
+                              >
+                                <Minus size={12} />
+                              </button>
+                              <input 
+                                type="number"
+                                min="1"
+                                step="any"
+                                value={item.quantity}
+                                onChange={(e) => {
+                                  const val = parseFloat(e.target.value);
+                                  updateCartQuantity(item.product?.id, item.variant?.id, isNaN(val) ? 1 : val, item.course?.id);
+                                }}
+                                className={`w-10 text-center text-sm bg-transparent border-none focus:ring-0 p-0 transition-all duration-300 transform ${stockErrorId === item.variant?.id ? 'text-rose-600 scale-125 font-bold animate-pulse' : 'font-medium text-stone-900'}`}
+                              />
+                              <button 
+                                onClick={() => updateCartQuantity(item.product?.id, item.variant?.id, item.quantity + 1, item.course?.id)}
+                                className="w-6 h-6 flex items-center justify-center rounded bg-stone-50 text-stone-600 shadow-sm hover:text-rose-600"
+                              >
+                                <Plus size={12} />
+                              </button>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-xs text-stone-400 mb-0.5">Subtotal</p>
+                              <div className="flex flex-col items-end">
+                                {discountPercentage > 0 ? (
+                                  <>
+                                    <span className="text-[10px] text-stone-400 line-through">{formatCurrency(originalPrice * item.quantity)}</span>
+                                    <div className="flex items-center gap-2">
+                                      <span className="bg-rose-100 text-rose-600 text-[9px] font-bold px-1.5 py-0.5 rounded-sm">
+                                        -{discountPercentage}%
+                                      </span>
+                                      <span className="text-sm font-bold text-stone-900">{formatCurrency(currentPrice * item.quantity)}</span>
+                                    </div>
+                                  </>
+                                ) : (
+                                  <span className="text-sm font-bold text-stone-900">{formatCurrency(currentPrice * item.quantity)}</span>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                   
                   {/* Sección de Cupones Alta Gama */}
                   <div className="mt-8 pt-6 border-t border-stone-200">

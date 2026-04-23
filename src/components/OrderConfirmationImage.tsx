@@ -191,6 +191,9 @@ export default function OrderConfirmationImage({ sale, storeSettings, customerPh
               <div className="mb-12 text-center">
                 <p className="text-4xl font-serif text-center mb-4 text-stone-900">¡Gracias por tu compra, {sale.customerName.split(' ')[0]}!</p>
                 <p className="text-xl text-stone-600 text-center mx-auto max-w-lg">Tu pedido ha sido registrado con éxito. Estamos preparando cada detalle para vos.</p>
+                <p className="text-[10px] text-stone-400 uppercase tracking-widest mt-2">
+                  Fecha de Pedido: {new Date(sale.date).toLocaleDateString('es-AR', { year: 'numeric', month: 'long', day: 'numeric' })}
+                </p>
               </div>
 
               <div className="w-full h-px bg-stone-200/60 my-10"></div>
@@ -217,28 +220,30 @@ export default function OrderConfirmationImage({ sale, storeSettings, customerPh
               <div className="w-full h-px bg-stone-200/60 my-12"></div>
 
               {/* Totales Escalados */}
-              <div className="space-y-5">
-                {sale.discount && sale.discount > 0 && (
-                  <div className="flex justify-between text-lg text-stone-500">
-                    <span className="uppercase tracking-widest">Subtotal</span>
-                    <span>{formatCurrency(sale.totalAmount / (1 - sale.discount / 100))}</span>
+              <div className="mt-6 border-t border-stone-200 pt-4 space-y-2">
+                <div className="flex justify-between text-xs sm:text-sm font-bold text-stone-900 uppercase tracking-wider">
+                  <span>Total Final</span>
+                  <span>{formatCurrency(sale.totalAmount)}</span>
+                </div>
+                
+                <div className="flex justify-between text-xs sm:text-sm font-medium text-emerald-600 uppercase tracking-wider">
+                  <span>Monto Abonado</span>
+                  <span>{formatCurrency(sale.amountPaid)}</span>
+                </div>
+
+                {/* Mostrar fecha del último pago si existe historial */}
+                {sale.paymentHistory && sale.paymentHistory.length > 0 && (
+                  <div className="flex justify-between text-[9px] text-stone-400 uppercase tracking-widest">
+                    <span>Último pago registrado el:</span>
+                    <span>{new Date(sale.paymentHistory[sale.paymentHistory.length - 1].date).toLocaleDateString('es-AR', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                   </div>
                 )}
-                
-                <div className="flex justify-between items-center py-4">
-                  <span className="text-sm uppercase tracking-[0.2em] font-bold text-stone-400">TOTAL FINAL</span>
-                  <span className="text-3xl font-bold text-stone-900">{formatCurrency(sale.totalAmount)}</span>
-                </div>
 
-                <div className="flex justify-between items-center text-lg text-stone-500">
-                  <span className="uppercase tracking-widest">Monto Abonado</span>
-                  <span className="font-medium text-emerald-600">{formatCurrency(sale.amountPaid)}</span>
-                </div>
-
-                {sale.totalAmount > sale.amountPaid && (
-                  <div className="flex justify-between items-center pt-6 border-t border-stone-100">
-                    <span className="text-base uppercase tracking-[0.2em] font-bold text-rose-500">Saldo Pendiente</span>
-                    <span className="text-2xl font-bold text-rose-600">{formatCurrency(sale.totalAmount - sale.amountPaid)}</span>
+                {/* Recálculo lógico del saldo pendiente */}
+                {(sale.totalAmount - sale.amountPaid) > 0 && (
+                  <div className="flex justify-between text-xs sm:text-sm font-bold text-rose-600 uppercase tracking-wider mt-2 pt-2 border-t border-dashed border-stone-200">
+                    <span>Saldo Pendiente</span>
+                    <span>{formatCurrency(sale.totalAmount - sale.amountPaid)}</span>
                   </div>
                 )}
               </div>
