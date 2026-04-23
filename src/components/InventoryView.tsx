@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Product, RawMaterial, Sale, ProductionOrder } from '../types';
+import { Product, RawMaterial, Sale, ProductionOrder, Variant } from '../types';
 import ProductList from './ProductList';
 import RawMaterialList from './RawMaterialList';
-import { Package, Beaker, ShoppingBag, ExternalLink } from 'lucide-react';
+import { Package, Beaker, ShoppingBag, ExternalLink, Printer } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
+import Barcode from 'react-barcode';
 
 interface InventoryViewProps {
   initialTab?: 'products' | 'raw-materials';
@@ -46,6 +48,7 @@ export default function InventoryView({
   onNavigateToCatalog
 }: InventoryViewProps) {
   const [activeTab, setActiveTab] = useState<'products' | 'raw-materials'>(initialTab);
+  const [printingVariant, setPrintingVariant] = useState<{ product: Product, variant: Variant } | null>(null);
 
   useEffect(() => {
     setActiveTab(initialTab);
@@ -94,6 +97,10 @@ export default function InventoryView({
             onAdjustStock={onAdjustStock}
             onProduce={onProduce}
             onNavigateToCatalog={onNavigateToCatalog}
+            onPrintVariant={(p, v) => {
+              setPrintingVariant({ product: p, variant: v });
+              setTimeout(() => window.print(), 300);
+            }}
           />
         )}
         {activeTab === 'raw-materials' && (
@@ -109,6 +116,23 @@ export default function InventoryView({
           />
         )}
       </div>
+      </div>
+
+      {/* 🖨️ Plantilla de Impresión de Etiqueta (Solo visible al imprimir) */}
+      {printingVariant && (
+        <div className="hidden print:flex fixed inset-0 bg-white z-[9999] flex-col items-center justify-center">
+          <div className="w-[50mm] h-[50mm] flex flex-col items-center justify-center text-center p-2 border border-dashed border-gray-300">
+            <h1 className="text-[12px] font-serif font-bold tracking-widest uppercase mb-1">JANLU</h1>
+            <p className="text-[10px] text-gray-800 font-medium truncate w-full">{printingVariant.product.name}</p>
+            <p className="text-[8px] text-gray-500 uppercase tracking-wider mb-2">{printingVariant.variant.name}</p>
+            
+            {/* Usamos QR como estándar principal */}
+            <QRCodeSVG value={printingVariant.variant.sku || printingVariant.variant.id} size={64} level="M" />
+            
+            <p className="text-[6px] text-gray-400 mt-2">{printingVariant.variant.sku || printingVariant.variant.id.substring(0,8)}</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

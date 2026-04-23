@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Product, Variant, Sale, RawMaterial } from '../types';
-import { Edit2, Trash2, Search, Filter, Image as ImageIcon, PlusCircle, AlertTriangle, TrendingDown, Share2, Check, ShoppingBag, ArrowUpCircle, Hammer } from 'lucide-react';
+import { Edit2, Trash2, Search, Filter, Image as ImageIcon, PlusCircle, AlertTriangle, TrendingDown, Share2, Check, ShoppingBag, ArrowUpCircle, Hammer, Printer } from 'lucide-react';
 import StockAdjustmentModal from './StockAdjustmentModal';
 import ProduceModal from './ProduceModal';
 import { getVariantStock } from '../utils/stockUtils';
@@ -17,6 +17,7 @@ interface ProductListProps {
   onAdjustStock: (productId: string, variantId: string, quantity: number) => void;
   onProduce: (productId: string, variantId: string, quantity: number) => Promise<void>;
   onNavigateToCatalog: () => void;
+  onPrintVariant: (product: Product, variant: Variant) => void;
 }
 
 export default function ProductList({ 
@@ -30,7 +31,8 @@ export default function ProductList({
   onDelete, 
   onAdjustStock,
   onProduce,
-  onNavigateToCatalog
+  onNavigateToCatalog,
+  onPrintVariant
 }: ProductListProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
@@ -268,6 +270,13 @@ export default function ProductList({
                                     {alert.message}
                                   </span>
                                 )}
+                                <button
+                                  onClick={() => onPrintVariant(product, v)}
+                                  className="p-1 text-stone-400 hover:text-stone-900 transition-colors"
+                                  title="Imprimir Etiqueta QR"
+                                >
+                                  <Printer size={14} />
+                                </button>
                               </div>
                             );
                           })}
