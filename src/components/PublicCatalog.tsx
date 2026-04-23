@@ -1614,7 +1614,7 @@ export default function PublicCatalog({
         <div className="w-full max-w-5xl mx-auto px-4 mt-12 mb-16 z-20 relative">
           <div className="flex flex-col items-center justify-center space-y-8">
             <h3 className="text-[9px] sm:text-[10px] text-stone-400 uppercase tracking-[0.4em] font-bold flex items-center gap-3">
-              <Wind size={12} /> Explorar por Familia Olfativa <Wind size={12} />
+              <Wind size={12} /> Explorar por Colección <Wind size={12} />
             </h3>
             <div className="flex flex-wrap justify-center gap-x-10 gap-y-6">
               <button
