@@ -216,6 +216,25 @@ export function useInventoryOperations(
       const cleaned = cleanObject(finalCustomer);
       await setDoc(doc(db, 'customers', finalCustomer.id), cleaned);
       await logAction('create', 'customers', finalCustomer.id, cleaned);
+
+      // 🎁 Generar cupón de BIENVENIDA corto
+      if (finalCustomer.email && finalCustomer.email.trim() !== '') {
+        const suffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+        const code = `HOLA10-${suffix}`;
+        const couponExpiresAt = new Date();
+        couponExpiresAt.setDate(couponExpiresAt.getDate() + 30);
+        
+        const newCoupon: Coupon = {
+          id: uuidv4(),
+          code,
+          discountPercentage: 10,
+          expiresAt: couponExpiresAt.toISOString(),
+          customerId: finalCustomer.id,
+          isUsed: false,
+          createdAt: new Date().toISOString()
+        };
+        await setDoc(doc(db, 'coupons', newCoupon.id), cleanObject(newCoupon));
+      }
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'customers');
     }

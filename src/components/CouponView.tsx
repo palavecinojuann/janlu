@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Offer, Product, Coupon } from '../types';
-import { Plus, Trash2, Tag, Percent, Edit2, X, Image as ImageIcon, Box, Calendar, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react';
+import { Plus, Trash2, Tag, Percent, Edit2, X, Image as ImageIcon, Box, Calendar, RefreshCw, CheckCircle, AlertCircle, MessageCircle } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
+import { useInventoryContext } from '../contexts/InventoryContext';
 
 interface CouponViewProps {
   offers: Offer[];
@@ -24,6 +25,7 @@ export default function CouponView({
   onUpdateCoupon,
   onDeleteCoupon
 }: CouponViewProps) {
+  const { customers } = useInventoryContext();
   const [activeTab, setActiveTab] = useState<'offers' | 'coupons'>('offers');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -671,6 +673,24 @@ export default function CouponView({
                             </td>
                             <td className="px-6 py-4 text-right">
                               <div className="flex justify-end items-center space-x-2">
+                                <button
+                                  onClick={() => {
+                                    // Buscar al cliente dueño del cupón
+                                    const customer = customers.find(c => c.id === coupon.customerId);
+                                    if (customer && customer.phone) {
+                                      const phone = customer.phone.replace(/\D/g, '');
+                                      const daysLeft = Math.ceil((new Date(coupon.expiresAt).getTime() - new Date().getTime()) / (1000 * 3600 * 24));
+                                      const message = `¡Hola ${customer.name}! ✨ Queríamos avisarte que tu beneficio exclusivo del 10% OFF en Janlu Velas (Código: ${coupon.code}) vence en ${daysLeft} días. ¡Aprovechalo en nuestra tienda online antes de que expire! 🕯️🤍`;
+                                      window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
+                                    } else {
+                                      alert('No se encontró el teléfono del cliente para este cupón.');
+                                    }
+                                  }}
+                                  className="p-2 text-stone-400 hover:text-emerald-500 bg-emerald-50/0 hover:bg-emerald-50 rounded-lg transition-all"
+                                  title="Avisar por WhatsApp que el cupón está por vencer"
+                                >
+                                  <MessageCircle size={18} />
+                                </button>
                                 <button
                                   onClick={() => handleRelaunchCoupon(coupon)}
                                   className="p-2 text-stone-400 hover:text-indigo-600 transition-colors"
