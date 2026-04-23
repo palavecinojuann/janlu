@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
+import { useInventoryContext } from '../contexts/InventoryContext';
 import { Customer, Sale, Offer, AssignedOffer } from '../types';
 import { v4 as uuidv4 } from 'uuid';
-import { Users, Plus, Trash2, Edit2, Search, X, MessageCircle, Instagram, Tag, Calendar as CalendarIcon, Check, AlertCircle } from 'lucide-react';
+import { Users, Plus, Trash2, Edit2, Search, X, MessageCircle, Instagram, Tag, Calendar as CalendarIcon, Check, AlertCircle, Gift } from 'lucide-react';
 
 interface CustomerListProps {
   customers: Customer[];
@@ -12,7 +13,8 @@ interface CustomerListProps {
   onDelete: (id: string) => void;
 }
 
-export default function CustomerList({ customers, sales, offers, onAdd, onUpdate, onDelete }: CustomerListProps) {
+export default function CustomerList({ customers: initialCustomers, sales, offers, onAdd, onUpdate, onDelete }: CustomerListProps) {
+  const { customers, generateCoupon } = useInventoryContext();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [managingOffersId, setManagingOffersId] = useState<string | null>(null);
@@ -316,7 +318,27 @@ export default function CustomerList({ customers, sales, offers, onAdd, onUpdate
                           >
                             <Tag size={16} />
                           </button>
-                          <button onClick={(e) => { e.stopPropagation(); handleEdit(c); }} className="p-2 text-stone-400 dark:text-stone-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg"><Edit2 size={16} /></button>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); handleEdit(c); }} 
+                            className="p-2 text-stone-400 dark:text-stone-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg"
+                          >
+                            <Edit2 size={16} />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (window.confirm(`¿Generar un cupón VUELVE de 20% de descuento exclusivo por 30 días para ${c.name}?`)) {
+                                if (generateCoupon) {
+                                  generateCoupon(c.id, 20);
+                                  alert('¡Cupón de retención generado con éxito!\nVe a la pestaña "Cupones" para copiar el código exacto y enviárselo al cliente.');
+                                }
+                              }
+                            }}
+                            className="p-2 text-stone-400 hover:text-rose-500 bg-rose-50/0 hover:bg-rose-50 rounded-lg transition-all"
+                            title="Persuasión: Generar Cupón 20% OFF para que vuelva a comprar"
+                          >
+                            <Gift size={18} />
+                          </button>
                           <button onClick={(e) => { e.stopPropagation(); onDelete(c.id); }} className="p-2 text-stone-400 dark:text-stone-500 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg"><Trash2 size={16} /></button>
                         </div>
                       </td>
