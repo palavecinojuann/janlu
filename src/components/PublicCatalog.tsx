@@ -1249,49 +1249,31 @@ export default function PublicCatalog({
         }
       }
 
-      let message = `Hola Janlu Velas, mi nombre es ${customerDetails.name}.\nQuiero hacer el siguiente pedido:\n\n`;
-      
-      cart.forEach(item => {
-        if (item.course) {
-          message += `${item.quantity}x Inscripción: ${item.course.title} - ${formatCurrency(item.course.price * item.quantity)}\n`;
-        } else if (item.product && item.variant) {
-          const effectivePrice = getEffectivePrice(item.product, item.variant, item.quantity);
-          message += `${item.quantity}x ${item.product.name} (${item.variant.name}) - ${formatCurrency(effectivePrice * item.quantity)}\n`;
-        }
-      });
+      // Notificación automática por WhatsApp al Administrador
+      const storePhone = storeSettings?.whatsappNumber?.replace(/\D/g, '');
+      if (storePhone) {
+        let message = `Hola Janlu! Acabo de realizar un nuevo pedido en la web. 🛍️\n\n`;
+        message += `*Mis Datos:*\n`;
+        message += `Nombre: ${customerDetails.name}\n`;
+        if (customerDetails.phone) message += `Tel: ${customerDetails.phone}\n`;
+        
+        message += `\n*Mi Pedido:*\n`;
+        cart.forEach(item => {
+          if (item.product && item.variant) {
+            message += `- ${item.quantity}x ${item.product.name} (${item.variant.name})\n`;
+          } else if (item.course) {
+            message += `- ${item.quantity}x Taller: ${item.course.title}\n`;
+          }
+        });
+        
+        message += `\n*Resumen:*\n`;
+        message += `Total a pagar: ${formatCurrency(finalTotal)}\n`;
+        message += `Método de pago: ${paymentMethod.toUpperCase()}\n`;
+        message += `Método de entrega: ${deliveryMethod.toUpperCase()}\n`;
 
-      if (appliedCoupon) {
-        message += `\nSubtotal: ${formatCurrency(cartTotal)}\n`;
-        if (stackingPolicy === 'best_offer') {
-          message += `Cupón aplicado: ${appliedCoupon.code} (Se aplica solo si es mejor que la oferta actual)\n`;
-        } else {
-          message += `Cupón aplicado: ${appliedCoupon.code} (-${appliedCoupon.discount}%)\n`;
-        }
-      }
-      
-      message += `\nTotal: ${formatCurrency(finalTotal)}.\n`;
-      message += `Método de entrega: ${deliveryMethod === 'retiro' ? 'Retiro por el taller' : 'Envío'}\n`;
-      message += `Forma de pago elegida: ${
-        paymentMethod === 'transferencia' ? 'Transferencia o Depósito' :
-        paymentMethod === 'efectivo' ? `Efectivo ${storeSettings?.cashDiscountPercentage ? `(${storeSettings.cashDiscountPercentage}% de descuento)` : ''}` :
-        paymentMethod === 'mercadopago' ? 'Mercado Pago' : 'Acordar con el vendedor'
-      }\n`;
-
-      if (deliveryMethod === 'envio') {
-        message += `Email de contacto: ${customerDetails.email}\n`;
-      }
-      
-      if (serverGeneratedCoupon) {
-        message += `\n🎉 Me registré en la comunidad.\nMi código de regalo generado es: ${serverGeneratedCoupon.code} (Válido hasta: ${serverGeneratedCoupon.expiry})`;
-      }
-
-      message += `\n\nMe comunico para coordinar el pago y la entrega.`;
-
-      const encodedMessage = encodeURIComponent(message);
-      const whatsappNumber = storeSettings?.whatsappNumber ? storeSettings.whatsappNumber.replace(/[^0-9]/g, '') : '';
-
-      if (whatsappNumber) {
-        window.open(`https://api.whatsapp.com/send?phone=${whatsappNumber}&text=${encodedMessage}`, '_blank');
+        const encodedMessage = encodeURIComponent(message);
+        // Abrimos WhatsApp en una nueva pestaña
+        window.open(`https://wa.me/${storePhone}?text=${encodedMessage}`, '_blank');
       }
 
       setCheckoutStep('success');
