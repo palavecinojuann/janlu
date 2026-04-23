@@ -402,7 +402,7 @@ export default function SaleList({ sales, products, customers, storeSettings, on
   return (
     <>
       {/* Vista Normal */}
-      <div className="flex-1 flex flex-col min-h-0 space-y-6 print:hidden">
+      <div className="flex-1 w-full flex flex-col min-h-0 space-y-6 print:hidden">
         <div className="flex-none flex flex-col gap-4">
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
             <h2 className="text-2xl font-bold text-stone-800 dark:text-stone-100 tracking-tight">Ventas</h2>
@@ -500,10 +500,10 @@ export default function SaleList({ sales, products, customers, storeSettings, on
           </div>
         </div>
 
-        <div className="flex-1 bg-white dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800 flex flex-col min-h-0">
-          <div className="flex-1 overflow-auto">
-            <table className="w-full text-left border-collapse relative">
-              <thead className="sticky top-0 z-10 bg-stone-50 dark:bg-stone-950/50 shadow-sm">
+        <div className="w-full bg-white dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800 overflow-hidden flex-1 flex flex-col">
+          <div className="overflow-x-auto w-full">
+            <table className="w-full text-left border-collapse whitespace-nowrap min-w-[1200px] relative">
+              <thead className="sticky top-0 z-10 bg-stone-50 dark:bg-stone-950 shadow-sm">
                 <tr className="border-b border-stone-100 dark:border-stone-800 text-stone-500 dark:text-stone-400 text-xs uppercase tracking-wider">
                   <th className="p-4 font-medium">Pedido</th>
                   <th className="p-4 font-medium">Fecha</th>

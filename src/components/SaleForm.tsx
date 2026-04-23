@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Product, Customer, Sale, SaleItem, PaymentMethod, SaleStatus, Offer, Variant, Campaign, RawMaterial, StoreSettings, Course } from '../types';
-import { Plus, Trash2, ShoppingBag, Tag } from 'lucide-react';
+import { Plus, Trash2, ShoppingBag, Tag, ScanBarcode } from 'lucide-react';
 import { getVariantStock } from '../utils/stockUtils';
+import ScannerView from './ScannerView';
 
 interface SaleFormProps {
   products: Product[];
@@ -47,6 +48,7 @@ export default function SaleForm({ products, rawMaterials, customers, offers = [
   const [paymentGatewayFee, setPaymentGatewayFee] = useState<number>(0);
   const [paymentNotes, setPaymentNotes] = useState<string>('');
   const [cashGiven, setCashGiven] = useState<string>('');
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
 
   const activeOffers = useMemo(() => {
     if (!Array.isArray(offers)) return [];
@@ -189,6 +191,55 @@ export default function SaleForm({ products, rawMaterials, customers, offers = [
     const numVal = parseFloat(val) || 0;
     const calculatedPercentage = totalAmount > 0 ? Number(((numVal / totalAmount) * 100).toFixed(2)) : 100;
     setPaymentPercentage(calculatedPercentage.toString());
+  };
+  
+  const handleScanSuccess = (scannedCode: string) => {
+    setIsScannerOpen(false); // Cerramos la cámara al leer el código
+
+    let foundProduct = null;
+    let foundVariant = null;
+
+    // Buscamos a qué producto y variante corresponde el código QR
+    for (const product of products) {
+      const variant = product.variants.find(v => v.sku === scannedCode || v.id === scannedCode);
+      if (variant) {
+        foundProduct = product;
+        foundVariant = variant;
+        break;
+      }
+    }
+
+    if (foundProduct && foundVariant) {
+      const price = getEffectivePrice(foundProduct, foundVariant);
+      // Creamos el ítem para sumar a la cuenta
+      const newItem: SaleItem = {
+        id: uuidv4(),
+        productId: foundProduct.id,
+        variantId: foundVariant.id,
+        productName: foundProduct.name,
+        variantName: foundVariant.name,
+        quantity: 1,
+        price: price,
+        total: price
+      };
+
+      // Lo inyectamos en el estado de la venta (si ya existe, sumamos 1 a la cantidad)
+      setItems(prev => {
+        const existingItemIndex = prev.findIndex(i => i.productId === newItem.productId && i.variantId === newItem.variantId);
+        if (existingItemIndex >= 0) {
+          const newItems = [...prev];
+          newItems[existingItemIndex].quantity += 1;
+          newItems[existingItemIndex].total = newItems[existingItemIndex].quantity * newItems[existingItemIndex].price;
+          return newItems;
+        }
+        return [...prev, newItem];
+      });
+      
+      // Micro-vibración para confirmar lectura si se usa en celular
+      if (navigator.vibrate) navigator.vibrate(100);
+    } else {
+      alert('Código no reconocido: ' + scannedCode);
+    }
   };
 
   const handleAddItem = () => {
@@ -418,15 +469,25 @@ export default function SaleForm({ products, rawMaterials, customers, offers = [
                 </select>
               </div>
             )}
-            <div className="md:col-span-1">
+            <div className="md:col-span-1 flex gap-2">
               <button
                 type="button"
                 onClick={handleAddItem}
                 disabled={itemType === 'product' ? (!selectedVariantId || quantity <= 0) : !selectedCourseId}
-                className="w-full flex items-center justify-center px-4 py-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 rounded-lg hover:bg-indigo-200 dark:hover:bg-indigo-900/50 transition-colors text-sm font-medium disabled:opacity-50"
+                className="flex-1 flex items-center justify-center px-4 py-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 rounded-lg hover:bg-indigo-200 dark:hover:bg-indigo-900/50 transition-colors text-sm font-medium disabled:opacity-50"
               >
                 <Plus size={16} className="mr-1" /> Agregar
               </button>
+              {itemType === 'product' && (
+                <button
+                  type="button"
+                  onClick={() => setIsScannerOpen(true)}
+                  className="flex items-center justify-center px-4 py-2 bg-stone-900 dark:bg-indigo-600 text-white rounded-lg hover:bg-stone-800 dark:hover:bg-indigo-700 transition-colors text-sm font-medium"
+                  title="Escanear QR"
+                >
+                  <ScanBarcode size={18} />
+                </button>
+              )}
             </div>
           </div>
 
@@ -763,6 +824,13 @@ export default function SaleForm({ products, rawMaterials, customers, offers = [
           <button type="submit" className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors">Confirmar Venta</button>
         </div>
       </form>
+
+      {isScannerOpen && (
+        <ScannerView
+          onScan={handleScanSuccess}
+          onClose={() => setIsScannerOpen(false)}
+        />
+      )}
     </div>
   );
 }
