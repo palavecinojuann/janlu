@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { db } from '../firebase';
-import { collection, onSnapshot, query, orderBy, limit, where, getDocs, startAfter, DocumentSnapshot } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, where, getDocs, startAfter, DocumentSnapshot } from 'firebase/firestore';
 import { Sale, Customer, RawMaterial, Quote, Activity, FinancialDocument, ProductionOrder, Simulation, PreAuthorizedAdmin, AuditLog, User, Coupon, Product } from '../types';
 import { getVariantStock } from '../utils/stockUtils';
 
@@ -8,8 +8,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [realtimeSales, setRealtimeSales] = useState<Sale[]>([]);
   const [historicalSales, setHistoricalSales] = useState<Sale[]>([]);
-  const [lastSaleDoc, setLastSaleDoc] = useState<DocumentSnapshot | null>(null);
-  const [hasMoreSales, setHasMoreSales] = useState(true);
+  const [hasMoreSales, setHasMoreSales] = useState(false);
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
@@ -53,25 +52,22 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     }
 
     // Admin Listeners
-    const unsubCoupons = onSnapshot(query(collection(db, 'coupons'), limit(50)), (snapshot) => {
+    const unsubCoupons = onSnapshot(query(collection(db, 'coupons')), (snapshot) => {
       setCoupons(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Coupon)));
     });
 
-    const unsubSalesActive = onSnapshot(query(collection(db, 'sales'), orderBy('orderNumber', 'desc'), limit(20)), (snapshot) => {
+    const unsubSalesActive = onSnapshot(query(collection(db, 'sales'), orderBy('orderNumber', 'desc')), (snapshot) => {
       const newSales = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Sale));
       setRealtimeSales(newSales);
-      if (snapshot.docs.length > 0) {
-        setLastSaleDoc(snapshot.docs[snapshot.docs.length - 1]);
-      }
     });
 
-    const unsubRawMaterials = onSnapshot(query(collection(db, 'rawMaterials'), limit(100)), (snapshot) => {
+    const unsubRawMaterials = onSnapshot(query(collection(db, 'rawMaterials')), (snapshot) => {
       setRawMaterials(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as RawMaterial)));
       console.log("✅ Insumos actualizados (Admin)");
     });
 
     const todayStr = new Date().toISOString().split('T')[0];
-    const unsubQuotesActive = onSnapshot(query(collection(db, 'quotes'), where('validUntil', '>=', todayStr), limit(30)), (snapshot) => {
+    const unsubQuotesActive = onSnapshot(query(collection(db, 'quotes'), where('validUntil', '>=', todayStr)), (snapshot) => {
       const activeQuotes = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Quote));
       setQuotes(prev => {
         const merged = new Map<string, Quote>();
@@ -81,7 +77,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
       });
     });
 
-    const unsubOrdersActive = onSnapshot(query(collection(db, 'productionOrders'), where('status', '==', 'pending'), limit(30)), (snapshot) => {
+    const unsubOrdersActive = onSnapshot(query(collection(db, 'productionOrders'), where('status', '==', 'pending')), (snapshot) => {
       const activeOrders = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as ProductionOrder));
       setProductionOrders(prev => {
         const merged = new Map<string, ProductionOrder>();
@@ -101,13 +97,13 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
         const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
         const thirtyDaysAgoISO = thirtyDaysAgo.toISOString();
 
-        const auditLogsSnap = await getDocs(query(collection(db, 'auditLogs'), orderBy('timestamp', 'desc'), limit(15)));
+        const auditLogsSnap = await getDocs(query(collection(db, 'auditLogs'), orderBy('timestamp', 'desc')));
         setAuditLogs(auditLogsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as AuditLog)));
 
-        const customersSnap = await getDocs(query(collection(db, 'customers'), limit(15)));
+        const customersSnap = await getDocs(query(collection(db, 'customers')));
         setCustomers(customersSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Customer)));
 
-        const quotesRecentSnap = await getDocs(query(collection(db, 'quotes'), where('date', '>=', thirtyDaysAgoStr), orderBy('date', 'desc'), limit(15)));
+        const quotesRecentSnap = await getDocs(query(collection(db, 'quotes'), where('date', '>=', thirtyDaysAgoStr), orderBy('date', 'desc')));
         const recentQuotes = quotesRecentSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Quote));
         setQuotes(prev => {
           const merged = new Map<string, Quote>();
@@ -116,7 +112,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
           return Array.from(merged.values()).sort((a, b) => b.date.localeCompare(a.date));
         });
 
-        const ordersRecentSnap = await getDocs(query(collection(db, 'productionOrders'), where('createdAt', '>=', thirtyDaysAgoISO), orderBy('createdAt', 'desc'), limit(15)));
+        const ordersRecentSnap = await getDocs(query(collection(db, 'productionOrders'), where('createdAt', '>=', thirtyDaysAgoISO), orderBy('createdAt', 'desc')));
         const recentOrders = ordersRecentSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as ProductionOrder));
         setProductionOrders(prev => {
           const merged = new Map<string, ProductionOrder>();
@@ -125,19 +121,19 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
           return Array.from(merged.values()).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
         });
 
-        const usersSnap = await getDocs(query(collection(db, 'users'), limit(15)));
+        const usersSnap = await getDocs(query(collection(db, 'users')));
         setUsers(usersSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as any as User)));
 
         const preAuthSnap = await getDocs(collection(db, 'preAuthorizedAdmins'));
         setPreAuthorizedAdmins(preAuthSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as any as PreAuthorizedAdmin)));
 
-        const financialDocsSnap = await getDocs(query(collection(db, 'financialDocs'), limit(15)));
+        const financialDocsSnap = await getDocs(query(collection(db, 'financialDocs')));
         setFinancialDocs(financialDocsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as FinancialDocument)));
 
-        const activitiesSnap = await getDocs(query(collection(db, 'activities'), limit(15)));
+        const activitiesSnap = await getDocs(query(collection(db, 'activities')));
         setActivities(activitiesSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Activity)));
 
-        const simulationsSnap = await getDocs(query(collection(db, 'simulations'), limit(10)));
+        const simulationsSnap = await getDocs(query(collection(db, 'simulations')));
         setSimulations(simulationsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Simulation)));
 
         setLastSync(new Date());
@@ -157,30 +153,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     };
   }, [isAuthReady, isAdmin, refreshTrigger]);
 
-  const fetchMoreSales = async () => {
-    if (!lastSaleDoc || !hasMoreSales) return;
-    try {
-      const q = query(
-        collection(db, 'sales'),
-        orderBy('orderNumber', 'desc'),
-        startAfter(lastSaleDoc),
-        limit(20)
-      );
-      const snapshot = await getDocs(q);
-      if (snapshot.empty) {
-        setHasMoreSales(false);
-        return;
-      }
-      const newSales = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Sale));
-      setHistoricalSales(prev => [...prev, ...newSales]);
-      setLastSaleDoc(snapshot.docs[snapshot.docs.length - 1]);
-      if (snapshot.docs.length < 20) {
-        setHasMoreSales(false);
-      }
-    } catch (error) {
-      console.error("Error fetching more sales:", error);
-    }
-  };
+  const fetchMoreSales = async () => {};
 
   const metrics = useMemo(() => {
     if (!isAdmin) return null;

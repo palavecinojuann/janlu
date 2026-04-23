@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { db } from '../firebase';
-import { collection, doc, onSnapshot, query, limit } from 'firebase/firestore';
+import { collection, doc, onSnapshot, query } from 'firebase/firestore';
 import { Product, Campaign, Offer, Course, StoreSettings } from '../types';
 import { OperationType } from '../utils/firebaseHelpers';
 
@@ -30,7 +30,7 @@ export function usePublicInventory(isAuthReady: boolean) {
       console.warn(`[Public collection error] ${path}:`, e);
     };
 
-    const unsubProducts = onSnapshot(query(collection(db, 'products'), limit(200)), (snapshot) => {
+    const unsubProducts = onSnapshot(query(collection(db, 'products')), (snapshot) => {
       const newData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Product));
       const newDataString = JSON.stringify(newData);
 
@@ -41,15 +41,15 @@ export function usePublicInventory(isAuthReady: boolean) {
       }
     }, (e) => handlePublicError(e, OperationType.GET, 'products'));
 
-    const unsubCampaigns = onSnapshot(query(collection(db, 'campaigns'), limit(20)), (snapshot) => {
+    const unsubCampaigns = onSnapshot(query(collection(db, 'campaigns')), (snapshot) => {
       setCampaigns(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Campaign)));
     }, (e) => handlePublicError(e, OperationType.GET, 'campaigns'));
 
-    const unsubOffers = onSnapshot(query(collection(db, 'offers'), limit(20)), (snapshot) => {
+    const unsubOffers = onSnapshot(query(collection(db, 'offers')), (snapshot) => {
       setOffers(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Offer)));
     }, (e) => handlePublicError(e, OperationType.GET, 'offers'));
 
-    const unsubCourses = onSnapshot(query(collection(db, 'courses'), limit(20)), (snapshot) => {
+    const unsubCourses = onSnapshot(query(collection(db, 'courses')), (snapshot) => {
       setCourses(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Course)));
     }, (e) => handlePublicError(e, OperationType.GET, 'courses'));
 
