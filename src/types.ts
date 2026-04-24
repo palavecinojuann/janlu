@@ -388,6 +388,7 @@ export interface Course {
   imageUrl?: string;
   location?: string; // Modalidad/Lugar
   isActive: boolean;
+  syllabus?: string[];
 }
 
 export interface User {

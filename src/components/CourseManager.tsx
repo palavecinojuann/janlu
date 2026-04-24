@@ -442,6 +442,22 @@ export const CourseManager: React.FC<CourseManagerProps> = ({
                   />
                 </div>
 
+                <div className="col-span-full">
+                  <label className="block text-sm font-bold text-stone-700 dark:text-stone-300 mb-1">
+                    Programa del Workshop (Temario)
+                  </label>
+                  <textarea
+                    value={formData.syllabus?.join('\n') || ''}
+                    onChange={(e) => setFormData({ ...formData, syllabus: e.target.value.split('\n').filter(line => line.trim() !== '') })}
+                    className="w-full px-4 py-3 bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500"
+                    rows={5}
+                    placeholder="Escribe el primer punto del temario...&#10;Presiona Enter y escribe el segundo punto...&#10;Presiona Enter para el tercero..."
+                  />
+                  <p className="text-xs text-stone-500 dark:text-stone-400 mt-2">
+                    💡 Separa cada tema presionando <kbd className="bg-stone-200 dark:bg-stone-700 px-1 rounded">Enter</kbd>. El sistema le agregará los puntos de diseño automáticamente.
+                  </p>
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <label className="text-xs font-medium text-stone-500 uppercase ml-1">Fecha y Hora</label>

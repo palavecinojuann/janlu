@@ -1848,22 +1848,18 @@ export default function PublicCatalog({
                           {expandedCourseId === course.id && (
                             <div className="mt-4 text-sm text-stone-500 dark:text-stone-400 animate-in slide-in-from-top-2 fade-in duration-200">
                               <ul className="space-y-3">
-                                <li className="flex items-start gap-2">
-                                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0"></div>
-                                  <span>Teoría de las ceras: Diferencias, temperaturas de fusión y quemado óptimo.</span>
-                                </li>
-                                <li className="flex items-start gap-2">
-                                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0"></div>
-                                  <span>Arquitectura del aroma: Puntos de inflamación y cálculo de porcentajes.</span>
-                                </li>
-                                <li className="flex items-start gap-2">
-                                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0"></div>
-                                  <span>Elección de pabilos según el diámetro del envase (Testing de quemado).</span>
-                                </li>
-                                <li className="flex items-start gap-2">
-                                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0"></div>
-                                  <span>Práctica final: Creación de tu propia vela de lujo paso a paso.</span>
-                                </li>
+                                {course.syllabus && course.syllabus.length > 0 ? (
+                                  course.syllabus.map((item, index) => (
+                                    <li key={index} className="flex items-start gap-2">
+                                      <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0"></div>
+                                      <span>{item}</span>
+                                    </li>
+                                  ))
+                                ) : (
+                                  <li className="text-stone-400 dark:text-stone-500 italic text-sm">
+                                    El temario detallado de este workshop se publicará pronto.
+                                  </li>
+                                )}
                               </ul>
                             </div>
                           )}
