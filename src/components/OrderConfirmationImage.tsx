@@ -188,9 +188,9 @@ export default function OrderConfirmationImage({ sale, storeSettings, customerPh
               <div className="w-full h-px bg-stone-200/60 my-10"></div>
 
               {/* PASO 3: Mensaje de Agradecimiento Escalado */}
-              <div className="mb-12 text-center">
-                <p className="text-4xl sm:text-5xl font-bold font-serif text-center mb-4 text-stone-900">¡Gracias por tu compra, {sale.customerName.split(' ')[0]}!</p>
-                <p className="text-lg sm:text-xl text-stone-500 text-center mx-auto max-w-lg">Tu pedido ha sido registrado con éxito. Estamos preparando cada detalle para vos.</p>
+              <div className="mb-12 flex flex-col items-center justify-center w-full text-center overflow-hidden">
+                <p className="text-4xl sm:text-5xl font-bold font-serif text-center mb-4 text-stone-900 break-words whitespace-normal text-balance px-4">¡Gracias por tu compra, {sale.customerName.split(' ')[0]}!</p>
+                <p className="text-lg sm:text-xl text-stone-500 text-center mx-auto max-w-[85%] break-words whitespace-normal text-balance">Tu pedido ha sido registrado con éxito. Estamos preparando cada detalle para vos.</p>
                 <p className="text-sm font-bold text-stone-400 uppercase tracking-widest mt-2">
                   Fecha de Pedido: {new Date(sale.date).toLocaleDateString('es-AR', { year: 'numeric', month: 'long', day: 'numeric' })}
                 </p>
@@ -206,7 +206,7 @@ export default function OrderConfirmationImage({ sale, storeSettings, customerPh
                     <div className="flex-1">
                       <div className="flex items-center gap-3">
                         <span className="text-lg sm:text-xl font-bold text-stone-400">{item.quantity}x</span>
-                        <span className="text-lg sm:text-xl font-medium text-stone-800">{item.productName}</span>
+                        <span className="text-lg sm:text-xl font-medium text-stone-800 break-words whitespace-normal max-w-[200px] sm:max-w-[250px] inline-block">{item.productName}</span>
                       </div>
                       <p className="text-base text-stone-500 ml-10">{item.variantName}</p>
                     </div>
