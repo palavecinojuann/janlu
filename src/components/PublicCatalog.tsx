@@ -698,6 +698,7 @@ export default function PublicCatalog({
   const [activeTab, setActiveTab] = useState<'inicio' | 'productos' | 'workshops' | 'mayorista' | 'politicas' | 'contacto'>('inicio');
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [isAdminMode, setIsAdminMode] = useState(isAdmin);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -874,13 +875,7 @@ export default function PublicCatalog({
     };
   }, [searchTerm]);
 
-  // Auto-navegación inmediata al comenzar a buscar
-  useEffect(() => {
-    if (searchTerm.trim() !== '' && activeTab !== 'productos') {
-      setActiveTab('productos');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  }, [searchTerm]);
+  // (ELIMINADO) Auto-navegación inteligente: La vista previa ahora se maneja vía Overlay flontante en el buscador.
 
   const getSocialLink = (platform: 'instagram' | 'facebook' | 'tiktok', value?: string) => {
     if (!value) return '#';
@@ -1492,14 +1487,16 @@ export default function PublicCatalog({
               </div>
             )}
 
-        {/* Buscador Minimalista (Reubicado debajo del Carrusel) */}
-        <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 mt-10 mb-8 z-20 relative">
-          <div className="relative group flex items-center">
+        {/* Buscador Minimalista con Vista Previa Overlay */}
+        <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 mt-10 mb-8 z-50 relative">
+          <div className="relative group flex items-center z-50">
             <input
               type="text"
               placeholder="Buscar fragancias, velas, talleres..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              onFocus={() => setIsSearchFocused(true)}
+              onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
               className="w-full pl-12 pr-4 py-3 bg-transparent border-b border-stone-300 focus:border-stone-900 focus:outline-none transition-colors text-stone-800 text-sm sm:text-base font-serif placeholder:text-stone-400 placeholder:font-sans placeholder:tracking-wide"
             />
             <Search 
@@ -1514,6 +1511,64 @@ export default function PublicCatalog({
               >
                 <X size={16} />
               </button>
+            )}
+
+            {/* Panel de Vista Previa (Overlay) */}
+            {isSearchFocused && searchTerm.trim().length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-stone-900 rounded-2xl shadow-2xl border border-stone-200 dark:border-stone-800 overflow-hidden flex flex-col z-[51] animate-in slide-in-from-top-2 fade-in duration-200 max-h-[60vh]">
+                {filteredProducts.length > 0 ? (
+                  <>
+                    <div className="p-4 sm:p-6 overflow-y-auto">
+                      <span className="text-[10px] uppercase tracking-widest text-stone-400 font-bold mb-4 block">
+                        Productos Sugeridos
+                      </span>
+                      <div className="grid gap-4">
+                        {filteredProducts.slice(0, 4).map(product => (
+                          <div 
+                            key={product.id} 
+                            className="flex items-center gap-4 cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-800/50 p-2 rounded-xl transition-colors group"
+                            onClick={() => {
+                              setActiveTab('productos');
+                              setTimeout(() => {
+                                const el = document.getElementById(`product-${product.id}`);
+                                if(el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                              }, 300);
+                            }}
+                          >
+                            {product.photoUrl ? (
+                              <img src={product.photoUrl} alt={product.name} className="w-14 h-14 object-cover rounded-lg bg-stone-100" />
+                            ) : (
+                              <div className="w-14 h-14 bg-stone-100 dark:bg-stone-800 rounded-lg flex items-center justify-center">
+                                <Flame size={20} className="text-stone-400" />
+                              </div>
+                            )}
+                            <div className="flex flex-col flex-1">
+                              <span className="font-bold text-sm text-stone-900 dark:text-stone-100 group-hover:text-indigo-600 transition-colors">{product.name}</span>
+                              <span className="text-xs text-stone-500">{formatCurrency(product.variants?.[0]?.price || 0)}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => { 
+                        setActiveTab('productos'); 
+                        setIsSearchFocused(false);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      className="w-full py-4 bg-stone-50 dark:bg-stone-950 text-indigo-600 dark:text-indigo-400 font-bold text-sm hover:bg-stone-100 dark:hover:bg-stone-900 transition-colors border-t border-stone-200 dark:border-stone-800"
+                    >
+                      Ver los {filteredProducts.length} resultados para "{searchTerm}"
+                    </button>
+                  </>
+                ) : (
+                  <div className="p-8 text-center flex flex-col items-center text-stone-500">
+                    <Search size={32} className="mb-3 text-stone-300 opacity-50" />
+                    <span className="text-sm font-medium">No encontramos resultados para "{searchTerm}"</span>
+                    <span className="text-xs mt-1 opacity-70">Prueba buscando por fragancia o tipo de vela</span>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>

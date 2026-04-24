@@ -61,6 +61,18 @@ export default function JanluDashboard({
     status: 'pending'
   });
 
+  // 🚀 META DE FACTURACIÓN
+  const [monthlyGoal, setMonthlyGoal] = useState(() => {
+    const saved = localStorage.getItem('janlu_monthly_goal');
+    return saved ? Number(saved) : 1000000; // Meta por defecto: $1.000.000
+  });
+  const [isEditingGoal, setIsEditingGoal] = useState(false);
+  const [tempGoal, setTempGoal] = useState(monthlyGoal.toString());
+
+  useEffect(() => {
+    localStorage.setItem('janlu_monthly_goal', monthlyGoal.toString());
+  }, [monthlyGoal]);
+
   const validSales = useMemo(() => sales.filter(s => s.status !== 'cancelado'), [sales]);
 
   const filteredSales = useMemo(() => {
@@ -84,6 +96,8 @@ export default function JanluDashboard({
 
   const filteredRevenue = filteredSales.reduce((acc, s) => acc + s.amountPaid, 0);
   const pendingFromSales = filteredSales.reduce((acc, s) => acc + (s.totalAmount - s.amountPaid), 0);
+
+  const goalProgress = Math.min((filteredRevenue / monthlyGoal) * 100, 100);
 
   const todaySales = useMemo(() => {
     const today = new Date();
@@ -459,6 +473,62 @@ export default function JanluDashboard({
               {revenueGrowth >= 0 ? '↑' : '↓'} {Math.abs(revenueGrowth).toFixed(1)}%
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Meta de Facturación Mensual */}
+      <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm mb-8">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
+          <div>
+            <h3 className="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Meta de Facturación Mensual</h3>
+            <p className="text-2xl font-bold text-stone-900 mt-1">{formatCurrency(filteredRevenue)} <span className="text-sm font-medium text-stone-400">/ {formatCurrency(monthlyGoal)}</span></p>
+          </div>
+          {isEditingGoal ? (
+            <div className="flex items-center gap-2">
+              <span className="text-stone-500 font-bold">$</span>
+              <input
+                type="number"
+                value={tempGoal}
+                onChange={(e) => setTempGoal(e.target.value)}
+                className="w-32 px-3 py-1.5 bg-stone-50 border border-stone-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                autoFocus
+              />
+              <button
+                onClick={() => {
+                  if(Number(tempGoal) > 0) setMonthlyGoal(Number(tempGoal));
+                  setIsEditingGoal(false);
+                }}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
+              >
+                Guardar
+              </button>
+            </div>
+          ) : (
+            <button 
+              onClick={() => { setTempGoal(monthlyGoal.toString()); setIsEditingGoal(true); }} 
+              className="text-indigo-600 hover:text-indigo-700 text-sm font-medium bg-indigo-50 hover:bg-indigo-100 px-4 py-1.5 rounded-lg transition-colors"
+            >
+              Editar Meta
+            </button>
+          )}
+        </div>
+        
+        {/* Barra de progreso */}
+        <div className="w-full bg-stone-100 rounded-full h-4 overflow-hidden relative">
+          <div
+            className={`h-full transition-all duration-1000 ease-out ${goalProgress >= 100 ? 'bg-emerald-500' : 'bg-indigo-500'}`}
+            style={{ width: `${goalProgress}%` }}
+          >
+            {goalProgress >= 100 && (
+              <div className="absolute inset-0 bg-white/20 w-full h-full animate-[pulse_2s_ease-in-out_infinite]"></div>
+            )}
+          </div>
+        </div>
+        <div className="flex justify-between mt-2 text-xs font-bold text-stone-400">
+          <span>0%</span>
+          <span className={goalProgress >= 100 ? 'text-emerald-600' : 'text-indigo-600'}>
+            {goalProgress.toFixed(1)}% Alcanzado
+          </span>
         </div>
       </div>
 
