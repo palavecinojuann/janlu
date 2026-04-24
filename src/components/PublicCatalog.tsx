@@ -1513,61 +1513,81 @@ export default function PublicCatalog({
               </button>
             )}
 
-            {/* Panel de Vista Previa (Overlay) */}
-            {isSearchFocused && searchTerm.trim().length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-stone-900 rounded-2xl shadow-2xl border border-stone-200 dark:border-stone-800 overflow-hidden flex flex-col z-[51] animate-in slide-in-from-top-2 fade-in duration-200 max-h-[60vh]">
-                {filteredProducts.length > 0 ? (
-                  <>
-                    <div className="p-4 sm:p-6 overflow-y-auto">
-                      <span className="text-[10px] uppercase tracking-widest text-stone-400 font-bold mb-4 block">
-                        Productos Sugeridos
-                      </span>
-                      <div className="grid gap-4">
-                        {filteredProducts.slice(0, 4).map(product => (
-                          <div 
-                            key={product.id} 
-                            className="flex items-center gap-4 cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-800/50 p-2 rounded-xl transition-colors group"
-                            onClick={() => {
-                              setActiveTab('productos');
-                              setTimeout(() => {
-                                const el = document.getElementById(`product-${product.id}`);
-                                if(el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                              }, 300);
-                            }}
-                          >
-                            {product.photoUrl ? (
-                              <img src={product.photoUrl} alt={product.name} className="w-14 h-14 object-cover rounded-lg bg-stone-100" />
-                            ) : (
-                              <div className="w-14 h-14 bg-stone-100 dark:bg-stone-800 rounded-lg flex items-center justify-center">
-                                <Flame size={20} className="text-stone-400" />
+            {/* Panel de Vista Previa Inteligente (Overlay) */}
+            {isSearchFocused && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-stone-900 rounded-2xl shadow-2xl border border-stone-200 dark:border-stone-800 overflow-hidden flex flex-col z-50 animate-in slide-in-from-top-2 fade-in duration-200 max-h-[60vh]">
+                {(() => {
+                  const isSearchEmpty = searchTerm.trim().length === 0;
+                  const favoriteProducts = products.filter(p => favorites.includes(p.id));
+                  
+                  // Si está vacío muestra favoritos (o destacados), si escribe muestra coincidencias
+                  const previewProducts = isSearchEmpty
+                    ? (favoriteProducts.length > 0 ? favoriteProducts : products.filter(p => p.showInCatalog !== false)).slice(0, 4)
+                    : filteredProducts.slice(0, 4);
+
+                  const previewTitle = isSearchEmpty
+                    ? (favoriteProducts.length > 0 ? "Tus Favoritos" : "Productos Destacados")
+                    : "Resultados Sugeridos";
+
+                  return (
+                    <>
+                      {previewProducts.length > 0 ? (
+                        <div className="p-4 sm:p-6 overflow-y-auto">
+                          <span className="text-[10px] uppercase tracking-widest text-stone-400 font-bold mb-4 block">
+                            {previewTitle}
+                          </span>
+                          <div className="grid gap-4">
+                            {previewProducts.map(product => (
+                              <div 
+                                key={product.id} 
+                                className="flex items-center gap-4 cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-800/50 p-2 rounded-xl transition-colors group"
+                                onClick={() => {
+                                  setActiveTab('productos');
+                                  setIsSearchFocused(false);
+                                  setTimeout(() => {
+                                    const el = document.getElementById(`product-${product.id}`);
+                                    if(el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                  }, 300);
+                                }}
+                              >
+                                {product.photoUrl ? (
+                                  <img src={product.photoUrl} alt={product.name} className="w-14 h-14 object-cover rounded-lg bg-stone-100" />
+                                ) : (
+                                  <div className="w-14 h-14 bg-stone-100 dark:bg-stone-800 rounded-lg flex items-center justify-center">
+                                    <Flame size={20} className="text-stone-400" />
+                                  </div>
+                                )}
+                                <div className="flex flex-col flex-1">
+                                  <span className="font-bold text-sm text-stone-900 dark:text-stone-100 group-hover:text-indigo-600 transition-colors">{product.name}</span>
+                                  <span className="text-xs text-stone-500">{formatCurrency(product.variants?.[0]?.price || 0)}</span>
+                                </div>
                               </div>
-                            )}
-                            <div className="flex flex-col flex-1">
-                              <span className="font-bold text-sm text-stone-900 dark:text-stone-100 group-hover:text-indigo-600 transition-colors">{product.name}</span>
-                              <span className="text-xs text-stone-500">{formatCurrency(product.variants?.[0]?.price || 0)}</span>
-                            </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => { 
-                        setActiveTab('productos'); 
-                        setIsSearchFocused(false);
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                      }}
-                      className="w-full py-4 bg-stone-50 dark:bg-stone-950 text-indigo-600 dark:text-indigo-400 font-bold text-sm hover:bg-stone-100 dark:hover:bg-stone-900 transition-colors border-t border-stone-200 dark:border-stone-800"
-                    >
-                      Ver los {filteredProducts.length} resultados para "{searchTerm}"
-                    </button>
-                  </>
-                ) : (
-                  <div className="p-8 text-center flex flex-col items-center text-stone-500">
-                    <Search size={32} className="mb-3 text-stone-300 opacity-50" />
-                    <span className="text-sm font-medium">No encontramos resultados para "{searchTerm}"</span>
-                    <span className="text-xs mt-1 opacity-70">Prueba buscando por fragancia o tipo de vela</span>
-                  </div>
-                )}
+                        </div>
+                      ) : (
+                        <div className="p-8 text-center flex flex-col items-center text-stone-500">
+                          <Search size={32} className="mb-3 text-stone-300 opacity-50" />
+                          <span className="text-sm font-medium">No encontramos resultados para "{searchTerm}"</span>
+                        </div>
+                      )}
+
+                      {/* El botón de 'Ver todos los resultados' solo aparece si el cliente tipeó algo */}
+                      {!isSearchEmpty && filteredProducts.length > 0 && (
+                        <button
+                          onClick={() => { 
+                            setActiveTab('productos'); 
+                            setIsSearchFocused(false);
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }}
+                          className="w-full py-4 bg-stone-50 dark:bg-stone-950 text-indigo-600 dark:text-indigo-400 font-bold text-sm hover:bg-stone-100 dark:hover:bg-stone-900 transition-colors border-t border-stone-200 dark:border-stone-800"
+                        >
+                          Ver los {filteredProducts.length} resultados para "{searchTerm}"
+                        </button>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             )}
           </div>
