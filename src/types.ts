@@ -155,6 +155,8 @@ export interface Customer {
   welcomeDiscountUsed?: boolean;
   discountPercentage?: number;
   assignedOffers?: AssignedOffer[];
+  isAcademyStudent?: boolean;
+  academyJoinDate?: string;
 }
 
 export interface SaleItem {

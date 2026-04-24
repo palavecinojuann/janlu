@@ -3,6 +3,8 @@ import { Course, Sale, Customer } from '../types';
 import { GraduationCap, Users, Calendar, Plus, Edit2, Trash2, MapPin, Check, X, Clock, Upload, Loader2, User, Phone, Mail, ExternalLink } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { motion, AnimatePresence } from 'motion/react';
+import { useInventoryContext } from '../contexts/InventoryContext';
+import { Search } from 'lucide-react';
 
 interface CourseManagerProps {
   courses: Course[];
@@ -21,6 +23,9 @@ export const CourseManager: React.FC<CourseManagerProps> = ({
   onUpdateCourse,
   onDeleteCourse
 }) => {
+  const { updateCustomer, updateCourse: contextUpdateCourse } = useInventoryContext();
+  const [managingCourse, setManagingCourse] = useState<Course | null>(null);
+  const [studentSearchTerm, setStudentSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEnrollmentModalOpen, setIsEnrollmentModalOpen] = useState(false);
   const [selectedCourseForEnrollment, setSelectedCourseForEnrollment] = useState<Course | null>(null);
@@ -133,6 +138,29 @@ export const CourseManager: React.FC<CourseManagerProps> = ({
     }
   };
 
+  const handleManualEnrollment = async (customer: Customer) => {
+    if (!managingCourse) return;
+    if (managingCourse.enrolledCount >= managingCourse.maxQuota) {
+      alert("Este workshop ya no tiene cupos disponibles.");
+      return;
+    }
+    
+    // 1. Descontar cupo del curso
+    const updatedCourse = { ...managingCourse, enrolledCount: managingCourse.enrolledCount + 1 };
+    await contextUpdateCourse(updatedCourse);
+    setManagingCourse(updatedCourse); // Actualiza la vista local
+
+    // 2. Darle acceso al Portal de Estudiante al cliente
+    await updateCustomer({
+      ...customer,
+      isAcademyStudent: true,
+      academyJoinDate: customer.academyJoinDate || new Date().toISOString()
+    });
+    
+    alert(`¡${customer.name} ha sido inscrito/a con éxito!`);
+    setStudentSearchTerm('');
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -186,6 +214,13 @@ export const CourseManager: React.FC<CourseManagerProps> = ({
                     className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-all"
                   >
                     <Trash2 size={16} />
+                  </button>
+                  <button
+                    onClick={() => setManagingCourse(course)}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg text-sm font-medium hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors ml-2"
+                  >
+                    <Users size={16} />
+                    Inscribir ({course.enrolledCount}/{course.maxQuota})
                   </button>
                 </div>
               </div>
@@ -535,6 +570,56 @@ export const CourseManager: React.FC<CourseManagerProps> = ({
           </div>
         )}
       </AnimatePresence>
+
+      {managingCourse && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-2xl max-w-lg w-full p-6 relative">
+            <button onClick={() => { setManagingCourse(null); setStudentSearchTerm(''); }} className="absolute top-4 right-4 text-stone-400 hover:text-stone-600">
+              <X size={24} />
+            </button>
+            
+            <h3 className="text-xl font-bold text-stone-900 dark:text-white mb-1">Inscribir Alumno</h3>
+            <p className="text-sm text-stone-500 mb-6">Workshop: <span className="font-bold text-indigo-600">{managingCourse.title}</span></p>
+
+            <div className="relative mb-4">
+              <Search className="absolute left-3 top-2.5 text-stone-400" size={18} />
+              <input
+                type="text"
+                placeholder="Buscar cliente por nombre o teléfono..."
+                value={studentSearchTerm}
+                onChange={(e) => setStudentSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500"
+                autoFocus
+              />
+            </div>
+
+            <div className="max-h-60 overflow-y-auto space-y-2">
+              {studentSearchTerm.length > 1 ? (
+                customers
+                  .filter(c => c.name.toLowerCase().includes(studentSearchTerm.toLowerCase()) || c.phone.includes(studentSearchTerm))
+                  .slice(0, 5)
+                  .map(customer => (
+                    <div key={customer.id} className="flex items-center justify-between p-3 bg-stone-50 dark:bg-stone-800/50 rounded-xl border border-stone-100 dark:border-stone-800">
+                      <div>
+                        <p className="font-bold text-sm text-stone-900 dark:text-white">{customer.name}</p>
+                        <p className="text-xs text-stone-500">{customer.phone}</p>
+                      </div>
+                      <button
+                        onClick={() => handleManualEnrollment(customer)}
+                        disabled={managingCourse.enrolledCount >= managingCourse.maxQuota}
+                        className="px-4 py-1.5 bg-indigo-600 text-white text-xs font-bold rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Inscribir
+                      </button>
+                    </div>
+                  ))
+              ) : (
+                <p className="text-center text-sm text-stone-500 py-4">Escribe para buscar un cliente en tu CRM</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
