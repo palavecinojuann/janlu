@@ -1504,12 +1504,13 @@ export default function PublicCatalog({
               size={20} 
               strokeWidth={1.5}
             />
-            {searchTerm && (
-              <button 
+            {searchTerm.trim().length > 0 && (
+              <button
                 onClick={() => setSearchTerm('')}
-                className="absolute right-2 p-2 text-stone-400 hover:text-stone-600 transition-colors"
+                className="absolute right-4 top-1/2 -translate-y-1/2 p-1.5 text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 bg-stone-100 dark:bg-stone-800 rounded-full transition-colors z-10"
+                title="Limpiar búsqueda"
               >
-                <X size={16} />
+                <X size={14} />
               </button>
             )}
 
@@ -1693,7 +1694,7 @@ export default function PublicCatalog({
             </h3>
             <div className="flex flex-wrap justify-center gap-x-10 gap-y-6">
               <button
-                onClick={() => setSelectedCategory('all')}
+                onClick={() => { setSelectedCategory('all'); setSearchTerm(''); }}
                 className={`text-[10px] sm:text-xs uppercase tracking-[0.25em] transition-all duration-300 pb-2 border-b border-transparent ${selectedCategory === 'all' ? 'text-stone-900 border-stone-900 font-bold scale-105' : 'text-stone-400 hover:text-stone-600 hover:border-stone-300'}`}
               >
                 Colección Completa
@@ -1701,7 +1702,7 @@ export default function PublicCatalog({
               {categories.map(category => (
                 <button
                   key={category}
-                  onClick={() => setSelectedCategory(category)}
+                  onClick={() => { setSelectedCategory(category); setSearchTerm(''); }}
                   className={`text-[10px] sm:text-xs uppercase tracking-[0.25em] transition-all duration-300 pb-2 border-b border-transparent ${selectedCategory === category ? 'text-stone-900 border-stone-900 font-bold scale-105' : 'text-stone-400 hover:text-stone-600 hover:border-stone-300'}`}
                 >
                   {category}
@@ -1751,9 +1752,22 @@ export default function PublicCatalog({
             </div>
             
             {filteredProducts.length === 0 && (
-              <div className="text-center py-20">
-                <Wind size={48} className="mx-auto text-stone-200 mb-4" />
-                <p className="text-stone-500 font-serif text-xl">No encontramos productos en esta selección.</p>
+              <div className="col-span-full py-20 flex flex-col items-center justify-center text-center animate-in fade-in zoom-in duration-300">
+                <div className="w-20 h-20 bg-stone-100 dark:bg-stone-800 rounded-full flex items-center justify-center mb-6">
+                  <Search size={32} className="text-stone-300 dark:text-stone-600" />
+                </div>
+                <h3 className="text-xl font-serif font-bold text-stone-900 dark:text-stone-100 mb-2">
+                  No encontramos coincidencias
+                </h3>
+                <p className="text-sm text-stone-500 dark:text-stone-400 mb-8 max-w-md">
+                  No hay productos que coincidan con la búsqueda "{searchTerm}" en la categoría actual.
+                </p>
+                <button
+                  onClick={() => { setSearchTerm(''); setSelectedCategory('all'); }}
+                  className="px-6 py-3 bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 text-sm font-bold uppercase tracking-widest rounded-xl hover:bg-indigo-600 dark:hover:bg-indigo-500 hover:text-white transition-colors"
+                >
+                  Limpiar todos los filtros
+                </button>
               </div>
             )}
           </div>
