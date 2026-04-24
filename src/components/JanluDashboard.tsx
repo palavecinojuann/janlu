@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { DashboardMetrics, Product, Sale, Quote, UserProfile, Customer, RawMaterial, Activity } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import { Wind, Droplet, Flame, ArrowRightLeft, Download, ShoppingBag, TrendingUp, AlertTriangle, ArrowLeft, Plus, Users, FileText, LayoutGrid, ScanBarcode, DollarSign, Calendar as CalendarIcon, X, Sparkles, ShoppingCart, ArrowUpCircle } from 'lucide-react';
