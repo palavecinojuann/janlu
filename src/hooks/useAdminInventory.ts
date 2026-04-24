@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { db } from '../firebase';
-import { collection, onSnapshot, query, orderBy, where, getDocs, startAfter, DocumentSnapshot } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, where, getDocs, startAfter, DocumentSnapshot, limit } from 'firebase/firestore';
 import { Sale, Customer, RawMaterial, Quote, Activity, FinancialDocument, ProductionOrder, Simulation, PreAuthorizedAdmin, AuditLog, User, Coupon, Product } from '../types';
 import { getVariantStock } from '../utils/stockUtils';
+import { handleFirestoreError, OperationType } from '../utils/firebaseHelpers';
 
 export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, products: Product[], rawMaterials: RawMaterial[]) {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -54,22 +55,23 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
       setCoupons(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Coupon)));
     });
 
-    const unsubSalesActive = onSnapshot(query(collection(db, 'sales'), orderBy('orderNumber', 'desc')), (snapshot) => {
+    // Suscripciones con Paginación Estricta para ahorrar lecturas
+    const unsubSales = onSnapshot(query(collection(db, 'sales'), orderBy('date', 'desc'), limit(20)), (snapshot) => {
       const newSales = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Sale));
       setRealtimeSales(newSales);
-    });
+    }, (e) => handleFirestoreError(e, OperationType.GET, 'sales'));
 
+    const unsubCustomers = onSnapshot(query(collection(db, 'customers'), limit(20)), (snapshot) => {
+      setCustomers(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Customer)));
+    }, (e) => handleFirestoreError(e, OperationType.GET, 'customers'));
 
-    const todayStr = new Date().toISOString().split('T')[0];
-    const unsubQuotesActive = onSnapshot(query(collection(db, 'quotes'), where('validUntil', '>=', todayStr)), (snapshot) => {
-      const activeQuotes = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Quote));
-      setQuotes(prev => {
-        const merged = new Map<string, Quote>();
-        prev.forEach(q => merged.set(q.id, q));
-        activeQuotes.forEach(q => merged.set(q.id, q));
-        return Array.from(merged.values()).sort((a, b) => b.date.localeCompare(a.date));
-      });
-    });
+    const unsubQuotes = onSnapshot(query(collection(db, 'quotes'), orderBy('date', 'desc'), limit(20)), (snapshot) => {
+      setQuotes(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Quote)));
+    }, (e) => handleFirestoreError(e, OperationType.GET, 'quotes'));
+
+    const unsubActivities = onSnapshot(query(collection(db, 'activities'), orderBy('createdAt', 'desc'), limit(20)), (snapshot) => {
+      setActivities(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Activity)));
+    }, (e) => handleFirestoreError(e, OperationType.GET, 'activities'));
 
     const unsubOrdersActive = onSnapshot(query(collection(db, 'productionOrders'), where('status', '==', 'pending')), (snapshot) => {
       const activeOrders = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as ProductionOrder));
@@ -94,18 +96,6 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
         const auditLogsSnap = await getDocs(query(collection(db, 'auditLogs'), orderBy('timestamp', 'desc')));
         setAuditLogs(auditLogsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as AuditLog)));
 
-        const customersSnap = await getDocs(query(collection(db, 'customers')));
-        setCustomers(customersSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Customer)));
-
-        const quotesRecentSnap = await getDocs(query(collection(db, 'quotes'), where('date', '>=', thirtyDaysAgoStr), orderBy('date', 'desc')));
-        const recentQuotes = quotesRecentSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Quote));
-        setQuotes(prev => {
-          const merged = new Map<string, Quote>();
-          prev.forEach(q => merged.set(q.id, q));
-          recentQuotes.forEach(q => merged.set(q.id, q));
-          return Array.from(merged.values()).sort((a, b) => b.date.localeCompare(a.date));
-        });
-
         const ordersRecentSnap = await getDocs(query(collection(db, 'productionOrders'), where('createdAt', '>=', thirtyDaysAgoISO), orderBy('createdAt', 'desc')));
         const recentOrders = ordersRecentSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as ProductionOrder));
         setProductionOrders(prev => {
@@ -124,9 +114,6 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
         const financialDocsSnap = await getDocs(query(collection(db, 'financialDocs')));
         setFinancialDocs(financialDocsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as FinancialDocument)));
 
-        const activitiesSnap = await getDocs(query(collection(db, 'activities')));
-        setActivities(activitiesSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Activity)));
-
         const simulationsSnap = await getDocs(query(collection(db, 'simulations')));
         setSimulations(simulationsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Simulation)));
 
@@ -140,8 +127,10 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
 
     return () => {
       unsubCoupons();
-      unsubSalesActive();
-      unsubQuotesActive();
+      unsubSales();
+      unsubCustomers();
+      unsubQuotes();
+      unsubActivities();
       unsubOrdersActive();
     };
   }, [isAuthReady, isAdmin, refreshTrigger]);
