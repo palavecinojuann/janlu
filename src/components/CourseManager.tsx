@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { motion, AnimatePresence } from 'motion/react';
 import { useInventoryContext } from '../contexts/InventoryContext';
 import { Search } from 'lucide-react';
+import AcademyWelcomeCard from './AcademyWelcomeCard';
 
 interface CourseManagerProps {
   courses: Course[];
@@ -26,6 +27,7 @@ export const CourseManager: React.FC<CourseManagerProps> = ({
   const { updateCustomer, updateCourse: contextUpdateCourse } = useInventoryContext();
   const [managingCourse, setManagingCourse] = useState<Course | null>(null);
   const [studentSearchTerm, setStudentSearchTerm] = useState('');
+  const [recentlyEnrolled, setRecentlyEnrolled] = useState<{name: string, phone: string, course: string} | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEnrollmentModalOpen, setIsEnrollmentModalOpen] = useState(false);
   const [selectedCourseForEnrollment, setSelectedCourseForEnrollment] = useState<Course | null>(null);
@@ -157,7 +159,11 @@ export const CourseManager: React.FC<CourseManagerProps> = ({
       academyJoinDate: customer.academyJoinDate || new Date().toISOString()
     });
     
-    alert(`¡${customer.name} ha sido inscrito/a con éxito!`);
+    setRecentlyEnrolled({
+      name: customer.name,
+      phone: customer.phone,
+      course: managingCourse.title
+    });
     setStudentSearchTerm('');
   };
 
@@ -619,6 +625,15 @@ export const CourseManager: React.FC<CourseManagerProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {recentlyEnrolled && (
+        <AcademyWelcomeCard
+          studentName={recentlyEnrolled.name}
+          courseName={recentlyEnrolled.course}
+          studentPhone={recentlyEnrolled.phone}
+          onClose={() => setRecentlyEnrolled(null)}
+        />
       )}
     </div>
   );
