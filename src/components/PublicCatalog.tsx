@@ -953,14 +953,13 @@ export default function PublicCatalog({
       alert('Lo sentimos, este curso ya no tiene cupos disponibles.');
       return;
     }
-
-    setCart(prev => {
-      const existing = prev.find(item => item.course?.id === course.id);
-      if (existing) {
-        return prev;
-      }
-      return [...prev, { course, isCourse: true, quantity: 1, customDescription: `Inscripción: ${course.title}` }];
-    });
+    
+    const existingCartItem = cart.find(i => i.course?.id === course.id);
+    if (existingCartItem) {
+      updateCartQuantity(undefined, undefined, existingCartItem.quantity + 1, course.id);
+    } else {
+      setCart([...cart, { course: course, isCourse: true, quantity: 1, customDescription: `Inscripción: ${course.title}` }]);
+    }
     setIsCartOpen(true);
   };
 
@@ -1774,109 +1773,95 @@ export default function PublicCatalog({
         )}
 
         {activeTab === 'workshops' && (
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-            {(() => {
-              const activeCourses = courses?.filter(c => c.isActive) || [];
-              
-              if (activeCourses.length === 0) {
-                return (
-                  <div className="max-w-3xl mx-auto px-4 py-32 text-center flex flex-col items-center justify-center">
-                    <Calendar size={64} className="text-stone-300 mb-6" strokeWidth={1} />
-                    <h3 className="text-3xl sm:text-4xl font-serif text-stone-900 mb-4">Próximos Encuentros en Camino</h3>
-                    <p className="text-stone-500 text-sm max-w-md mx-auto leading-relaxed mb-8">
-                      Actualmente estamos diseñando nuestros próximos workshops. Mantente atento a esta sección o síguenos en nuestras redes para enterarte antes que nadie.
-                    </p>
-                    <button
-                      onClick={() => setActiveTab('productos')}
-                      className="px-8 py-3 border border-stone-900 text-stone-900 text-xs font-bold uppercase tracking-[0.2em] hover:bg-stone-900 hover:text-white transition-all"
-                    >
-                      Ver Productos
-                    </button>
-                  </div>
-                );
-              }
+          <div className="max-w-7xl mx-auto px-4 py-12 animate-in fade-in duration-500">
+            <div className="text-center mb-16">
+              <h2 className="text-3xl sm:text-4xl font-serif text-stone-900 dark:text-white mb-4 tracking-tight">Janlu Academy</h2>
+              <p className="text-stone-500 dark:text-stone-400 max-w-2xl mx-auto text-sm sm:text-base">
+                Sumérgete en el arte de la cerería. Aprende nuestras técnicas exclusivas, conoce los secretos detrás de nuestros aromas y crea tus propias velas premium en nuestros workshops presenciales.
+              </p>
+            </div>
 
-              return (
-                <>
-                  <div className="mb-12">
-                    <h2 className="text-3xl font-serif text-stone-900 mb-2">Workshops y Cursos</h2>
-                    <p className="text-stone-500 text-sm uppercase tracking-widest">Capacitaciones y experiencias presenciales</p>
-                  </div>
+            {courses && courses.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {courses.map(course => {
+                  const availableSpots = course.maxQuota - course.enrolledCount;
+                  const isSoldOut = availableSpots <= 0;
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {activeCourses.map((course) => (
-                      <div key={course.id} className="bg-white border border-stone-100 overflow-hidden group">
-                        <div className="aspect-[16/9] bg-stone-50 relative overflow-hidden">
-                          {course.imageUrl ? (
-                            <img
-                              src={course.imageUrl}
-                              alt={course.title}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                              referrerPolicy="no-referrer"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-stone-300">
-                              <GraduationCap size={48} strokeWidth={1} />
-                            </div>
-                          )}
-                          {course.enrolledCount >= course.maxQuota && (
-                            <div className="absolute inset-0 bg-stone-900/60 flex items-center justify-center">
-                              <span className="bg-white text-stone-900 px-4 py-1.5 text-xs font-bold uppercase tracking-widest">Agotado</span>
-                            </div>
-                          )}
-                        </div>
-                        <div className="p-6 space-y-4">
-                          <h3 className="text-xl font-serif text-stone-900 leading-tight">{course.title}</h3>
-                          <p className="text-stone-500 text-sm line-clamp-2 leading-relaxed">{course.description}</p>
-                          
-                          <div className="space-y-2 pt-2">
-                            <div className="flex items-center gap-2 text-xs text-stone-600 uppercase tracking-wider">
-                              <Calendar size={14} className="text-stone-400" />
-                              <span>{new Date(course.date).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-xs text-stone-600 uppercase tracking-wider">
-                              <Clock size={14} className="text-stone-400" />
-                              <span>{new Date(course.date).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })} hs</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-xs text-stone-600 uppercase tracking-wider">
-                              <MapPin size={14} className="text-stone-400" />
-                              <span>{course.location}</span>
-                            </div>
+                  return (
+                    <div key={course.id} className="bg-white dark:bg-stone-900 rounded-3xl border border-stone-200 dark:border-stone-800 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-500 group flex flex-col">
+                      
+                      {/* Imagen y Etiqueta VIP */}
+                      <div className="aspect-[4/3] bg-stone-100 dark:bg-stone-800 relative overflow-hidden">
+                        {course.imageUrl ? (
+                          <img src={course.imageUrl} alt={course.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" loading="lazy" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] bg-stone-100 dark:bg-stone-800">
+                            <GraduationCap size={48} className="text-stone-300 dark:text-stone-600" />
                           </div>
+                        )}
+                        <div className="absolute top-4 left-4 bg-white/90 dark:bg-stone-900/90 backdrop-blur-md px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest text-indigo-600 dark:text-indigo-400 shadow-sm">
+                          Workshop Presencial
+                        </div>
+                      </div>
 
-                          <div className="pt-4 border-t border-stone-50 flex items-center justify-between">
-                            <div>
-                              <span className="text-[10px] text-stone-400 uppercase tracking-widest block mb-1">Inversión</span>
-                              <span className="text-xl font-serif text-stone-900">{formatCurrency(course.price)}</span>
-                            </div>
-                            <div className="text-right">
-                              <span className="text-[10px] text-stone-400 uppercase tracking-widest block mb-1">Cupos</span>
-                              <span className={`text-sm font-medium ${course.maxQuota - course.enrolledCount <= 3 ? 'text-red-600' : 'text-stone-600'}`}>
-                                {course.enrolledCount >= course.maxQuota 
-                                  ? 'Sin lugares' 
-                                  : `Quedan ${course.maxQuota - course.enrolledCount} lugares`}
-                              </span>
-                            </div>
+                      {/* Cuerpo de la Tarjeta */}
+                      <div className="p-6 sm:p-8 flex flex-col flex-1">
+                        <h3 className="text-xl sm:text-2xl font-serif font-bold text-stone-900 dark:text-white mb-3 line-clamp-2 leading-tight">{course.title}</h3>
+                        <p className="text-sm text-stone-500 dark:text-stone-400 mb-6 line-clamp-3 leading-relaxed">{course.description}</p>
+
+                        {/* Detalles Logísticos */}
+                        <div className="space-y-3 mb-8 bg-stone-50 dark:bg-stone-800/50 p-4 rounded-2xl">
+                          <div className="flex items-center text-sm text-stone-700 dark:text-stone-300 font-medium">
+                            <Calendar size={18} className="mr-3 text-indigo-500" />
+                            <span>{new Date(course.date).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
+                          </div>
+                          <div className="flex items-center text-sm text-stone-700 dark:text-stone-300 font-medium">
+                            <Clock size={18} className="mr-3 text-indigo-500" />
+                            <span>{new Date(course.date).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })} hs</span>
+                          </div>
+                          <div className="flex items-center text-sm text-stone-700 dark:text-stone-300 font-medium">
+                            <MapPin size={18} className="mr-3 text-indigo-500" />
+                            <span className="truncate">{course.location || 'Janlu Atelier'}</span>
+                          </div>
+                        </div>
+
+                        {/* Footer de Precio y Acción */}
+                        <div className="mt-auto pt-4 flex items-center justify-between border-t border-stone-100 dark:border-stone-800">
+                          <div className="flex flex-col">
+                            <span className="text-2xl font-bold text-stone-900 dark:text-white tracking-tight">{formatCurrency(course.price)}</span>
+                            {isSoldOut ? (
+                               <span className="text-xs font-bold text-rose-500 uppercase tracking-widest mt-1">Agotado</span>
+                            ) : (
+                               <span className={`text-xs font-bold uppercase tracking-widest mt-1 ${availableSpots <= 3 ? 'text-rose-500 animate-pulse' : 'text-emerald-600'}`}>
+                                 Quedan {availableSpots} lugares
+                               </span>
+                            )}
                           </div>
 
                           <button
                             onClick={() => handleEnrollCourse(course)}
-                            disabled={course.enrolledCount >= course.maxQuota}
-                            className={`w-full py-3 text-[10px] font-bold uppercase tracking-[0.2em] transition-all ${
-                              course.enrolledCount >= course.maxQuota
-                                ? 'bg-stone-100 text-stone-400 cursor-not-allowed'
-                                : 'bg-stone-900 text-white hover:bg-stone-800 shadow-sm'
+                            disabled={isSoldOut}
+                            className={`px-6 py-3 rounded-xl text-sm font-bold uppercase tracking-wider transition-all duration-300 ${
+                              isSoldOut 
+                                ? 'bg-stone-100 dark:bg-stone-800 text-stone-400 cursor-not-allowed' 
+                                : 'bg-stone-900 dark:bg-indigo-600 text-white hover:bg-indigo-600 dark:hover:bg-indigo-500 shadow-lg hover:shadow-indigo-500/25 hover:-translate-y-0.5'
                             }`}
                           >
-                            {course.enrolledCount >= course.maxQuota ? 'AGOTADO' : 'INSCRIBIRME AL WORKSHOP'}
+                            {isSoldOut ? 'Sin Cupo' : 'Inscribirse'}
                           </button>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </>
-              );
-            })()}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-24 bg-stone-50 dark:bg-stone-900/50 rounded-3xl border border-dashed border-stone-200 dark:border-stone-800 max-w-3xl mx-auto">
+                <GraduationCap size={48} className="mx-auto text-stone-300 dark:text-stone-700 mb-6" />
+                <h3 className="text-xl font-serif font-bold text-stone-900 dark:text-white mb-2">Preparando nuevas fechas</h3>
+                <p className="text-stone-500 dark:text-stone-400">Actualmente no tenemos workshops programados con cupos abiertos. ¡Mantente atento a nuestras redes sociales!</p>
+              </div>
+            )}
           </div>
         )}
 
