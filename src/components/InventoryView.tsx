@@ -4,7 +4,6 @@ import ProductList from './ProductList';
 import RawMaterialList from './RawMaterialList';
 import { Package, Beaker, ShoppingBag, ExternalLink, Printer } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
-import Barcode from 'react-barcode';
 
 interface InventoryViewProps {
   initialTab?: 'products' | 'raw-materials';

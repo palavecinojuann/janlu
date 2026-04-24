@@ -2,7 +2,6 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Sale, Product, Customer, SaleStatus, StoreSettings } from '../types';
 import { ShoppingCart, Plus, Printer, Eye, X, FileText, Link as LinkIcon, MessageCircle, AlertTriangle, CheckCircle, Search, Upload, Loader2, CreditCard, Calendar, Clock, DollarSign, Package } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
-import Barcode from 'react-barcode';
 import OrderConfirmationImage from './OrderConfirmationImage';
 import { v4 as uuidv4 } from 'uuid';
 import imageCompression from 'browser-image-compression';
@@ -1090,18 +1089,6 @@ export default function SaleList({ sales, products, customers, storeSettings, on
                         <p className="text-3xl font-bold font-lato text-indigo-600 dark:text-indigo-400 print:text-black mb-2">#{saleToPreview.orderNumber}</p>
                       </>
                     )}
-                    <div className="bg-white p-2 rounded-lg inline-block border border-stone-200 dark:border-stone-700 print:border-none print:p-0">
-                      <Barcode 
-                        value={saleToPreview.orderNumber ? `PED-${saleToPreview.orderNumber}` : saleToPreview.id.substring(0, 8)} 
-                        width={1.5} 
-                        height={40} 
-                        displayValue={true}
-                        fontSize={12}
-                        margin={0}
-                        background="#ffffff"
-                        lineColor="#000000"
-                      />
-                    </div>
                   </div>
                 </div>
 
@@ -1214,7 +1201,12 @@ export default function SaleList({ sales, products, customers, storeSettings, on
                 
                 <div className="mt-12 pt-6 border-t-2 border-black dark:border-stone-700 print:border-black text-center flex flex-col items-center">
                   <div className="mb-4">
-                    <QRCodeSVG value={`SALE-${saleToPreview.id}`} size={80} />
+                    <QRCodeSVG 
+                      value={`${window.location.origin}/#sales?search=${saleToPreview.orderNumber || saleToPreview.id}`} 
+                      size={80} 
+                      level="M" 
+                      includeMargin={false} 
+                    />
                   </div>
                   <p className="font-cinzel font-bold text-lg text-stone-900 dark:text-stone-100 print:text-black">¡Gracias por tu compra!</p>
                   <p className="text-sm text-gray-500 dark:text-stone-400 print:text-gray-500 mt-1">@janluvelas</p>
