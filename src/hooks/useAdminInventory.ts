@@ -141,6 +141,40 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     setSalesLimit(prev => prev + 20);
   };
 
+  const searchHistoricalSale = async (searchQuery: string) => {
+    try {
+      let q;
+      const orderNum = parseInt(searchQuery);
+
+      // Si es un número exacto, buscamos el ID de pedido. Si es texto, buscamos por nombre de cliente.
+      if (!isNaN(orderNum) && searchQuery.trim().match(/^\d+$/)) {
+        q = query(collection(db, 'sales'), where('orderNumber', '==', orderNum));
+      } else {
+        q = query(collection(db, 'sales'), where('customerName', '>=', searchQuery), where('customerName', '<=', searchQuery + '\uf8ff'), limit(5));
+      }
+
+      const querySnapshot = await getDocs(q);
+      const foundSales = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Sale));
+
+      if (foundSales.length > 0) {
+        // Inyectamos el pedido encontrado en el estado actual de ventas en pantalla
+        setRealtimeSales(prev => {
+          const current = [...prev];
+          foundSales.forEach(fs => {
+            if (!current.some(s => s.id === fs.id)) current.push(fs);
+          });
+          // Re-ordenamos para que el pedido buscado quede acomodado correctamente por fecha
+          return current.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        });
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Error en búsqueda histórica:", error);
+      return false;
+    }
+  };
+
   const metrics = useMemo(() => {
     if (!isAdmin) return null;
 
@@ -219,6 +253,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     customers,
     sales,
     fetchMoreSales,
+    searchHistoricalSale,
     hasMoreSales,
     quotes,
     activities,

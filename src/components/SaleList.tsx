@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Sale, Product, Customer, SaleStatus, StoreSettings } from '../types';
-import { ShoppingCart, Plus, Printer, Eye, X, FileText, Link as LinkIcon, MessageCircle, AlertTriangle, CheckCircle, Search, Upload, Loader2, CreditCard, Calendar, Clock, DollarSign, Package } from 'lucide-react';
+import { ShoppingCart, Plus, Printer, Eye, X, FileText, Link as LinkIcon, MessageCircle, AlertTriangle, CheckCircle, Search, Upload, Loader2, CreditCard, Calendar, Clock, DollarSign, Package, Cloud } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import OrderConfirmationImage from './OrderConfirmationImage';
 import { v4 as uuidv4 } from 'uuid';
@@ -19,7 +19,8 @@ interface SaleListProps {
 }
 
 export default function SaleList({ sales, products, customers, storeSettings, onNewSale, onUpdateSale, onAttachReceipt, initialStatusFilter }: SaleListProps) {
-  const { fetchMoreSales, hasMoreSales } = useInventoryContext();
+  const { fetchMoreSales, hasMoreSales, searchHistoricalSale } = useInventoryContext();
+  const [isSearchingHistory, setIsSearchingHistory] = useState(false);
   // 🚀 OPTIMISTIC UI: Creamos una copia local de las ventas para que reaccione al instante
   const [localSales, setLocalSales] = useState<Sale[]>(sales);
 
@@ -89,6 +90,16 @@ export default function SaleList({ sales, products, customers, storeSettings, on
     setPrintAddress(customer?.address || '');
     setPrintNotes('');
     setPreviewSaleId(sale.id);
+  };
+
+  const handleHistoricalSearch = async () => {
+    if (!searchTerm.trim() || !searchHistoricalSale) return;
+    setIsSearchingHistory(true);
+    const found = await searchHistoricalSale(searchTerm.trim());
+    setIsSearchingHistory(false);
+    if (!found) {
+      alert("No se encontró ningún pedido histórico con ese número o nombre.");
+    }
   };
 
   // Usamos localSales en lugar de sales para que la vista cambie al instante
@@ -405,15 +416,25 @@ export default function SaleList({ sales, products, customers, storeSettings, on
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
             <h2 className="text-2xl font-bold text-stone-800 dark:text-stone-100 tracking-tight">Ventas</h2>
             <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
-              <div className="relative w-full sm:w-64">
-                <input
-                  type="text"
-                  placeholder="Buscar pedido, cliente..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:text-white"
-                />
-                <Search className="absolute left-3 top-2.5 text-stone-400" size={18} />
+              <div className="flex gap-2 w-full sm:w-auto">
+                <div className="relative w-full sm:w-64">
+                  <input
+                    type="text"
+                    placeholder="Buscar pedido, cliente..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:text-white"
+                  />
+                  <Search className="absolute left-3 top-2.5 text-stone-400" size={18} />
+                </div>
+                <button
+                  onClick={handleHistoricalSearch}
+                  disabled={isSearchingHistory || !searchTerm.trim()}
+                  className="flex items-center justify-center px-3 py-2 bg-stone-100 dark:bg-stone-800 hover:bg-indigo-50 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300 rounded-xl transition-colors border border-stone-200 dark:border-stone-700 disabled:opacity-50"
+                  title="Buscar en la base de datos profunda"
+                >
+                  {isSearchingHistory ? <Loader2 size={18} className="animate-spin text-indigo-600" /> : <Cloud size={18} className="text-indigo-600" />}
+                </button>
               </div>
               <div className="flex space-x-3 w-full sm:w-auto">
                 <button
