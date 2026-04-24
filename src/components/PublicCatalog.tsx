@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Product, RawMaterial, Offer, Variant, Campaign, Sale, SaleStatus, StoreSettings, Course } from '../types';
-import { Search, Filter, Wind, Droplet, Flame, ShoppingBag, Instagram, Facebook, Phone, Lock, Unlock, Plus, Edit2, Trash2, X, Tag, Clock, Calendar, ShoppingCart, Minus, ChevronRight, ChevronLeft, AlertTriangle, Package, LayoutDashboard, ArrowRightLeft, Upload, CheckCircle, Timer, Zap, LogOut, Loader2, Gift, Shield, Music2, ShieldCheck, Truck, Mail, MapPin, GraduationCap, Copy, Heart } from 'lucide-react';
+import { Search, Filter, Wind, Droplet, Flame, ShoppingBag, Instagram, Facebook, Phone, Lock, Unlock, Plus, Edit2, Trash2, X, Tag, Clock, Calendar, ShoppingCart, Minus, ChevronRight, ChevronLeft, AlertTriangle, Package, LayoutDashboard, ArrowRightLeft, Upload, CheckCircle, Timer, Zap, LogOut, Loader2, Gift, Shield, Music2, ShieldCheck, Truck, Mail, MapPin, GraduationCap, Copy, Heart, ChevronDown, ChevronUp, BookOpen } from 'lucide-react';
 import ProductForm from './ProductForm';
 import ProductModal from './ProductModal';
 import { getVariantStock } from '../utils/stockUtils';
@@ -699,6 +699,7 @@ export default function PublicCatalog({
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [expandedCourseId, setExpandedCourseId] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [isAdminMode, setIsAdminMode] = useState(isAdmin);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -1823,6 +1824,49 @@ export default function PublicCatalog({
                             <MapPin size={18} className="mr-3 text-indigo-500" />
                             <span className="truncate">{course.location || 'Janlu Atelier'}</span>
                           </div>
+                        </div>
+                        
+                        {/* Acordeón del Temario */}
+                        <div className="mb-8 border-t border-stone-100 dark:border-stone-800 pt-4">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setExpandedCourseId(expandedCourseId === course.id ? null : course.id);
+                            }}
+                            className="flex items-center justify-between w-full group/btn"
+                          >
+                            <div className="flex items-center gap-2 text-sm font-bold text-stone-900 dark:text-white group-hover/btn:text-indigo-600 transition-colors">
+                              <BookOpen size={16} className="text-indigo-500" />
+                              Programa del Workshop
+                            </div>
+                            <div className="text-stone-400 group-hover/btn:text-indigo-600 transition-colors">
+                              {expandedCourseId === course.id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                            </div>
+                          </button>
+
+                          {/* Contenido Expandible */}
+                          {expandedCourseId === course.id && (
+                            <div className="mt-4 text-sm text-stone-500 dark:text-stone-400 animate-in slide-in-from-top-2 fade-in duration-200">
+                              <ul className="space-y-3">
+                                <li className="flex items-start gap-2">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0"></div>
+                                  <span>Teoría de las ceras: Diferencias, temperaturas de fusión y quemado óptimo.</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0"></div>
+                                  <span>Arquitectura del aroma: Puntos de inflamación y cálculo de porcentajes.</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0"></div>
+                                  <span>Elección de pabilos según el diámetro del envase (Testing de quemado).</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0"></div>
+                                  <span>Práctica final: Creación de tu propia vela de lujo paso a paso.</span>
+                                </li>
+                              </ul>
+                            </div>
+                          )}
                         </div>
 
                         {/* Footer de Precio y Acción */}
