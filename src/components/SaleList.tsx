@@ -20,7 +20,6 @@ interface SaleListProps {
 
 export default function SaleList({ sales, products, customers, storeSettings, onNewSale, onUpdateSale, onAttachReceipt, initialStatusFilter }: SaleListProps) {
   const { fetchMoreSales, hasMoreSales } = useInventoryContext();
-  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   // 🚀 OPTIMISTIC UI: Creamos una copia local de las ventas para que reaccione al instante
   const [localSales, setLocalSales] = useState<Sale[]>(sales);
 
@@ -843,31 +842,14 @@ export default function SaleList({ sales, products, customers, storeSettings, on
             </table>
           </div>
           
-          {hasMoreSales && (
-            <div className="flex justify-center mt-6 pb-6">
+          {filteredSales.length >= 20 && (
+            <div className="flex justify-center mt-6 mb-8 print:hidden">
               <button
-                onClick={async () => {
-                  setIsLoadingHistory(true);
-                  try {
-                    await fetchMoreSales();
-                  } finally {
-                    setIsLoadingHistory(false);
-                  }
-                }}
-                disabled={isLoadingHistory}
-                className="flex items-center gap-2 px-6 py-3 bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-300 font-medium rounded-xl transition-all shadow-sm disabled:opacity-50"
+                onClick={fetchMoreSales}
+                className="px-6 py-2 bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-300 font-medium rounded-full transition-colors text-sm flex items-center gap-2 border border-stone-200 dark:border-stone-700"
               >
-                {isLoadingHistory ? (
-                  <>
-                    <Loader2 size={18} className="animate-spin" />
-                    Cargando historial...
-                  </>
-                ) : (
-                  <>
-                    <Clock size={18} />
-                    Cargar ventas anteriores
-                  </>
-                )}
+                <Clock size={16} />
+                Cargar más pedidos viejos
               </button>
             </div>
           )}

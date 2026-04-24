@@ -21,6 +21,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
   const [financialDocs, setFinancialDocs] = useState<FinancialDocument[]>([]);
   const [lastSync, setLastSync] = useState<Date>(new Date());
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [salesLimit, setSalesLimit] = useState(20);
   const hasFetchedNonCritical = useRef(false);
 
   const refresh = () => {
@@ -56,9 +57,10 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     });
 
     // Suscripciones con Paginación Estricta para ahorrar lecturas
-    const unsubSales = onSnapshot(query(collection(db, 'sales'), orderBy('date', 'desc'), limit(20)), (snapshot) => {
+    const unsubSales = onSnapshot(query(collection(db, 'sales'), orderBy('date', 'desc'), limit(salesLimit)), (snapshot) => {
       const newSales = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Sale));
       setRealtimeSales(newSales);
+      setHasMoreSales(snapshot.docs.length === salesLimit);
     }, (e) => handleFirestoreError(e, OperationType.GET, 'sales'));
 
     const unsubCustomers = onSnapshot(query(collection(db, 'customers'), limit(20)), (snapshot) => {
@@ -133,9 +135,11 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
       unsubActivities();
       unsubOrdersActive();
     };
-  }, [isAuthReady, isAdmin, refreshTrigger]);
+  }, [isAuthReady, isAdmin, refreshTrigger, salesLimit]);
 
-  const fetchMoreSales = async () => {};
+  const fetchMoreSales = () => {
+    setSalesLimit(prev => prev + 20);
+  };
 
   const metrics = useMemo(() => {
     if (!isAdmin) return null;
