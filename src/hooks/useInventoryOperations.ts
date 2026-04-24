@@ -851,7 +851,28 @@ export function useInventoryOperations(
     }
     const newSale: Sale = { ...saleData, id: uuidv4(), orderNumber: nextOrderNumber, date: new Date().toISOString(), status: saleData.status || 'nuevo' };
     try {
-      await setDoc(doc(db, 'sales', newSale.id), cleanObject(newSale));
+      const batch = writeBatch(db);
+      batch.set(doc(db, 'sales', newSale.id), cleanObject(newSale));
+
+      // 🚀 AUTO-DESCUENTO DEL STOCK PÚBLICO (Previene sobre-ventas en la web en tiempo real)
+      saleData.items.forEach(item => {
+        const product = products.find(p => p.id === item.productId);
+        if (product) {
+          const updatedVariants = product.variants.map(v => {
+            if (v.id === item.variantId) {
+              // Restamos la cantidad vendida del stock estático y evitamos números negativos
+              return { ...v, stock: Math.max(0, (v.stock || 0) - item.quantity) };
+            }
+            return v;
+          });
+          
+          // Agregamos la actualización del producto al mismo batch de la venta
+          batch.set(doc(db, 'products', product.id), { ...product, variants: updatedVariants }, { merge: true });
+        }
+      });
+
+      await batch.commit();
+
       if (newSale.status !== 'cancelado') await commitStock(newSale.items);
       return newSale.id;
     } catch (error) { handleFirestoreError(error, OperationType.WRITE, 'sales'); }
