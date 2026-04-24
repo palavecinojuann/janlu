@@ -189,9 +189,9 @@ export default function OrderConfirmationImage({ sale, storeSettings, customerPh
 
               {/* PASO 3: Mensaje de Agradecimiento Escalado */}
               <div className="mb-12 text-center">
-                <p className="text-4xl font-serif text-center mb-4 text-stone-900">¡Gracias por tu compra, {sale.customerName.split(' ')[0]}!</p>
-                <p className="text-xl text-stone-600 text-center mx-auto max-w-lg">Tu pedido ha sido registrado con éxito. Estamos preparando cada detalle para vos.</p>
-                <p className="text-[10px] text-stone-400 uppercase tracking-widest mt-2">
+                <p className="text-4xl sm:text-5xl font-bold font-serif text-center mb-4 text-stone-900">¡Gracias por tu compra, {sale.customerName.split(' ')[0]}!</p>
+                <p className="text-lg sm:text-xl text-stone-500 text-center mx-auto max-w-lg">Tu pedido ha sido registrado con éxito. Estamos preparando cada detalle para vos.</p>
+                <p className="text-sm font-bold text-stone-400 uppercase tracking-widest mt-2">
                   Fecha de Pedido: {new Date(sale.date).toLocaleDateString('es-AR', { year: 'numeric', month: 'long', day: 'numeric' })}
                 </p>
               </div>
@@ -200,18 +200,18 @@ export default function OrderConfirmationImage({ sale, storeSettings, customerPh
 
               {/* PASO 4: Escalar Productos y Totales */}
               <div className="space-y-8">
-                <h3 className="text-sm uppercase tracking-[0.2em] font-bold text-stone-400 mb-6">Resumen de Compra</h3>
+                <h3 className="text-sm uppercase tracking-widest font-bold text-stone-400 mb-6">Resumen de Compra</h3>
                 {sale.items.map((item, idx) => (
                   <div key={idx} className="flex justify-between items-start">
                     <div className="flex-1">
                       <div className="flex items-center gap-3">
-                        <span className="text-xl font-bold text-stone-400">{item.quantity}x</span>
-                        <span className="text-xl font-medium text-stone-800">{item.productName}</span>
+                        <span className="text-lg sm:text-xl font-bold text-stone-400">{item.quantity}x</span>
+                        <span className="text-lg sm:text-xl font-medium text-stone-800">{item.productName}</span>
                       </div>
-                      <p className="text-base text-stone-400 ml-10">{item.variantName}</p>
+                      <p className="text-base text-stone-500 ml-10">{item.variantName}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-xl font-medium text-stone-900">{formatCurrency(item.price * item.quantity)}</p>
+                      <p className="text-lg sm:text-xl font-medium text-stone-900">{formatCurrency(item.price * item.quantity)}</p>
                     </div>
                   </div>
                 ))}
@@ -220,13 +220,13 @@ export default function OrderConfirmationImage({ sale, storeSettings, customerPh
               <div className="w-full h-px bg-stone-200/60 my-12"></div>
 
               {/* Totales Escalados */}
-              <div className="mt-6 border-t border-stone-200 pt-4 space-y-2">
-                <div className="flex justify-between text-xs sm:text-sm font-bold text-stone-900 uppercase tracking-wider">
+              <div className="mt-6 border-t border-stone-200 pt-4 space-y-4">
+                <div className="flex justify-between text-xl sm:text-2xl font-bold text-stone-900 uppercase tracking-wider">
                   <span>Total Final</span>
                   <span>{formatCurrency(sale.totalAmount)}</span>
                 </div>
                 
-                <div className="flex justify-between text-xs sm:text-sm font-medium text-emerald-600 uppercase tracking-wider">
+                <div className="flex justify-between text-xl sm:text-2xl font-bold text-emerald-600 uppercase tracking-wider">
                   <span>Monto Abonado</span>
                   <span>{formatCurrency(sale.amountPaid)}</span>
                 </div>
@@ -241,7 +241,7 @@ export default function OrderConfirmationImage({ sale, storeSettings, customerPh
 
                 {/* Recálculo lógico del saldo pendiente */}
                 {(sale.totalAmount - sale.amountPaid) > 0 && (
-                  <div className="flex justify-between text-xs sm:text-sm font-bold text-rose-600 uppercase tracking-wider mt-2 pt-2 border-t border-dashed border-stone-200">
+                  <div className="flex justify-between text-xl sm:text-2xl font-bold text-rose-600 uppercase tracking-wider mt-2 pt-2 border-t border-dashed border-stone-200">
                     <span>Saldo Pendiente</span>
                     <span>{formatCurrency(sale.totalAmount - sale.amountPaid)}</span>
                   </div>
