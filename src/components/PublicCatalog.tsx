@@ -1543,12 +1543,19 @@ export default function PublicCatalog({
                                 key={product.id} 
                                 className="flex items-center gap-4 cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-800/50 p-2 rounded-xl transition-colors group"
                                 onClick={() => {
-                                  setActiveTab('productos');
+                                  // 1. Cerramos el buscador y limpiamos los filtros para no atrapar al usuario
                                   setIsSearchFocused(false);
+                                  setSearchTerm('');
+                                  setSelectedCategory('all');
+                                  
+                                  // 2. Navegamos a la pestaña de productos
+                                  setActiveTab('productos');
+                                  
+                                  // 3. Esperamos a que la pestaña cargue y abrimos la ventana del producto
                                   setTimeout(() => {
-                                    const el = document.getElementById(`product-${product.id}`);
-                                    if(el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                  }, 300);
+                                    setSelectedProduct(product);
+                                    setIsModalOpen(true);
+                                  }, 100);
                                 }}
                               >
                                 {product.photoUrl ? (
