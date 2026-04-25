@@ -1244,34 +1244,37 @@ export default function PublicCatalog({
         }
       }
 
-      // Notificación automática por WhatsApp al Administrador
-      const storePhone = storeSettings?.whatsappNumber?.replace(/\D/g, '');
-      if (storePhone) {
-        let message = `*✨ 𝐉𝐀𝐍𝐋𝐔 - 𝐀𝐫𝐨𝐦𝐚𝐬 & 𝐃𝐢𝐬𝐞𝐧̃𝐨 ✨*\n`;
-        message += `--------------------------------------\n\n`;
-        message += `¡Hola! Acabo de realizar un nuevo pedido en la tienda online. 🛍️\n\n`;
-        message += `*Mis Datos:*\n`;
-        message += `Nombre: ${customerDetails.name}\n`;
-        if (customerDetails.phone) message += `Tel: ${customerDetails.phone}\n`;
+      // --- REDIRECCIÓN AUTOMÁTICA A WHATSAPP ---
+      try {
+        let waText = `¡Hola! Soy *${customerDetails.name}*. Acabo de realizar un pedido en la tienda online:\n\n`;
         
-        message += `\n*Mi Pedido:*\n`;
         cart.forEach(item => {
           if (item.product && item.variant) {
-            message += `- ${item.quantity}x ${item.product.name} (${item.variant.name})\n`;
+            waText += `▪ ${item.quantity}x ${item.product.name} (${item.variant.name})\n`;
           } else if (item.course) {
-            message += `- ${item.quantity}x Taller: ${item.course.title}\n`;
+            waText += `▪ ${item.quantity}x Workshop: ${item.course.title}\n`;
           }
         });
-        
-        message += `\n*Resumen:*\n`;
-        message += `Total a pagar: ${formatCurrency(finalTotal)}\n`;
-        message += `Método de pago: ${paymentMethod.toUpperCase()}\n`;
-        message += `Método de entrega: ${deliveryMethod.toUpperCase()}\n`;
 
-        const encodedMessage = encodeURIComponent(message);
-        // Abrimos WhatsApp en una nueva pestaña
-        window.open(`https://wa.me/${storePhone}?text=${encodedMessage}`, '_blank');
+        if (appliedCoupon) {
+          waText += `\n🏷️ *Cupón aplicado:* ${appliedCoupon.code}`;
+        }
+
+        waText += `\n🚚 *Entrega:* ${deliveryMethod === 'envio' ? 'Envío' : 'Retiro'}`;
+        waText += `\n💳 *Pago:* ${paymentMethod.toUpperCase()}`;
+        waText += `\n💰 *Total:* ${formatCurrency(finalTotal)}\n\n`;
+        waText += `Quedo a la espera de la confirmación. ¡Gracias!`;
+
+        const waNumber = storeSettings?.whatsappNumber?.replace(/\D/g, '') || '';
+        if (waNumber) {
+          window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(waText)}`, '_blank');
+        } else {
+          console.warn('No hay número de WhatsApp configurado en los ajustes de la tienda.');
+        }
+      } catch (e) {
+        console.error("Error al redirigir a WhatsApp:", e);
       }
+      // ----------------------------------------
 
       setCheckoutStep('success');
       localStorage.removeItem('janlu_cart');
