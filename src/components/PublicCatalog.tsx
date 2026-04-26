@@ -1326,7 +1326,7 @@ export default function PublicCatalog({
               {[
                 { id: 'inicio', label: 'Inicio' },
                 { id: 'productos', label: 'Productos' },
-                { id: 'workshops', label: 'Workshops' },
+                { id: 'workshops', label: 'Cursos' },
                 { id: 'mayorista', label: 'Mayorista' },
                 { id: 'politicas', label: 'Políticas' },
                 { id: 'contacto', label: 'Contacto' }
@@ -1402,7 +1402,7 @@ export default function PublicCatalog({
               {[
                 { id: 'inicio', label: 'Inicio' },
                 { id: 'productos', label: 'Productos' },
-                { id: 'workshops', label: 'Workshops' },
+                { id: 'workshops', label: 'Cursos' },
                 { id: 'mayorista', label: 'Mayorista' },
                 { id: 'politicas', label: 'Políticas' },
                 { id: 'contacto', label: 'Contacto' }
@@ -1786,9 +1786,9 @@ export default function PublicCatalog({
         {activeTab === 'workshops' && (
           <div className="max-w-7xl mx-auto px-4 py-12 animate-in fade-in duration-500">
             <div className="text-center mb-16">
-              <h2 className="text-3xl sm:text-4xl font-serif text-stone-900 dark:text-white mb-4 tracking-tight">Janlu Academy</h2>
+              <h2 className="text-3xl sm:text-4xl font-serif text-stone-900 dark:text-white mb-4 tracking-tight">Cursos Janlu</h2>
               <p className="text-stone-500 dark:text-stone-400 max-w-2xl mx-auto text-sm sm:text-base">
-                Sumérgete en el arte de la cerería. Aprende nuestras técnicas exclusivas, conoce los secretos detrás de nuestros aromas y crea tus propias velas premium en nuestros workshops presenciales.
+                Sumérgete en el arte de la cerería. Aprende nuestras técnicas exclusivas, conoce los secretos detrás de nuestros aromas y crea tus propias velas premium en nuestros cursos presenciales.
               </p>
             </div>
 
@@ -1909,7 +1909,7 @@ export default function PublicCatalog({
               <div className="text-center py-24 bg-stone-50 dark:bg-stone-900/50 rounded-3xl border border-dashed border-stone-200 dark:border-stone-800 max-w-3xl mx-auto">
                 <GraduationCap size={48} className="mx-auto text-stone-300 dark:text-stone-700 mb-6" />
                 <h3 className="text-xl font-serif font-bold text-stone-900 dark:text-white mb-2">Preparando nuevas fechas</h3>
-                <p className="text-stone-500 dark:text-stone-400">Actualmente no tenemos workshops programados con cupos abiertos. ¡Mantente atento a nuestras redes sociales!</p>
+                <p className="text-stone-500 dark:text-stone-400">Actualmente no tenemos cursos programados con cupos abiertos. ¡Mantente atento a nuestras redes sociales!</p>
               </div>
             )}
           </div>
@@ -2109,7 +2109,7 @@ export default function PublicCatalog({
               <ul className="space-y-4 text-xs text-stone-400">
                 <li><button onClick={() => handleNavigation('inicio')} className="hover:text-white transition-colors">Inicio</button></li>
                 <li><button onClick={() => handleNavigation('productos')} className="hover:text-white transition-colors">Nuestros Productos</button></li>
-                <li><button onClick={() => handleNavigation('workshops')} className="hover:text-white transition-colors">Academy & Workshops</button></li>
+                <li><button onClick={() => handleNavigation('workshops')} className="hover:text-white transition-colors">Cursos Janlu</button></li>
               </ul>
             </div>
 
