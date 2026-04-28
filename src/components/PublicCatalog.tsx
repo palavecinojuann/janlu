@@ -1244,34 +1244,37 @@ export default function PublicCatalog({
         }
       }
 
-      // Notificación automática por WhatsApp al Administrador
-      const storePhone = storeSettings?.whatsappNumber?.replace(/\D/g, '');
-      if (storePhone) {
-        let message = `*✨ 𝐉𝐀𝐍𝐋𝐔 - 𝐀𝐫𝐨𝐦𝐚𝐬 & 𝐃𝐢𝐬𝐞𝐧̃𝐨 ✨*\n`;
-        message += `--------------------------------------\n\n`;
-        message += `¡Hola! Acabo de realizar un nuevo pedido en la tienda online. 🛍️\n\n`;
-        message += `*Mis Datos:*\n`;
-        message += `Nombre: ${customerDetails.name}\n`;
-        if (customerDetails.phone) message += `Tel: ${customerDetails.phone}\n`;
+      // --- REDIRECCIÓN AUTOMÁTICA A WHATSAPP ---
+      try {
+        let waText = `¡Hola! Soy *${customerDetails.name}*. Acabo de realizar un pedido en la tienda online:\n\n`;
         
-        message += `\n*Mi Pedido:*\n`;
         cart.forEach(item => {
           if (item.product && item.variant) {
-            message += `- ${item.quantity}x ${item.product.name} (${item.variant.name})\n`;
+            waText += `▪ ${item.quantity}x ${item.product.name} (${item.variant.name})\n`;
           } else if (item.course) {
-            message += `- ${item.quantity}x Taller: ${item.course.title}\n`;
+            waText += `▪ ${item.quantity}x Workshop: ${item.course.title}\n`;
           }
         });
-        
-        message += `\n*Resumen:*\n`;
-        message += `Total a pagar: ${formatCurrency(finalTotal)}\n`;
-        message += `Método de pago: ${paymentMethod.toUpperCase()}\n`;
-        message += `Método de entrega: ${deliveryMethod.toUpperCase()}\n`;
 
-        const encodedMessage = encodeURIComponent(message);
-        // Abrimos WhatsApp en una nueva pestaña
-        window.open(`https://wa.me/${storePhone}?text=${encodedMessage}`, '_blank');
+        if (appliedCoupon) {
+          waText += `\n🏷️ *Cupón aplicado:* ${appliedCoupon.code}`;
+        }
+
+        waText += `\n🚚 *Entrega:* ${deliveryMethod === 'envio' ? 'Envío' : 'Retiro'}`;
+        waText += `\n💳 *Pago:* ${paymentMethod.toUpperCase()}`;
+        waText += `\n💰 *Total:* ${formatCurrency(finalTotal)}\n\n`;
+        waText += `Quedo a la espera de la confirmación. ¡Gracias!`;
+
+        const waNumber = storeSettings?.whatsappNumber?.replace(/\D/g, '') || '';
+        if (waNumber) {
+          window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(waText)}`, '_blank');
+        } else {
+          console.warn('No hay número de WhatsApp configurado en los ajustes de la tienda.');
+        }
+      } catch (e) {
+        console.error("Error al redirigir a WhatsApp:", e);
       }
+      // ----------------------------------------
 
       setCheckoutStep('success');
       localStorage.removeItem('janlu_cart');
@@ -1323,7 +1326,7 @@ export default function PublicCatalog({
               {[
                 { id: 'inicio', label: 'Inicio' },
                 { id: 'productos', label: 'Productos' },
-                { id: 'workshops', label: 'Workshops' },
+                { id: 'workshops', label: 'Cursos' },
                 { id: 'mayorista', label: 'Mayorista' },
                 { id: 'politicas', label: 'Políticas' },
                 { id: 'contacto', label: 'Contacto' }
@@ -1399,7 +1402,7 @@ export default function PublicCatalog({
               {[
                 { id: 'inicio', label: 'Inicio' },
                 { id: 'productos', label: 'Productos' },
-                { id: 'workshops', label: 'Workshops' },
+                { id: 'workshops', label: 'Cursos' },
                 { id: 'mayorista', label: 'Mayorista' },
                 { id: 'politicas', label: 'Políticas' },
                 { id: 'contacto', label: 'Contacto' }
@@ -1543,12 +1546,19 @@ export default function PublicCatalog({
                                 key={product.id} 
                                 className="flex items-center gap-4 cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-800/50 p-2 rounded-xl transition-colors group"
                                 onClick={() => {
-                                  setActiveTab('productos');
+                                  // 1. Cerramos el buscador y limpiamos los filtros para no atrapar al usuario
                                   setIsSearchFocused(false);
+                                  setSearchTerm('');
+                                  setSelectedCategory('all');
+                                  
+                                  // 2. Navegamos a la pestaña de productos
+                                  setActiveTab('productos');
+                                  
+                                  // 3. Esperamos a que la pestaña cargue y abrimos la ventana del producto
                                   setTimeout(() => {
-                                    const el = document.getElementById(`product-${product.id}`);
-                                    if(el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                  }, 300);
+                                    setSelectedProduct(product);
+                                    setIsModalOpen(true);
+                                  }, 100);
                                 }}
                               >
                                 {product.photoUrl ? (
@@ -1776,9 +1786,9 @@ export default function PublicCatalog({
         {activeTab === 'workshops' && (
           <div className="max-w-7xl mx-auto px-4 py-12 animate-in fade-in duration-500">
             <div className="text-center mb-16">
-              <h2 className="text-3xl sm:text-4xl font-serif text-stone-900 dark:text-white mb-4 tracking-tight">Janlu Academy</h2>
+              <h2 className="text-3xl sm:text-4xl font-serif text-stone-900 dark:text-white mb-4 tracking-tight">Cursos Janlu</h2>
               <p className="text-stone-500 dark:text-stone-400 max-w-2xl mx-auto text-sm sm:text-base">
-                Sumérgete en el arte de la cerería. Aprende nuestras técnicas exclusivas, conoce los secretos detrás de nuestros aromas y crea tus propias velas premium en nuestros workshops presenciales.
+                Sumérgete en el arte de la cerería. Aprende nuestras técnicas exclusivas, conoce los secretos detrás de nuestros aromas y crea tus propias velas premium en nuestros cursos presenciales.
               </p>
             </div>
 
@@ -1899,7 +1909,7 @@ export default function PublicCatalog({
               <div className="text-center py-24 bg-stone-50 dark:bg-stone-900/50 rounded-3xl border border-dashed border-stone-200 dark:border-stone-800 max-w-3xl mx-auto">
                 <GraduationCap size={48} className="mx-auto text-stone-300 dark:text-stone-700 mb-6" />
                 <h3 className="text-xl font-serif font-bold text-stone-900 dark:text-white mb-2">Preparando nuevas fechas</h3>
-                <p className="text-stone-500 dark:text-stone-400">Actualmente no tenemos workshops programados con cupos abiertos. ¡Mantente atento a nuestras redes sociales!</p>
+                <p className="text-stone-500 dark:text-stone-400">Actualmente no tenemos cursos programados con cupos abiertos. ¡Mantente atento a nuestras redes sociales!</p>
               </div>
             )}
           </div>
@@ -2099,7 +2109,7 @@ export default function PublicCatalog({
               <ul className="space-y-4 text-xs text-stone-400">
                 <li><button onClick={() => handleNavigation('inicio')} className="hover:text-white transition-colors">Inicio</button></li>
                 <li><button onClick={() => handleNavigation('productos')} className="hover:text-white transition-colors">Nuestros Productos</button></li>
-                <li><button onClick={() => handleNavigation('workshops')} className="hover:text-white transition-colors">Academy & Workshops</button></li>
+                <li><button onClick={() => handleNavigation('workshops')} className="hover:text-white transition-colors">Cursos Janlu</button></li>
               </ul>
             </div>
 

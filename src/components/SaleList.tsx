@@ -323,39 +323,21 @@ export default function SaleList({ sales, products, customers, storeSettings, on
   };
 
   const handleWhatsApp = (sale: Sale) => {
+    // Buscamos el cliente en el CRM como respaldo
     const customer = customers.find(c => c.id === sale.customerId);
-    if (!customer || !customer.phone) {
-      alert("El cliente no tiene un número de teléfono registrado.");
+    
+    // Priorizamos el teléfono guardado en el pedido directamente
+    const phone = sale.customerPhone || customer?.phone;
+
+    if (!phone) {
+      alert("El cliente no tiene un número de teléfono registrado en este pedido.");
       return;
     }
 
-    let message = `¡Hola ${customer.name}! 👋\n\n`;
-    
-    if (sale.status === 'cancelado') {
-      message += `Te escribimos por tu pedido en *JANLU*.\n\nTe informamos que tu pedido ha sido *cancelado*.\nSi tienes alguna duda, por favor contactanos.`;
-    } else if (sale.paymentStatus === 'rejected') {
-      message += `Te escribimos por tu pedido en *JANLU*.\n\nLamentablemente tuvimos un inconveniente con el pago.\nMotivo: ${sale.rejectionReason || 'No especificado'}\n\nPor favor, contactanos para resolverlo.`;
-    } else {
-      message += `Te comparto el detalle de tu compra en *JANLU*:\n\n`;
-      sale.items.forEach(item => {
-        message += `- ${item.quantity}x ${item.productName} (${item.variantName}): ${formatCurrency(item.price)}\n`;
-      });
+    const cleanPhone = phone.replace(/\D/g, '');
+    const message = encodeURIComponent(`¡Hola ${sale.customerName || ''}!\nTe escribo de Janlu Velas respecto a tu pedido #${sale.orderNumber || ''}.`);
 
-      message += `\n\n*Total: ${formatCurrency(sale.totalAmount)}*\n`;
-      message += `_Abonado: ${formatCurrency(sale.amountPaid)}_\n`;
-      
-      if (sale.balanceDue && sale.balanceDue > 0) {
-        message += `_Saldo pendiente: ${formatCurrency(sale.balanceDue)}_\n`;
-      } else if (sale.amountPaid < sale.totalAmount) {
-        message += `_Saldo pendiente: ${formatCurrency(sale.totalAmount - sale.amountPaid)}_\n`;
-      }
-
-      message += `\n¡Gracias por elegirnos! ✨`;
-    }
-
-    const encodedMessage = encodeURIComponent(message);
-    const whatsappUrl = `https://wa.me/${customer.phone.replace(/\D/g, '')}?text=${encodedMessage}`;
-    window.open(whatsappUrl, '_blank');
+    window.open(`https://wa.me/${cleanPhone}?text=${message}`, '_blank');
   };
 
   const handleExportCSV = () => {
