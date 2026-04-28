@@ -143,7 +143,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
 
   const searchHistoricalSale = async (searchQuery: string) => {
     try {
-      let q;
+      let q = query(collection(db, 'sales'));
       const orderNum = parseInt(searchQuery);
 
       // Si es un número exacto, buscamos el ID de pedido. Si es texto, buscamos por nombre de cliente.

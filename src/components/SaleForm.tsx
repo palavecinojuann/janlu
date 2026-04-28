@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Product, Customer, Sale, SaleItem, PaymentMethod, SaleStatus, Offer, Variant, Campaign, RawMaterial, StoreSettings, Course } from '../types';
 import { Plus, Trash2, ShoppingBag, Tag, ScanBarcode } from 'lucide-react';
 import { getVariantStock } from '../utils/stockUtils';
-import ScannerView from './ScannerView';
+import BarcodeScanner from './BarcodeScanner';
 
 interface SaleFormProps {
   products: Product[];
@@ -826,7 +826,7 @@ export default function SaleForm({ products, rawMaterials, customers, offers = [
       </form>
 
       {isScannerOpen && (
-        <ScannerView
+        <BarcodeScanner
           onScan={handleScanSuccess}
           onClose={() => setIsScannerOpen(false)}
         />
