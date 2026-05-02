@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Product, RawMaterial, Offer, Variant, Campaign, Sale, SaleStatus, StoreSettings, Course } from '../types';
-import { Search, Filter, Wind, Droplet, Flame, ShoppingBag, Instagram, Facebook, Phone, Lock, Unlock, Plus, Edit2, Trash2, X, Tag, Clock, Calendar, ShoppingCart, Minus, ChevronRight, ChevronLeft, AlertTriangle, Package, LayoutDashboard, ArrowRightLeft, Upload, CheckCircle, Timer, Zap, LogOut, Loader2, Gift, Shield, Music2, ShieldCheck, Truck, Mail, MapPin, GraduationCap, Copy, Heart, ChevronDown, ChevronUp, BookOpen } from 'lucide-react';
+import { Search, Filter, Wind, Droplet, Flame, ShoppingBag, Instagram, Facebook, Phone, Lock, Unlock, Plus, Edit2, Trash2, X, Tag, Clock, Calendar, ShoppingCart, Minus, ChevronRight, ChevronLeft, AlertTriangle, Package, LayoutDashboard, ArrowRightLeft, Upload, CheckCircle, Timer, Zap, LogOut, Loader2, Gift, Shield, Music2, ShieldCheck, Truck, Mail, MapPin, GraduationCap, Copy, Heart, ChevronDown, ChevronUp, BookOpen, MessageCircle } from 'lucide-react';
 import ProductForm from './ProductForm';
 import ProductModal from './ProductModal';
 import { getVariantStock } from '../utils/stockUtils';
@@ -846,6 +846,7 @@ export default function PublicCatalog({
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
   const [checkoutStep, setCheckoutStep] = useState<'cart' | 'details' | 'success'>('cart');
+  const [whatsappUrl, setWhatsappUrl] = useState<string | null>(null);
   const [customerDetails, setCustomerDetails] = useState({ name: '', email: '', phone: '' });
   const [deliveryMethod, setDeliveryMethod] = useState<'retiro' | 'envio'>('retiro');
   const [paymentMethod, setPaymentMethod] = useState<'transferencia' | 'efectivo' | 'mercadopago' | 'acordar'>('transferencia');
@@ -1246,7 +1247,8 @@ export default function PublicCatalog({
 
       // --- REDIRECCIÓN AUTOMÁTICA A WHATSAPP ---
       try {
-        let waText = `¡Hola! Soy *${customerDetails.name}*. Acabo de realizar un pedido en la tienda online:\n\n`;
+        const finalCustomerName = isRegistering ? `${registrationData.firstName} ${registrationData.lastName}` : customerDetails.name;
+        let waText = `¡Hola! Soy *${finalCustomerName}*. Acabo de realizar un pedido en la tienda online:\n\n`;
         
         cart.forEach(item => {
           if (item.product && item.variant) {
@@ -1267,7 +1269,16 @@ export default function PublicCatalog({
 
         const waNumber = storeSettings?.whatsappNumber?.replace(/\D/g, '') || '';
         if (waNumber) {
-          window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(waText)}`, '_blank');
+          const generatedUrl = `https://wa.me/${waNumber}?text=${encodeURIComponent(waText)}`;
+          setWhatsappUrl(generatedUrl);
+          
+          // Intento de apertura automática
+          const waWindow = window.open(generatedUrl, '_blank');
+          
+          // Si el navegador lo bloqueó (waWindow es null), ya tenemos el botón de respaldo en el success view
+          if (!waWindow || waWindow.closed || typeof waWindow.closed === 'undefined') {
+            console.warn('El navegador bloqueó la apertura automática de WhatsApp.');
+          }
         } else {
           console.warn('No hay número de WhatsApp configurado en los ajustes de la tienda.');
         }
@@ -2620,8 +2631,24 @@ export default function PublicCatalog({
                 </div>
                 <h3 className="text-3xl font-serif text-stone-900">¡Pedido Recibido!</h3>
                 <p className="text-stone-500 max-w-sm mb-6 text-sm">
-                  Gracias por tu compra. Hemos recibido tu pedido y nos pondremos en contacto contigo pronto por WhatsApp.
+                  Gracias por tu compra. Hemos recibido tu pedido y nos pondremos en contacto contigo pronto.
                 </p>
+
+                {whatsappUrl && (
+                  <div className="w-full max-w-sm space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300">
+                    <p className="text-[10px] text-stone-400 uppercase tracking-widest font-bold">Para finalizar el pedido:</p>
+                    <a
+                      href={whatsappUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-3 w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold transition-all shadow-lg shadow-emerald-200 group"
+                    >
+                      <MessageCircle className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                      <span>ENVIAR POR WHATSAPP</span>
+                    </a>
+                    <p className="text-[9px] text-stone-400 italic">Haz clic arriba si WhatsApp no se abrió automáticamente.</p>
+                  </div>
+                )}
 
                 {generatedCoupon && (
                   <div className="bg-stone-950 text-stone-50 p-6 rounded-2xl shadow-xl w-full max-w-sm animate-in zoom-in-95 duration-500">
@@ -2657,6 +2684,7 @@ export default function PublicCatalog({
                     setIsCartOpen(false);
                     setCheckoutStep('cart');
                     setGeneratedCoupon(null);
+                    setWhatsappUrl(null);
                   }}
                   className="mt-8 px-8 py-4 bg-stone-100 text-stone-900 rounded-full font-bold text-[10px] uppercase tracking-[0.2em] hover:bg-stone-200 transition-colors"
                 >
