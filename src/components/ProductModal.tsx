@@ -103,7 +103,7 @@ export default function ProductModal({
         />
         
         {/* 2. EL MODAL BLANCO: Sin overflow-y-auto interno, crece naturalmente */}
-        <div className="relative bg-white w-full max-w-[950px] sm:rounded-[32px] shadow-2xl flex flex-col md:flex-row z-10 overflow-hidden animate-in fade-in zoom-in-95 duration-300">
+        <div className="relative bg-white w-full max-w-[950px] rounded-t-[32px] sm:rounded-[32px] shadow-2xl flex flex-col md:flex-row z-10 overflow-hidden animate-in fade-in zoom-in-95 duration-300 mt-4 sm:mt-0">
           
           <button 
             onClick={onClose}
@@ -114,12 +114,12 @@ export default function ProductModal({
           </button>
 
           {/* 📸 COLUMNA IZQUIERDA (FOTO): 50% exacto en PC */}
-          <div className="w-full md:w-1/2 bg-stone-50 relative flex-shrink-0 min-h-[350px] md:min-h-[500px] border-b md:border-b-0 md:border-r border-stone-100 flex items-center justify-center">
+          <div className="w-full md:w-1/2 bg-stone-50 relative flex-shrink-0 aspect-square md:aspect-auto md:min-h-[500px] border-b md:border-b-0 md:border-r border-stone-100 flex items-center justify-center overflow-hidden">
             {product.photoUrl ? (
               <img 
                 src={product.photoUrl} 
                 alt={product.name} 
-                className={`absolute inset-0 w-full h-full object-cover object-center bg-stone-50 ${isOutOfStock ? 'grayscale' : ''}`}
+                className={`absolute inset-0 w-full h-full object-contain md:object-cover object-center bg-stone-50 p-6 md:p-0 ${isOutOfStock ? 'grayscale' : ''}`}
                 referrerPolicy="no-referrer"
               />
             ) : (
@@ -144,7 +144,7 @@ export default function ProductModal({
               <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-3 block">
                 SKU: {localVariant?.sku || product.id.slice(0, 8).toUpperCase()}
               </span>
-              <h2 className="text-3xl md:text-4xl lg:text-5xl font-serif font-bold text-stone-900 leading-tight mb-6">
+              <h2 className="text-2xl md:text-4xl lg:text-5xl font-serif font-bold text-stone-900 leading-tight mb-6">
                 {product.name}
               </h2>
               

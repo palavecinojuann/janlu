@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useInventoryContext } from './contexts/InventoryContext';
-import { auth } from './firebase';
+import { auth, db } from './firebase';
 import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { 
   LayoutDashboard, 
   Package, 
