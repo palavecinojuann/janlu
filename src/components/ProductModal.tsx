@@ -80,10 +80,10 @@ export default function ProductModal({
   }, [cart, product.id, localVariant]);
 
   const isOutOfStock = product.variants.every(v => getVariantStock(v, rawMaterials) <= 0);
-  const productOffers = activeOffers.filter(offer => 
+  const productOffers = activeOffers.filter(offer =>
     !offer.productIds || offer.productIds.length === 0 || offer.productIds.includes(product.id)
   );
-  
+
   const currentPrice = localVariant ? getEffectivePrice(product, localVariant, quantityInCart > 0 ? quantityInCart : 1) : 0;
   const originalPrice = localVariant?.price || 0;
   const hasDiscount = currentPrice < originalPrice;
@@ -100,17 +100,17 @@ export default function ProductModal({
     // 1. EL CONTENEDOR PADRE: Maneja el scroll de toda la pantalla
     <div className="fixed inset-0 z-[100] overflow-y-auto">
       <div className="flex min-h-full items-center justify-center p-0 sm:p-4 md:p-8">
-        
+
         {/* Fondo oscuro */}
-        <div 
+        <div
           className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
           onClick={onClose}
         />
-        
+
         {/* 2. EL MODAL BLANCO: Sin overflow-y-auto interno, crece naturalmente */}
-        <div className="relative bg-white w-full max-w-[950px] sm:rounded-[32px] shadow-2xl flex flex-col md:flex-row z-10 overflow-hidden animate-in fade-in zoom-in-95 duration-300">
-          
-          <button 
+        <div className="relative bg-white w-full max-w-[950px] rounded-t-[32px] sm:rounded-[32px] shadow-2xl flex flex-col md:flex-row z-10 overflow-hidden animate-in fade-in zoom-in-95 duration-300 mt-4 sm:mt-0">
+
+          <button
             onClick={onClose}
             className="absolute top-4 right-4 md:top-6 md:right-6 z-30 p-2 bg-white/90 backdrop-blur-md rounded-full text-stone-400 hover:text-stone-900 shadow-sm transition-all hover:rotate-90 hover:bg-white"
             aria-label="Cerrar"
@@ -120,53 +120,20 @@ export default function ProductModal({
 
           {/* 📸 COLUMNA IZQUIERDA (FOTO): 50% exacto en PC */}
           <div className="w-full md:w-1/2 bg-stone-50 relative flex-shrink-0 min-h-[350px] md:min-h-[500px] border-b md:border-b-0 md:border-r border-stone-100 flex items-center justify-center">
-            {images.length > 0 ? (
-              <>
-                <img 
-                  src={images[currentImageIndex]} 
-                  alt={`${product.name} - Imagen ${currentImageIndex + 1}`} 
-                  className={`absolute inset-0 w-full h-full object-cover object-center bg-stone-50 ${isOutOfStock ? 'grayscale' : ''}`}
-                  referrerPolicy="no-referrer"
-                />
-                
-                {images.length > 1 && (
-                  <>
-                    <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 z-20">
-                      {images.map((_, idx) => (
-                        <button
-                          key={idx}
-                          onClick={(e) => { e.stopPropagation(); setCurrentImageIndex(idx); }}
-                          className={`w-2 h-2 rounded-full transition-all ${idx === currentImageIndex ? 'bg-stone-900 w-4' : 'bg-stone-400/60 hover:bg-stone-600'}`}
-                          aria-label={`Ver imagen ${idx + 1}`}
-                        />
-                      ))}
-                    </div>
-                    
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setCurrentImageIndex((prev) => (prev > 0 ? prev - 1 : images.length - 1)); }}
-                      className="absolute left-4 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-full bg-white/80 backdrop-blur text-stone-800 shadow-sm hover:bg-white transition-colors z-20"
-                      aria-label="Anterior imagen"
-                    >
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-                    </button>
-                    
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setCurrentImageIndex((prev) => (prev < images.length - 1 ? prev + 1 : 0)); }}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-full bg-white/80 backdrop-blur text-stone-800 shadow-sm hover:bg-white transition-colors z-20"
-                      aria-label="Siguiente imagen"
-                    >
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-                    </button>
-                  </>
-                )}
-              </>
+            {product.photoUrl ? (
+              <img
+                src={product.photoUrl}
+                alt={product.name}
+                className={`absolute inset-0 w-full h-full object-cover object-center bg-stone-50 ${isOutOfStock ? 'grayscale' : ''}`}
+                referrerPolicy="no-referrer"
+              />
             ) : (
               <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center text-stone-200">
                 <Flame size={80} strokeWidth={1} />
                 <span className="text-xs mt-4 uppercase tracking-[0.3em] font-bold">Sin imagen</span>
               </div>
             )}
-            
+
             {isOutOfStock && (
               <div className="absolute inset-0 bg-white/40 flex items-center justify-center backdrop-blur-[2px]">
                 <span className="bg-white text-stone-900 text-sm font-bold px-8 py-4 uppercase tracking-[0.2em] border border-stone-900 shadow-xl">
@@ -182,10 +149,10 @@ export default function ProductModal({
               <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-3 block">
                 SKU: {localVariant?.sku || product.id.slice(0, 8).toUpperCase()}
               </span>
-              <h2 className="text-3xl md:text-4xl lg:text-5xl font-serif font-bold text-stone-900 leading-tight mb-6">
+              <h2 className="text-2xl md:text-4xl lg:text-5xl font-serif font-bold text-stone-900 leading-tight mb-6">
                 {product.name}
               </h2>
-              
+
               <div className="space-y-2">
                 <div className="flex items-baseline gap-4">
                   <span className="text-3xl md:text-4xl font-bold text-stone-900 tracking-tight">
@@ -224,7 +191,7 @@ export default function ProductModal({
                       </p>
                     </div>
                   )}
-                  
+
                   {installmentsCount > 0 && (
                     <div className={`${cashDiscount > 0 ? 'pt-3 border-t border-stone-200/60' : ''}`}>
                       <p className="text-xs text-stone-700 font-medium uppercase tracking-wider">
@@ -262,13 +229,12 @@ export default function ProductModal({
                           key={v.id}
                           onClick={() => setLocalVariant(v)}
                           disabled={isVariantOutOfStock}
-                          className={`px-5 py-3 text-xs font-bold uppercase tracking-wider border rounded-xl transition-all relative ${
-                            isVariantOutOfStock
+                          className={`px-5 py-3 text-xs font-bold uppercase tracking-wider border rounded-xl transition-all relative ${isVariantOutOfStock
                               ? 'opacity-40 line-through cursor-not-allowed border-stone-200 text-stone-400 bg-stone-50'
                               : isSelected
-                              ? 'border-stone-900 bg-stone-900 text-white shadow-lg shadow-stone-900/20'
-                              : 'border-stone-200 text-stone-600 hover:border-stone-900 hover:text-stone-900 bg-white'
-                          }`}
+                                ? 'border-stone-900 bg-stone-900 text-white shadow-lg shadow-stone-900/20'
+                                : 'border-stone-200 text-stone-600 hover:border-stone-900 hover:text-stone-900 bg-white'
+                            }`}
                         >
                           {v.name}
                           {variantQuantityInCart > 0 && (
@@ -286,11 +252,11 @@ export default function ProductModal({
               {/* ✨ BARRA DE COMPRA: Botón arreglado con sm:flex-1 */}
               <div className="flex flex-col gap-4 mt-auto">
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
-                  
+
                   {/* Selector de cantidad */}
                   <div className="flex flex-col gap-1 w-full sm:w-auto shrink-0">
                     <div className="flex items-center justify-between border-2 border-stone-200 rounded-xl overflow-hidden h-16 sm:h-14 bg-white">
-                      <button 
+                      <button
                         onClick={() => {
                           if (localVariant) onUpdateCart(product, localVariant, Math.max(0, quantityInCart - 1));
                         }}
@@ -298,12 +264,12 @@ export default function ProductModal({
                       >
                         <Minus className="w-5 h-5 sm:w-4 sm:h-4" />
                       </button>
-                      
+
                       <div className="flex-1 sm:w-12 text-center font-bold text-stone-900 text-lg sm:text-base">
                         {quantityInCart}
                       </div>
-                      
-                      <button 
+
+                      <button
                         onClick={() => {
                           if (localVariant) onUpdateCart(product, localVariant, quantityInCart + 1);
                         }}
@@ -312,7 +278,7 @@ export default function ProductModal({
                         <Plus className="w-5 h-5 sm:w-4 sm:h-4" />
                       </button>
                     </div>
-                    
+
                     {!isOutOfStock && localVariant && (
                       <span className="text-[11px] sm:text-[10px] text-stone-400 font-bold uppercase tracking-widest text-center mt-1">
                         {getVariantStock(localVariant, rawMaterials)} disponibles
@@ -320,7 +286,7 @@ export default function ProductModal({
                     )}
                   </div>
 
-                 {/* Botón de Agregar */}
+                  {/* Botón de Agregar */}
                   <button
                     disabled={isOutOfStock || !localVariant}
                     onClick={() => {
