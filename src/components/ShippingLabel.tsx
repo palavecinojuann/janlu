@@ -72,18 +72,28 @@ export default function ShippingLabel({ sale, customer, notes, customAddress }: 
 
         <div className="pt-2 mt-2 border-t border-stone-200">
           <p className="text-[9px] sm:text-[10px] font-bold uppercase text-stone-500 mb-1">Pagos</p>
-          {sale.discount && sale.discount > 0 && sale.discount < 100 && (
-            <div className="flex justify-between text-[10px] sm:text-xs mb-0.5">
-              <span>Subtotal:</span>
-              <span>${(sale.totalAmount / (1 - sale.discount / 100)).toLocaleString('es-AR')}</span>
-            </div>
-          )}
-          {sale.discount && sale.discount > 0 && (
-            <div className="flex justify-between text-[10px] sm:text-xs mb-0.5 text-emerald-700">
-              <span>Descuento {sale.appliedCouponCode ? `(${sale.appliedCouponCode})` : ''}:</span>
-              <span className="font-bold">-{sale.discount}%</span>
-            </div>
-          )}
+          {(() => {
+            const subtotal = sale.items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+            const discountAmount = subtotal - sale.totalAmount;
+            const hasDiscount = discountAmount > 0.01; // To avoid floating point minor differences
+            
+            return (
+              <>
+                {hasDiscount && (
+                  <div className="flex justify-between text-[10px] sm:text-xs mb-0.5">
+                    <span>Subtotal:</span>
+                    <span>${subtotal.toLocaleString('es-AR')}</span>
+                  </div>
+                )}
+                {hasDiscount && (
+                  <div className="flex justify-between text-[10px] sm:text-xs mb-0.5 text-emerald-700">
+                    <span>Descuento {sale.appliedCouponCode ? `(${sale.appliedCouponCode})` : (sale.discount ? `(${sale.discount}%)` : '(Manual)')}:</span>
+                    <span className="font-bold">-${discountAmount.toLocaleString('es-AR')}</span>
+                  </div>
+                )}
+              </>
+            );
+          })()}
           <div className="flex justify-between text-[10px] sm:text-xs mb-0.5">
             <span>Total:</span>
             <span className="font-bold">${sale.totalAmount.toLocaleString('es-AR')}</span>
