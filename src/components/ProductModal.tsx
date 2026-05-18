@@ -43,8 +43,11 @@ export default function ProductModal({
     product.variants.find(v => getVariantStock(v, rawMaterials) > 0) || product.variants[0] || null
   );
 
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
   useEffect(() => {
     setLocalVariant(product.variants.find(v => getVariantStock(v, rawMaterials) > 0) || product.variants[0] || null);
+    setCurrentImageIndex(0);
   }, [product, rawMaterials]);
 
   useEffect(() => {
@@ -89,6 +92,8 @@ export default function ProductModal({
   const installmentsCount = storeSettings?.installmentsCount || 0;
   const installmentsWithoutInterest = storeSettings?.installmentsWithoutInterest || false;
 
+  const images = product.photoUrls?.length ? product.photoUrls : (product.photoUrl ? [product.photoUrl] : []);
+
   if (!isOpen) return null;
 
   return (
@@ -115,13 +120,46 @@ export default function ProductModal({
 
           {/* 📸 COLUMNA IZQUIERDA (FOTO): 50% exacto en PC */}
           <div className="w-full md:w-1/2 bg-stone-50 relative flex-shrink-0 min-h-[350px] md:min-h-[500px] border-b md:border-b-0 md:border-r border-stone-100 flex items-center justify-center">
-            {product.photoUrl ? (
-              <img 
-                src={product.photoUrl} 
-                alt={product.name} 
-                className={`absolute inset-0 w-full h-full object-cover object-center bg-stone-50 ${isOutOfStock ? 'grayscale' : ''}`}
-                referrerPolicy="no-referrer"
-              />
+            {images.length > 0 ? (
+              <>
+                <img 
+                  src={images[currentImageIndex]} 
+                  alt={`${product.name} - Imagen ${currentImageIndex + 1}`} 
+                  className={`absolute inset-0 w-full h-full object-cover object-center bg-stone-50 ${isOutOfStock ? 'grayscale' : ''}`}
+                  referrerPolicy="no-referrer"
+                />
+                
+                {images.length > 1 && (
+                  <>
+                    <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 z-20">
+                      {images.map((_, idx) => (
+                        <button
+                          key={idx}
+                          onClick={(e) => { e.stopPropagation(); setCurrentImageIndex(idx); }}
+                          className={`w-2 h-2 rounded-full transition-all ${idx === currentImageIndex ? 'bg-stone-900 w-4' : 'bg-stone-400/60 hover:bg-stone-600'}`}
+                          aria-label={`Ver imagen ${idx + 1}`}
+                        />
+                      ))}
+                    </div>
+                    
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setCurrentImageIndex((prev) => (prev > 0 ? prev - 1 : images.length - 1)); }}
+                      className="absolute left-4 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-full bg-white/80 backdrop-blur text-stone-800 shadow-sm hover:bg-white transition-colors z-20"
+                      aria-label="Anterior imagen"
+                    >
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                    </button>
+                    
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setCurrentImageIndex((prev) => (prev < images.length - 1 ? prev + 1 : 0)); }}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-full bg-white/80 backdrop-blur text-stone-800 shadow-sm hover:bg-white transition-colors z-20"
+                      aria-label="Siguiente imagen"
+                    >
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                    </button>
+                  </>
+                )}
+              </>
             ) : (
               <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center text-stone-200">
                 <Flame size={80} strokeWidth={1} />

@@ -118,6 +118,7 @@ export interface Product {
   description: string;
   category: string;
   photoUrl: string;
+  photoUrls?: string[];
   variants: Variant[];
   showInCatalog?: boolean;
   isCustom?: boolean; // If true, requires custom manufacturing
