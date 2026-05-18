@@ -87,7 +87,7 @@ export default function ShippingLabel({ sale, customer, notes, customAddress }: 
                 )}
                 {hasDiscount && (
                   <div className="flex justify-between text-[10px] sm:text-xs mb-0.5 text-emerald-700">
-                    <span>Descuento {sale.appliedCouponCode ? `(${sale.appliedCouponCode})` : (sale.discount ? `(${sale.discount}%)` : '(Manual)')}:</span>
+                    <span>Descuento {sale.appliedCouponCode ? `(${sale.appliedCouponCode})` : ''}:</span>
                     <span className="font-bold">-${discountAmount.toLocaleString('es-AR')}</span>
                   </div>
                 )}
