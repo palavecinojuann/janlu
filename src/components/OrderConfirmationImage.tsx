@@ -246,6 +246,13 @@ export default function OrderConfirmationImage({ sale, storeSettings, customerPh
                     <span>{formatCurrency(sale.totalAmount - sale.amountPaid)}</span>
                   </div>
                 )}
+
+                {sale.paymentNotes && (
+                  <div className="flex flex-col mt-4 pt-4 border-t border-stone-100">
+                    <span className="text-xs uppercase tracking-widest font-bold text-stone-400 mb-1">Notas de Pago</span>
+                    <span className="text-lg text-stone-600 italic break-words whitespace-normal">"{sale.paymentNotes}"</span>
+                  </div>
+                )}
               </div>
 
               {/* Cupón si existe */}
