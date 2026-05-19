@@ -48,6 +48,8 @@ export default function FinanceView({ financialDocs, sales, onAddDoc, onDeleteDo
     sales.forEach(sale => {
       if (sale.status === 'cancelado') return;
       
+      const balance = sale.totalAmount - sale.amountPaid;
+
       if (sale.paymentHistory && sale.paymentHistory.length > 0) {
         sale.paymentHistory.forEach((ph, idx) => {
           if (ph.amount !== 0) {
@@ -58,8 +60,10 @@ export default function FinanceView({ financialDocs, sales, onAddDoc, onDeleteDo
               amount: ph.amount,
               url: sale.receiptUrl || '',
               date: ph.date.split('T')[0],
-              note: `Pago de ${sale.customerName}${ph.notes ? `: ${ph.notes}` : ''}`
-            });
+              note: `Pago de ${sale.customerName}${ph.notes ? `: ${ph.notes}` : ''}`,
+              saleTotal: sale.totalAmount,
+              saleBalance: balance
+            } as any);
           }
         });
       } else if (sale.amountPaid > 0) {
@@ -70,8 +74,10 @@ export default function FinanceView({ financialDocs, sales, onAddDoc, onDeleteDo
           amount: sale.amountPaid,
           url: sale.receiptUrl || '',
           date: sale.date.split('T')[0],
-          note: `Pago de ${sale.customerName}${sale.paymentNotes ? `: ${sale.paymentNotes}` : ''}`
-        });
+          note: `Pago de ${sale.customerName}${sale.paymentNotes ? `: ${sale.paymentNotes}` : ''}`,
+          saleTotal: sale.totalAmount,
+          saleBalance: balance
+        } as any);
       }
     });
 
@@ -285,7 +291,7 @@ export default function FinanceView({ financialDocs, sales, onAddDoc, onDeleteDo
               <tr>
                 <th className="px-6 py-4 text-xs font-semibold text-stone-500 uppercase tracking-wider">Fecha</th>
                 <th className="px-6 py-4 text-xs font-semibold text-stone-500 uppercase tracking-wider">Tipo</th>
-                <th className="px-6 py-4 text-xs font-semibold text-stone-500 uppercase tracking-wider">ID Transacción</th>
+                <th className="px-6 py-4 text-xs font-semibold text-stone-500 uppercase tracking-wider">Detalle</th>
                 <th className="px-6 py-4 text-xs font-semibold text-stone-500 uppercase tracking-wider">Monto</th>
                 <th className="px-6 py-4 text-xs font-semibold text-stone-500 uppercase tracking-wider">Acciones</th>
               </tr>
@@ -305,11 +311,32 @@ export default function FinanceView({ financialDocs, sales, onAddDoc, onDeleteDo
                         : 'Gasto'}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm font-medium text-stone-800 dark:text-stone-200">{doc.transactionId}</td>
-                  <td className="px-6 py-4 text-sm font-semibold text-stone-900 dark:text-stone-100">${doc.amount.toLocaleString()}</td>
+                  <td className="px-6 py-4">
+                    <div className="text-sm font-medium text-stone-800 dark:text-stone-200">{doc.transactionId}</div>
+                    {doc.note && (
+                      <div className="text-xs text-stone-500 dark:text-stone-400 mt-1 line-clamp-2" title={doc.note}>
+                        {doc.note}
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex flex-col">
+                      <span className={`text-sm font-semibold ${doc.type === 'sale' ? 'text-emerald-600 dark:text-emerald-400' : 'text-stone-900 dark:text-stone-100'}`}>
+                        {doc.type === 'sale' ? '+' : '-'}${doc.amount.toLocaleString()}
+                      </span>
+                      {(doc as any).saleTotal !== undefined && (
+                        <div className="flex flex-col text-[10px] text-stone-500 mt-1 border-t border-stone-200 dark:border-stone-700 pt-1">
+                          <span>Total: ${(doc as any).saleTotal.toLocaleString()}</span>
+                          {(doc as any).saleBalance > 0 && (
+                            <span className="text-rose-500 font-medium">Falta: ${(doc as any).saleBalance.toLocaleString()}</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </td>
                   <td className="px-6 py-4">
                     <div className="flex space-x-2">
-                      {doc.url && (
+                      {doc.url ? (
                         <a
                           href={doc.url}
                           target="_blank"
@@ -319,8 +346,13 @@ export default function FinanceView({ financialDocs, sales, onAddDoc, onDeleteDo
                         >
                           <Eye size={18} />
                         </a>
+                      ) : (
+                        <span className="p-2 text-stone-300 dark:text-stone-700 cursor-not-allowed" title="Sin documento adjunto">
+                          <Eye size={18} />
+                        </span>
                       )}
-                      {!doc.id.startsWith('sale-') && (
+                      
+                      {!doc.id.startsWith('sale-') ? (
                         <button
                           onClick={() => onDeleteDoc(doc.id)}
                           className="p-2 text-stone-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
@@ -328,6 +360,10 @@ export default function FinanceView({ financialDocs, sales, onAddDoc, onDeleteDo
                         >
                           <Trash2 size={18} />
                         </button>
+                      ) : (
+                        <span className="p-2 text-stone-300 dark:text-stone-700 cursor-not-allowed" title="Los registros de ventas se gestionan desde la pestaña Ventas">
+                          <Trash2 size={18} />
+                        </span>
                       )}
                     </div>
                   </td>
