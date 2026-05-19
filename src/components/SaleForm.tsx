@@ -35,6 +35,9 @@ export default function SaleForm({ products, rawMaterials, customers, offers = [
   const [couponError, setCouponError] = useState<string>('');
   const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
 
+  const [manualDiscount, setManualDiscount] = useState<string>('');
+  const [manualDiscountType, setManualDiscountType] = useState<'percentage' | 'fixed'>('percentage');
+
   const [paymentPercentage, setPaymentPercentage] = useState<string>('100');
   const [amountPaid, setAmountPaid] = useState<string>('0');
   const [paymentMode, setPaymentMode] = useState<'percentage' | 'amount'>('percentage');
@@ -133,30 +136,38 @@ export default function SaleForm({ products, rawMaterials, customers, offers = [
   const totalAmount = useMemo(() => {
     const subtotal = items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
     
-    if (couponDiscount <= 0) return Number(subtotal.toFixed(2));
+    let baseTotal = subtotal;
 
-    if (stackingPolicy === 'best_offer') {
-      // For each item, take the best discount between its current price (which might have offers) 
-      // and the original price with the coupon applied
-      const bestTotal = items.reduce((acc, item) => {
-        const product = products.find(p => p.id === item.productId);
-        const variant = product?.variants.find(v => v.id === item.variantId);
-        if (!variant) return acc + (item.price * item.quantity);
+    if (couponDiscount > 0) {
+      if (stackingPolicy === 'best_offer') {
+        baseTotal = items.reduce((acc, item) => {
+          const product = products.find(p => p.id === item.productId);
+          const variant = product?.variants.find(v => v.id === item.variantId);
+          if (!variant) return acc + (item.price * item.quantity);
 
-        const originalPrice = variant.price;
-        const currentPrice = item.price; // This already has automatic offers applied via getEffectivePrice when added
-        const couponPrice = originalPrice * (1 - couponDiscount / 100);
-        
-        const bestPrice = Math.min(currentPrice, couponPrice);
-        return acc + (bestPrice * item.quantity);
-      }, 0);
-      return Number(bestTotal.toFixed(2));
-    } else {
-      // Stacking: apply coupon to the already discounted subtotal
-      const finalAmount = subtotal * (1 - couponDiscount / 100);
-      return Number(finalAmount.toFixed(2));
+          const originalPrice = variant.price;
+          const currentPrice = item.price;
+          const couponPrice = originalPrice * (1 - couponDiscount / 100);
+          
+          const bestPrice = Math.min(currentPrice, couponPrice);
+          return acc + (bestPrice * item.quantity);
+        }, 0);
+      } else {
+        baseTotal = subtotal * (1 - couponDiscount / 100);
+      }
     }
-  }, [items, couponDiscount, stackingPolicy, products]);
+
+    const mDiscount = parseFloat(manualDiscount) || 0;
+    if (mDiscount > 0) {
+      if (manualDiscountType === 'percentage') {
+         baseTotal = baseTotal * (1 - mDiscount / 100);
+      } else {
+         baseTotal = Math.max(0, baseTotal - mDiscount);
+      }
+    }
+
+    return Number(baseTotal.toFixed(2));
+  }, [items, couponDiscount, stackingPolicy, products, manualDiscount, manualDiscountType]);
 
   const handleValidateCoupon = async () => {
     if (!appliedCouponCode || !onValidateCoupon) return;
@@ -315,6 +326,12 @@ export default function SaleForm({ products, rawMaterials, customers, offers = [
     else if (pPercentage > 0) paymentStatus = 'partial_paid';
     else if (paymentMethod === 'on_pickup') paymentStatus = 'pending_at_pickup';
 
+    const subtotal = items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+    let effectiveDiscountPercentage = couponDiscount || 0;
+    if (parseFloat(manualDiscount) > 0 && subtotal > 0) {
+      effectiveDiscountPercentage = Number(((1 - totalAmount / subtotal) * 100).toFixed(2));
+    }
+
     onSave({
       customerId: customerId || 'guest',
       customerName: finalCustomerName,
@@ -332,7 +349,7 @@ export default function SaleForm({ products, rawMaterials, customers, offers = [
       paymentGatewayFee,
       paymentNotes,
       appliedCouponCode: appliedCouponCode || undefined,
-      discount: couponDiscount || undefined
+      discount: effectiveDiscountPercentage > 0 ? effectiveDiscountPercentage : undefined
     });
   };
 
@@ -521,13 +538,13 @@ export default function SaleForm({ products, rawMaterials, customers, offers = [
                   ))}
                 </tbody>
                 <tfoot>
-                  {couponDiscount > 0 && (
+                  {(couponDiscount > 0 || parseFloat(manualDiscount) > 0) && (
                     <tr className="border-t border-stone-100 dark:border-stone-800">
                       <td colSpan={3} className="py-2 text-right text-emerald-600 dark:text-emerald-400 font-medium">
-                        Descuento ({couponDiscount}%):
+                        Descuentos Aplicados:
                       </td>
                       <td className="py-2 text-right text-emerald-600 dark:text-emerald-400 font-medium">
-                        -{formatCurrency(items.reduce((acc, item) => acc + (item.price * item.quantity), 0) * (couponDiscount / 100))}
+                        -{formatCurrency(items.reduce((acc, item) => acc + (item.price * item.quantity), 0) - totalAmount)}
                       </td>
                       <td></td>
                     </tr>
@@ -548,34 +565,74 @@ export default function SaleForm({ products, rawMaterials, customers, offers = [
           )}
         </div>
 
-        {/* Coupon Section */}
+        {/* Descuentos Section */}
         <div className="bg-white dark:bg-stone-900 p-6 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800">
           <h3 className="text-lg font-semibold text-stone-800 dark:text-stone-100 mb-4 flex items-center gap-2">
             <Tag size={20} className="text-indigo-500" />
-            Cupón de Descuento
+            Descuentos
           </h3>
-          <div className="flex gap-4 items-end">
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">Código de Cupón / N° Cliente</label>
-              <input
-                type="text"
-                value={appliedCouponCode}
-                onChange={e => setAppliedCouponCode(e.target.value.toUpperCase())}
-                placeholder="Ej: BIENVENIDA o N° Cliente"
-                className="w-full px-3 py-2 border border-stone-200 dark:border-stone-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none bg-white dark:bg-stone-950 text-stone-900 dark:text-stone-100"
-              />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4 border-b md:border-b-0 md:border-r border-stone-100 dark:border-stone-800 pb-4 md:pb-0 md:pr-6">
+              <label className="block text-sm font-medium text-stone-700 dark:text-stone-300">Descuento Manual</label>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <div className="relative">
+                    {manualDiscountType === 'fixed' && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-500">$</span>}
+                    <input
+                      type="number"
+                      min="0"
+                      step="any"
+                      value={manualDiscount}
+                      onChange={e => setManualDiscount(e.target.value)}
+                      placeholder="Monto a descontar"
+                      className={`w-full ${manualDiscountType === 'fixed' ? 'pl-8' : 'pl-3'} pr-8 py-2 border border-stone-200 dark:border-stone-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none bg-white dark:bg-stone-950 text-stone-900 dark:text-stone-100`}
+                    />
+                    {manualDiscountType === 'percentage' && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-500">%</span>}
+                  </div>
+                </div>
+                <div className="flex bg-stone-100 dark:bg-stone-800 p-1 rounded-xl">
+                  <button
+                    type="button"
+                    onClick={() => setManualDiscountType('percentage')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${manualDiscountType === 'percentage' ? 'bg-white dark:bg-stone-700 text-stone-900 dark:text-white shadow-sm' : 'text-stone-400 hover:text-stone-600'}`}
+                  >
+                    %
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setManualDiscountType('fixed')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${manualDiscountType === 'fixed' ? 'bg-white dark:bg-stone-700 text-stone-900 dark:text-white shadow-sm' : 'text-stone-400 hover:text-stone-600'}`}
+                  >
+                    $
+                  </button>
+                </div>
+              </div>
             </div>
-            <button
-              type="button"
-              onClick={handleValidateCoupon}
-              disabled={isValidatingCoupon || !appliedCouponCode}
-              className="px-6 py-2 bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 rounded-xl font-medium hover:bg-stone-200 dark:hover:bg-stone-700 transition-colors disabled:opacity-50"
-            >
-              {isValidatingCoupon ? 'Validando...' : 'Aplicar'}
-            </button>
+            <div className="space-y-4">
+              <label className="block text-sm font-medium text-stone-700 dark:text-stone-300">Cupón / N° Cliente</label>
+              <div className="flex gap-2 items-start">
+                <div className="flex-1">
+                  <input
+                    type="text"
+                    value={appliedCouponCode}
+                    onChange={e => setAppliedCouponCode(e.target.value.toUpperCase())}
+                    placeholder="Ej: BIENVENIDA o N°"
+                    className="w-full px-3 py-2 border border-stone-200 dark:border-stone-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none bg-white dark:bg-stone-950 text-stone-900 dark:text-stone-100"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleValidateCoupon}
+                  disabled={isValidatingCoupon || !appliedCouponCode}
+                  className="px-4 py-2 bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 rounded-xl font-medium hover:bg-stone-200 dark:hover:bg-stone-700 transition-colors disabled:opacity-50"
+                >
+                  {isValidatingCoupon ? '...' : 'Aplicar'}
+                </button>
+              </div>
+              {couponError && <p className="text-sm text-rose-500">{couponError}</p>}
+              {couponDiscount > 0 && <p className="text-sm text-emerald-600 font-medium">¡Cupón aplicado! {couponDiscount}% off.</p>}
+            </div>
           </div>
-          {couponError && <p className="mt-2 text-sm text-rose-500">{couponError}</p>}
-          {couponDiscount > 0 && <p className="mt-2 text-sm text-emerald-600 font-medium">¡Cupón aplicado! {couponDiscount}% de descuento.</p>}
         </div>
 
         {/* Payment Details */}

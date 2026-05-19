@@ -22,6 +22,7 @@ export default function ProductForm({ product, rawMaterials, onSave, onCancel }:
     description: '',
     category: '',
     photoUrl: '',
+    photoUrls: [],
     variants: [],
     showInCatalog: true,
     customNote: '',
@@ -37,6 +38,7 @@ export default function ProductForm({ product, rawMaterials, onSave, onCancel }:
         description: product.description || '',
         category: product.category || '',
         photoUrl: product.photoUrl || '',
+        photoUrls: product.photoUrls || (product.photoUrl ? [product.photoUrl] : []),
         variants: product.variants.map(v => ({
           ...v,
           recipe: v.recipe?.map(ri => ({ ...ri, id: ri.id || uuidv4() }))
@@ -175,8 +177,8 @@ export default function ProductForm({ product, rawMaterials, onSave, onCancel }:
   };
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
 
     try {
       setIsUploading(true);
@@ -186,18 +188,29 @@ export default function ProductForm({ product, rawMaterials, onSave, onCancel }:
         useWebWorker: true,
         fileType: 'image/webp'
       };
-      const compressedFile = await imageCompression(file, options);
-
-      setSelectedFile(compressedFile);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData((prev) => ({ ...prev, photoUrl: reader.result as string }));
-        setIsUploading(false);
-      };
-      reader.readAsDataURL(compressedFile);
+      
+      const newPhotoUrls = [...(formData.photoUrls || (formData.photoUrl ? [formData.photoUrl] : []))];
+      
+      for (const file of files) {
+        const compressedFile = await imageCompression(file, options);
+        const reader = new FileReader();
+        const base64 = await new Promise<string>((resolve, reject) => {
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(compressedFile);
+        });
+        newPhotoUrls.push(base64);
+      }
+      
+      setFormData(prev => ({ 
+        ...prev, 
+        photoUrls: newPhotoUrls,
+        photoUrl: newPhotoUrls.length > 0 ? newPhotoUrls[0] : prev.photoUrl 
+      }));
+      setIsUploading(false);
     } catch (error) {
       console.error('Error al comprimir la imagen:', error);
-      alert('Hubo un error al procesar la imagen. Intenta con otra.');
+      alert('Hubo un error al procesar las imágenes. Intenta con otras.');
       setIsUploading(false);
     }
   };
@@ -206,28 +219,6 @@ export default function ProductForm({ product, rawMaterials, onSave, onCancel }:
     e.preventDefault();
     console.log('handleSubmit started');
     setIsUploading(true);
-    
-    let photoUrl = formData.photoUrl;
-    if (selectedFile) {
-      try {
-        console.log('Converting image to base64...');
-        const reader = new FileReader();
-        photoUrl = await new Promise<string>((resolve, reject) => {
-          reader.onloadend = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(selectedFile);
-        });
-        console.log('Image converted to base64.');
-      } catch (error: any) {
-        console.error('Error handling image:', error);
-        const errorMessage = error.message || 'Error desconocido';
-        const errorCode = error.code || 'unknown';
-        alert(`Error al procesar la imagen (${errorCode}): ${errorMessage}. Por favor, intenta de nuevo.`);
-        setIsUploading(false);
-        setUploadProgress(0);
-        return;
-      }
-    }
     
     // Validation: If any variant is "Stock Dinámico" (isFinishedGood === false), it must have a valid recipe
     const invalidVariants = formData.variants.filter(v => 
@@ -243,7 +234,6 @@ export default function ProductForm({ product, rawMaterials, onSave, onCancel }:
     const now = new Date().toISOString();
     const newProduct: Product = {
       ...formData,
-      photoUrl,
       id: product?.id || uuidv4(),
       createdAt: product?.createdAt || now,
       updatedAt: now,
@@ -378,37 +368,40 @@ export default function ProductForm({ product, rawMaterials, onSave, onCancel }:
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">Foto del Producto</label>
-              <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-stone-200 dark:border-stone-700 border-dashed rounded-2xl hover:border-indigo-400 dark:hover:border-indigo-500 transition-colors bg-stone-50 dark:bg-stone-950/50 group relative">
-                <div className="space-y-2 text-center">
-                  {formData.photoUrl ? (
-                    <div className="relative w-full h-48 rounded-lg overflow-hidden">
-                      <img src={formData.photoUrl} alt="Preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                        <label className="cursor-pointer bg-white/90 dark:bg-stone-900/90 text-stone-800 dark:text-stone-200 px-4 py-2 rounded-lg font-medium text-sm shadow-sm hover:bg-white dark:hover:bg-stone-800 transition-colors flex items-center">
-                          <Upload size={16} className="mr-2" />
-                          Cambiar Foto
-                          <input type="file" className="sr-only" accept="image/*" onChange={handlePhotoUpload} />
-                        </label>
-                      </div>
+              <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">Fotos del Producto</label>
+              <div className="mt-1 grid grid-cols-2 md:grid-cols-4 gap-4">
+                {(formData.photoUrls || (formData.photoUrl ? [formData.photoUrl] : [])).map((url, idx) => (
+                  <div key={idx} className="relative aspect-square rounded-xl overflow-hidden group border border-stone-200 dark:border-stone-700">
+                    <img src={url} alt={`Preview ${idx}`} className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newUrls = [...(formData.photoUrls || (formData.photoUrl ? [formData.photoUrl] : []))];
+                          newUrls.splice(idx, 1);
+                          setFormData(prev => ({ 
+                            ...prev, 
+                            photoUrls: newUrls,
+                            photoUrl: newUrls.length > 0 ? newUrls[0] : ''
+                          }));
+                        }}
+                        className="p-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition-colors"
+                      >
+                        <Trash2 size={16} />
+                      </button>
                     </div>
-                  ) : (
-                    <div className="flex flex-col items-center">
-                      <div className="p-4 bg-white dark:bg-stone-900 rounded-full shadow-sm mb-3">
-                        <ImageIcon className="mx-auto h-8 w-8 text-stone-400 dark:text-stone-500" />
-                      </div>
-                      <div className="flex text-sm text-stone-600 dark:text-stone-400">
-                        <label className="relative cursor-pointer bg-white dark:bg-stone-900 rounded-md font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
-                          <span>Sube un archivo</span>
-                          <input type="file" className="sr-only" accept="image/*" onChange={handlePhotoUpload} />
-                        </label>
-                        <p className="pl-1">o arrastra y suelta</p>
-                      </div>
-                      <p className="text-xs text-stone-500 dark:text-stone-500 mt-2">PNG, JPG, GIF hasta 5MB</p>
-                    </div>
-                  )}
-                </div>
+                  </div>
+                ))}
+                
+                <label className="cursor-pointer aspect-square flex flex-col items-center justify-center border-2 border-stone-200 dark:border-stone-700 border-dashed rounded-xl hover:border-indigo-400 dark:hover:border-indigo-500 transition-colors bg-stone-50 dark:bg-stone-950/50">
+                  <div className="p-3 bg-white dark:bg-stone-900 rounded-full shadow-sm mb-2">
+                    <Plus className="h-6 w-6 text-stone-400 dark:text-stone-500" />
+                  </div>
+                  <span className="text-sm font-medium text-indigo-600 dark:text-indigo-400">Agregar</span>
+                  <input type="file" multiple className="sr-only" accept="image/*" onChange={handlePhotoUpload} />
+                </label>
               </div>
+              <p className="text-xs text-stone-500 dark:text-stone-400 mt-2">Puedes subir varias imágenes. La primera será la principal. PNG, JPG, WEBP hasta 5MB.</p>
             </div>
           </div>
         </div>

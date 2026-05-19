@@ -22,23 +22,56 @@ export function useAuth() {
         unsubUserDoc = onSnapshot(userRef, async (docSnap) => {
           if (docSnap.exists()) {
             const userData = docSnap.data();
-            setIsAdmin(userData.role === 'admin' || userData.role === 'superadmin' || userData.role === 'collaborator');
-            setUserProfile(userData as UserProfile);
+            let role = userData.role;
+            let finalUserProfile = { ...userData } as UserProfile;
+
+            // Si ya existe pero no es admin, comprobamos si fue pre-autorizado por las dudas
+            if (role !== 'admin' && role !== 'superadmin' && role !== 'collaborator' && user.email) {
+              const exactEmail = user.email.trim();
+              const lowerEmail = user.email.toLowerCase().trim();
+              
+              let preAuthRole = null;
+              const exactSnap = await getDoc(doc(db, 'preAuthorizedAdmins', exactEmail));
+              if (exactSnap.exists()) preAuthRole = exactSnap.data().role || 'admin';
+              
+              if (!preAuthRole && lowerEmail !== exactEmail) {
+                const lowerSnap = await getDoc(doc(db, 'preAuthorizedAdmins', lowerEmail));
+                if (lowerSnap.exists()) preAuthRole = lowerSnap.data().role || 'admin';
+              }
+
+              if (preAuthRole) {
+                role = preAuthRole;
+                await setDoc(userRef, { role: preAuthRole }, { merge: true });
+                finalUserProfile.role = preAuthRole;
+              }
+            }
+
+            setIsAdmin(role === 'admin' || role === 'superadmin' || role === 'collaborator');
+            setUserProfile(finalUserProfile);
           } else {
             // Si no está en users, buscamos en preAuthorizedAdmins por su email
             if (user.email) {
-              const preAuthRef = doc(db, 'preAuthorizedAdmins', user.email);
-              const preAuthSnap = await getDoc(preAuthRef);
-              if (preAuthSnap.exists()) {
-                const role = preAuthSnap.data().role || 'admin';
-                setIsAdmin(role === 'admin' || role === 'superadmin');
+              const exactEmail = user.email.trim();
+              const lowerEmail = user.email.toLowerCase().trim();
+              
+              let preAuthRole = null;
+              const exactSnap = await getDoc(doc(db, 'preAuthorizedAdmins', exactEmail));
+              if (exactSnap.exists()) preAuthRole = exactSnap.data().role || 'admin';
+              
+              if (!preAuthRole && lowerEmail !== exactEmail) {
+                const lowerSnap = await getDoc(doc(db, 'preAuthorizedAdmins', lowerEmail));
+                if (lowerSnap.exists()) preAuthRole = lowerSnap.data().role || 'admin';
+              }
+
+              if (preAuthRole) {
+                setIsAdmin(preAuthRole === 'admin' || preAuthRole === 'superadmin');
                 
                 // Creamos el perfil de usuario oficial
                 const newUser = {
                   id: user.uid,
                   uid: user.uid,
                   email: user.email,
-                  role: role,
+                  role: preAuthRole,
                   createdAt: new Date().toISOString(),
                   name: user.displayName || 'Administrador',
                   level: 'bronce',

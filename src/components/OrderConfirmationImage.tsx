@@ -221,10 +221,32 @@ export default function OrderConfirmationImage({ sale, storeSettings, customerPh
 
               {/* Totales Escalados */}
               <div className="mt-6 border-t border-stone-200 pt-4 space-y-4">
-                <div className="flex justify-between text-xl sm:text-2xl font-bold text-stone-900 uppercase tracking-wider">
-                  <span>Total Final</span>
-                  <span>{formatCurrency(sale.totalAmount)}</span>
-                </div>
+                {(() => {
+                  const subtotal = sale.items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+                  const discountAmount = subtotal - sale.totalAmount;
+                  const hasDiscount = discountAmount > 0.01;
+                  
+                  return (
+                    <>
+                      {hasDiscount && (
+                        <div className="flex justify-between text-lg sm:text-xl font-medium text-stone-600 uppercase tracking-wider">
+                          <span>Subtotal</span>
+                          <span>{formatCurrency(subtotal)}</span>
+                        </div>
+                      )}
+                      {hasDiscount && (
+                        <div className="flex justify-between text-lg sm:text-xl font-bold text-emerald-600 uppercase tracking-wider">
+                          <span>Descuento {sale.appliedCouponCode ? `(${sale.appliedCouponCode})` : ''}</span>
+                          <span>-{formatCurrency(discountAmount)}</span>
+                        </div>
+                      )}
+                      <div className={`flex justify-between text-xl sm:text-2xl font-bold text-stone-900 uppercase tracking-wider ${hasDiscount ? 'mt-4 pt-4 border-t border-stone-200' : ''}`}>
+                        <span>Total Final</span>
+                        <span>{formatCurrency(sale.totalAmount)}</span>
+                      </div>
+                    </>
+                  );
+                })()}
                 
                 <div className="flex justify-between text-xl sm:text-2xl font-bold text-emerald-600 uppercase tracking-wider">
                   <span>Monto Abonado</span>
