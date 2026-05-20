@@ -100,7 +100,7 @@ export default function App() {
     preAuthorizedAdmins, addPreAuth, updatePreAuthRole, removePreAuth,
     auditLogs, clearAuditLogs, storeSettings, isSettingsLoaded, validateCoupon,
     coupons, generateCoupon, updateCoupon, deleteCoupon, addSubscriber,
-    loadAuditLogs, loadUsersAndPreAuth, loadFinancialDocs, loadSimulations, loadProductionOrders
+    loadAuditLogs, fetchMoreAuditLogs, hasMoreAuditLogs, loadUsersAndPreAuth, loadFinancialDocs, loadSimulations, loadProductionOrders
   } = useInventoryContext();
   
   const [currentView, setCurrentView] = useState<View>('dashboard');
@@ -120,9 +120,6 @@ export default function App() {
     if (!isAdmin || !currentUser) return;
     
     switch (currentView) {
-      case 'audit-logs':
-        loadAuditLogs();
-        break;
       case 'admin-users':
         loadUsersAndPreAuth();
         break;
@@ -447,7 +444,15 @@ export default function App() {
                 )}
                 {currentView === 'admin-campaigns' && <AdminCampaignPanel campaigns={campaigns} onAdd={addCampaign} onDelete={deleteCampaign} />}
                 {currentView === 'admin-users' && userProfile?.role === 'admin' && <AdminUsersView users={users} preAuthorizedAdmins={preAuthorizedAdmins} currentUser={currentUser} onUpdateRole={updateUserRole} onAddPreAuth={addPreAuth} onUpdatePreAuthRole={updatePreAuthRole} onRemovePreAuth={removePreAuth} />}
-                {currentView === 'audit-logs' && userProfile?.role === 'admin' && <AuditLogsView logs={auditLogs} clearLogs={clearAuditLogs} />}
+                {currentView === 'audit-logs' && userProfile?.role === 'admin' && (
+                  <AuditLogsView 
+                    logs={auditLogs} 
+                    clearLogs={clearAuditLogs} 
+                    loadLogs={loadAuditLogs}
+                    loadMoreLogs={fetchMoreAuditLogs}
+                    hasMore={hasMoreAuditLogs}
+                  />
+                )}
               </div>
             </div>
 

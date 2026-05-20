@@ -22,6 +22,8 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
   const [lastSync, setLastSync] = useState<Date>(new Date());
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [salesLimit, setSalesLimit] = useState(20);
+  const [auditLogsLimit, setAuditLogsLimit] = useState(50);
+  const [hasMoreAuditLogs, setHasMoreAuditLogs] = useState(false);
   const hasFetchedAuditLogs = useRef(false);
   const hasFetchedUsers = useRef(false);
   const hasFetchedFinance = useRef(false);
@@ -34,6 +36,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     hasFetchedFinance.current = false;
     hasFetchedSimulations.current = false;
     hasFetchedRecentOrders.current = false;
+    setAuditLogsLimit(50);
     setRefreshTrigger(prev => prev + 1);
   };
 
@@ -55,6 +58,8 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
       setAuditLogs([]);
       setCoupons([]);
       setFinancialDocs([]);
+      setAuditLogsLimit(50);
+      setHasMoreAuditLogs(false);
       hasFetchedAuditLogs.current = false;
       hasFetchedUsers.current = false;
       hasFetchedFinance.current = false;
@@ -107,17 +112,24 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     };
   }, [isAuthReady, isAdmin, refreshTrigger, salesLimit]);
 
-  const loadAuditLogs = async () => {
-    if (!isAdmin || hasFetchedAuditLogs.current) return;
-    hasFetchedAuditLogs.current = true;
+  const loadAuditLogs = async (customLimit?: number) => {
+    if (!isAdmin) return;
+    const currentLimit = customLimit || auditLogsLimit;
     try {
-      const auditLogsSnap = await getDocs(query(collection(db, 'auditLogs'), orderBy('timestamp', 'desc'), limit(100)));
-      setAuditLogs(auditLogsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as AuditLog)));
+      const auditLogsSnap = await getDocs(query(collection(db, 'auditLogs'), orderBy('timestamp', 'desc'), limit(currentLimit)));
+      const fetchedLogs = auditLogsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as AuditLog));
+      setAuditLogs(fetchedLogs);
+      setHasMoreAuditLogs(fetchedLogs.length === currentLimit);
       setLastSync(new Date());
     } catch (e) {
       console.warn("Error fetching audit logs:", e);
-      hasFetchedAuditLogs.current = false;
     }
+  };
+
+  const fetchMoreAuditLogs = () => {
+    const nextLimit = auditLogsLimit + 50;
+    setAuditLogsLimit(nextLimit);
+    loadAuditLogs(nextLimit);
   };
 
   const loadUsersAndPreAuth = async () => {
@@ -316,6 +328,8 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     refresh,
     metrics,
     loadAuditLogs,
+    fetchMoreAuditLogs,
+    hasMoreAuditLogs,
     loadUsersAndPreAuth,
     loadFinancialDocs,
     loadSimulations,
