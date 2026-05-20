@@ -22,10 +22,18 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
   const [lastSync, setLastSync] = useState<Date>(new Date());
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [salesLimit, setSalesLimit] = useState(20);
-  const hasFetchedNonCritical = useRef(false);
+  const hasFetchedAuditLogs = useRef(false);
+  const hasFetchedUsers = useRef(false);
+  const hasFetchedFinance = useRef(false);
+  const hasFetchedSimulations = useRef(false);
+  const hasFetchedRecentOrders = useRef(false);
 
   const refresh = () => {
-    hasFetchedNonCritical.current = false;
+    hasFetchedAuditLogs.current = false;
+    hasFetchedUsers.current = false;
+    hasFetchedFinance.current = false;
+    hasFetchedSimulations.current = false;
+    hasFetchedRecentOrders.current = false;
     setRefreshTrigger(prev => prev + 1);
   };
 
@@ -47,7 +55,11 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
       setAuditLogs([]);
       setCoupons([]);
       setFinancialDocs([]);
-      hasFetchedNonCritical.current = false;
+      hasFetchedAuditLogs.current = false;
+      hasFetchedUsers.current = false;
+      hasFetchedFinance.current = false;
+      hasFetchedSimulations.current = false;
+      hasFetchedRecentOrders.current = false;
       return;
     }
 
@@ -85,48 +97,6 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
       });
     });
 
-    const fetchNonCriticalData = async () => {
-      if (hasFetchedNonCritical.current) return;
-      hasFetchedNonCritical.current = true;
-
-      try {
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
-        const thirtyDaysAgoISO = thirtyDaysAgo.toISOString();
-
-        const auditLogsSnap = await getDocs(query(collection(db, 'auditLogs'), orderBy('timestamp', 'desc')));
-        setAuditLogs(auditLogsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as AuditLog)));
-
-        const ordersRecentSnap = await getDocs(query(collection(db, 'productionOrders'), where('createdAt', '>=', thirtyDaysAgoISO), orderBy('createdAt', 'desc')));
-        const recentOrders = ordersRecentSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as ProductionOrder));
-        setProductionOrders(prev => {
-          const merged = new Map<string, ProductionOrder>();
-          prev.forEach(o => merged.set(o.id, o));
-          recentOrders.forEach(o => merged.set(o.id, o));
-          return Array.from(merged.values()).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-        });
-
-        const usersSnap = await getDocs(query(collection(db, 'users')));
-        setUsers(usersSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as any as User)));
-
-        const preAuthSnap = await getDocs(collection(db, 'preAuthorizedAdmins'));
-        setPreAuthorizedAdmins(preAuthSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as any as PreAuthorizedAdmin)));
-
-        const financialDocsSnap = await getDocs(query(collection(db, 'financialDocs')));
-        setFinancialDocs(financialDocsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as FinancialDocument)));
-
-        const simulationsSnap = await getDocs(query(collection(db, 'simulations')));
-        setSimulations(simulationsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Simulation)));
-
-        setLastSync(new Date());
-      } catch (e) {
-        console.warn("Error fetching non-critical data:", e);
-      }
-    };
-
-    fetchNonCriticalData();
-
     return () => {
       unsubCoupons();
       unsubSales();
@@ -136,6 +106,84 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
       unsubOrdersActive();
     };
   }, [isAuthReady, isAdmin, refreshTrigger, salesLimit]);
+
+  const loadAuditLogs = async () => {
+    if (!isAdmin || hasFetchedAuditLogs.current) return;
+    hasFetchedAuditLogs.current = true;
+    try {
+      const auditLogsSnap = await getDocs(query(collection(db, 'auditLogs'), orderBy('timestamp', 'desc'), limit(100)));
+      setAuditLogs(auditLogsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as AuditLog)));
+      setLastSync(new Date());
+    } catch (e) {
+      console.warn("Error fetching audit logs:", e);
+      hasFetchedAuditLogs.current = false;
+    }
+  };
+
+  const loadUsersAndPreAuth = async () => {
+    if (!isAdmin || hasFetchedUsers.current) return;
+    hasFetchedUsers.current = true;
+    try {
+      const usersSnap = await getDocs(query(collection(db, 'users')));
+      setUsers(usersSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as any as User)));
+
+      const preAuthSnap = await getDocs(collection(db, 'preAuthorizedAdmins'));
+      setPreAuthorizedAdmins(preAuthSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as any as PreAuthorizedAdmin)));
+      setLastSync(new Date());
+    } catch (e) {
+      console.warn("Error fetching users:", e);
+      hasFetchedUsers.current = false;
+    }
+  };
+
+  const loadFinancialDocs = async () => {
+    if (!isAdmin || hasFetchedFinance.current) return;
+    hasFetchedFinance.current = true;
+    try {
+      const financialDocsSnap = await getDocs(query(collection(db, 'financialDocs')));
+      setFinancialDocs(financialDocsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as FinancialDocument)));
+      setLastSync(new Date());
+    } catch (e) {
+      console.warn("Error fetching financial docs:", e);
+      hasFetchedFinance.current = false;
+    }
+  };
+
+  const loadSimulations = async () => {
+    if (!isAdmin || hasFetchedSimulations.current) return;
+    hasFetchedSimulations.current = true;
+    try {
+      const simulationsSnap = await getDocs(query(collection(db, 'simulations')));
+      setSimulations(simulationsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Simulation)));
+      setLastSync(new Date());
+    } catch (e) {
+      console.warn("Error fetching simulations:", e);
+      hasFetchedSimulations.current = false;
+    }
+  };
+
+  const loadProductionOrders = async () => {
+    if (!isAdmin || hasFetchedRecentOrders.current) return;
+    hasFetchedRecentOrders.current = true;
+    try {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const thirtyDaysAgoISO = thirtyDaysAgo.toISOString();
+
+      const ordersRecentSnap = await getDocs(query(collection(db, 'productionOrders'), where('createdAt', '>=', thirtyDaysAgoISO), orderBy('createdAt', 'desc')));
+      const recentOrders = ordersRecentSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as ProductionOrder));
+      setProductionOrders(prev => {
+        const merged = new Map<string, ProductionOrder>();
+        prev.forEach(o => merged.set(o.id, o));
+        recentOrders.forEach(o => merged.set(o.id, o));
+        return Array.from(merged.values()).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      });
+      setLastSync(new Date());
+    } catch (e) {
+      console.warn("Error fetching recent production orders:", e);
+      hasFetchedRecentOrders.current = false;
+    }
+  };
 
   const fetchMoreSales = () => {
     setSalesLimit(prev => prev + 20);
@@ -266,6 +314,11 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     financialDocs,
     lastSync,
     refresh,
-    metrics
+    metrics,
+    loadAuditLogs,
+    loadUsersAndPreAuth,
+    loadFinancialDocs,
+    loadSimulations,
+    loadProductionOrders
   };
 }

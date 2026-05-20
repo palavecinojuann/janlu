@@ -99,7 +99,8 @@ export default function App() {
     simulations, saveSimulation, deleteSimulation, updateMultipleProducts, updateMultipleRawMaterials,
     preAuthorizedAdmins, addPreAuth, updatePreAuthRole, removePreAuth,
     auditLogs, clearAuditLogs, storeSettings, isSettingsLoaded, validateCoupon,
-    coupons, generateCoupon, updateCoupon, deleteCoupon, addSubscriber
+    coupons, generateCoupon, updateCoupon, deleteCoupon, addSubscriber,
+    loadAuditLogs, loadUsersAndPreAuth, loadFinancialDocs, loadSimulations, loadProductionOrders
   } = useInventoryContext();
   
   const [currentView, setCurrentView] = useState<View>('dashboard');
@@ -113,6 +114,33 @@ export default function App() {
 
   const [showAuth, setShowAuth] = useState(false);
   const [isPublicCatalog, setIsPublicCatalog] = useState(true);
+
+  // Carga diferida (lazy load) de colecciones Firestore según la vista del panel
+  useEffect(() => {
+    if (!isAdmin || !currentUser) return;
+    
+    switch (currentView) {
+      case 'audit-logs':
+        loadAuditLogs();
+        break;
+      case 'admin-users':
+        loadUsersAndPreAuth();
+        break;
+      case 'finance':
+      case 'stats':
+        loadFinancialDocs();
+        break;
+      case 'tools':
+        loadSimulations();
+        break;
+      case 'production':
+      case 'inventory':
+        loadProductionOrders();
+        break;
+      default:
+        break;
+    }
+  }, [currentView, isAdmin, currentUser]);
 
   useEffect(() => {
     const handleHashChange = () => {
