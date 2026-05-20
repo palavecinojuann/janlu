@@ -123,7 +123,7 @@ export default function OrderConfirmationImage({ sale, storeSettings, customerPh
         onClick={handleGeneratePreview}
         disabled={isGenerating}
         className="p-2 text-stone-400 dark:text-stone-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors"
-        title="Generar Etiqueta"
+        title="Generar Comprobante"
       >
         {isGenerating ? <Loader2 size={16} className="animate-spin" /> : <ImageIcon size={16} />}
       </button>
@@ -133,7 +133,7 @@ export default function OrderConfirmationImage({ sale, storeSettings, customerPh
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-2xl max-w-xl w-full p-6 flex flex-col max-h-[90vh]">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold text-stone-800 dark:text-stone-100">Etiqueta Generada</h3>
+              <h3 className="text-lg font-bold text-stone-800 dark:text-stone-100">Comprobante Generado</h3>
               <button 
                 onClick={() => setShowModal(false)} 
                 className="text-stone-400 hover:text-stone-600 dark:hover:text-stone-300"
@@ -266,6 +266,13 @@ export default function OrderConfirmationImage({ sale, storeSettings, customerPh
                   <div className="flex justify-between text-xl sm:text-2xl font-bold text-rose-600 uppercase tracking-wider mt-2 pt-2 border-t border-dashed border-stone-200">
                     <span>Saldo Pendiente</span>
                     <span>{formatCurrency(sale.totalAmount - sale.amountPaid)}</span>
+                  </div>
+                )}
+
+                {sale.paymentNotes && (
+                  <div className="flex flex-col mt-4 pt-4 border-t border-stone-100">
+                    <span className="text-xs uppercase tracking-widest font-bold text-stone-400 mb-1">Notas de Pago</span>
+                    <span className="text-lg text-stone-600 italic break-words whitespace-normal">"{sale.paymentNotes}"</span>
                   </div>
                 )}
               </div>
