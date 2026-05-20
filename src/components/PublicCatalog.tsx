@@ -548,7 +548,7 @@ const ProductSlider: React.FC<{ title: string; products: Product[]; isAdminMode:
 
   return (
     <div className="mb-12 group/slider">
-      <div className="flex items-center justify-between mb-6 px-4 sm:px-0">
+      <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl sm:text-2xl font-serif text-stone-900 tracking-tight">{title}</h2>
         <div className="h-px flex-1 bg-stone-100 mx-4 hidden sm:block"></div>
         
