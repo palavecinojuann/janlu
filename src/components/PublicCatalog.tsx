@@ -1616,7 +1616,7 @@ export default function PublicCatalog({
         </div>
 
         {/* Carrusel Matemático de Productos Más Populares */}
-        <div className="mt-16 mb-8 w-full max-w-7xl mx-auto">
+        <div className="mt-16 mb-8 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <ProductSlider 
             title="Los Favoritos de Janlu"
             products={popularProducts}

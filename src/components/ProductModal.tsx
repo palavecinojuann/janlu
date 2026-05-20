@@ -45,6 +45,37 @@ export default function ProductModal({
 
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
+  const allImages = useMemo(() => {
+    return product.photoUrls && product.photoUrls.length > 0 
+      ? product.photoUrls 
+      : (product.photoUrl ? [product.photoUrl] : []);
+  }, [product]);
+
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > 50;
+    const isRightSwipe = distance < -50;
+    if (isLeftSwipe && allImages.length > 1) {
+      setCurrentImageIndex(prev => (prev + 1) % allImages.length);
+    } else if (isRightSwipe && allImages.length > 1) {
+      setCurrentImageIndex(prev => (prev - 1 + allImages.length) % allImages.length);
+    }
+    setTouchStart(null);
+    setTouchEnd(null);
+  };
+
   useEffect(() => {
     setLocalVariant(product.variants.find(v => getVariantStock(v, rawMaterials) > 0) || product.variants[0] || null);
     setCurrentImageIndex(0);
@@ -119,79 +150,74 @@ export default function ProductModal({
           </button>
 
           {/* 📸 COLUMNA IZQUIERDA (FOTO): 50% exacto en PC */}
-          <div className="w-full md:w-1/2 bg-stone-50 relative flex-shrink-0 min-h-[350px] md:min-h-[500px] border-b md:border-b-0 md:border-r border-stone-100 flex items-center justify-center overflow-hidden group">
-            {(() => {
-              const allImages = product.photoUrls && product.photoUrls.length > 0 
-                ? product.photoUrls 
-                : (product.photoUrl ? [product.photoUrl] : []);
+          <div 
+            className="w-full md:w-1/2 bg-stone-50 relative flex-shrink-0 min-h-[350px] md:min-h-[500px] border-b md:border-b-0 md:border-r border-stone-100 flex items-center justify-center overflow-hidden group touch-pan-y"
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+          >
+            {allImages.length === 0 ? (
+              <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center text-stone-200">
+                <Flame size={80} strokeWidth={1} />
+                <span className="text-xs mt-4 uppercase tracking-[0.3em] font-bold">Sin imagen</span>
+              </div>
+            ) : (
+              <>
+                <div 
+                  className="absolute inset-0 flex transition-transform duration-500 ease-out"
+                  style={{ transform: `translateX(-${currentImageIndex * 100}%)` }}
+                >
+                  {allImages.map((img, idx) => (
+                    <img
+                      key={idx}
+                      src={img}
+                      alt={`${product.name} - Imagen ${idx + 1}`}
+                      className={`w-full h-full flex-shrink-0 object-cover object-center bg-stone-50 ${isOutOfStock ? 'grayscale' : ''}`}
+                      referrerPolicy="no-referrer"
+                    />
+                  ))}
+                </div>
 
-              if (allImages.length === 0) {
-                return (
-                  <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center text-stone-200">
-                    <Flame size={80} strokeWidth={1} />
-                    <span className="text-xs mt-4 uppercase tracking-[0.3em] font-bold">Sin imagen</span>
-                  </div>
-                );
-              }
-
-              return (
-                <>
-                  <div 
-                    className="absolute inset-0 flex transition-transform duration-500 ease-out"
-                    style={{ transform: `translateX(-${currentImageIndex * 100}%)` }}
-                  >
-                    {allImages.map((img, idx) => (
-                      <img
-                        key={idx}
-                        src={img}
-                        alt={`${product.name} - Imagen ${idx + 1}`}
-                        className={`w-full h-full flex-shrink-0 object-cover object-center bg-stone-50 ${isOutOfStock ? 'grayscale' : ''}`}
-                        referrerPolicy="no-referrer"
-                      />
-                    ))}
-                  </div>
-
-                  {allImages.length > 1 && (
-                    <>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setCurrentImageIndex(prev => prev === 0 ? allImages.length - 1 : prev - 1);
-                        }}
-                        className="absolute left-4 top-1/2 -translate-y-1/2 p-2 bg-white/80 hover:bg-white text-stone-600 hover:text-stone-900 rounded-full shadow-md backdrop-blur opacity-0 group-hover:opacity-100 transition-all z-10"
-                      >
-                        <ChevronLeft size={20} />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setCurrentImageIndex(prev => prev === allImages.length - 1 ? 0 : prev + 1);
-                        }}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-white/80 hover:bg-white text-stone-600 hover:text-stone-900 rounded-full shadow-md backdrop-blur opacity-0 group-hover:opacity-100 transition-all z-10"
-                      >
-                        <ChevronRight size={20} />
-                      </button>
-                      <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 z-10">
-                        {allImages.map((_, idx) => (
-                          <button
-                            key={idx}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setCurrentImageIndex(idx);
-                            }}
-                            className={`w-2 h-2 rounded-full transition-all shadow-sm ${
-                              idx === currentImageIndex 
-                                ? 'bg-white scale-125' 
-                                : 'bg-white/50 hover:bg-white/80'
-                            }`}
-                          />
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </>
-              );
-            })()}
+                {allImages.length > 1 && (
+                  <>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCurrentImageIndex(prev => prev === 0 ? allImages.length - 1 : prev - 1);
+                      }}
+                      className="absolute left-4 top-1/2 -translate-y-1/2 p-2 bg-white/80 hover:bg-white text-stone-600 hover:text-stone-900 rounded-full shadow-md backdrop-blur opacity-0 group-hover:opacity-100 transition-all z-10"
+                    >
+                      <ChevronLeft size={20} />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCurrentImageIndex(prev => prev === allImages.length - 1 ? 0 : prev + 1);
+                      }}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-white/80 hover:bg-white text-stone-600 hover:text-stone-900 rounded-full shadow-md backdrop-blur opacity-0 group-hover:opacity-100 transition-all z-10"
+                    >
+                      <ChevronRight size={20} />
+                    </button>
+                    <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 z-10">
+                      {allImages.map((_, idx) => (
+                        <button
+                          key={idx}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCurrentImageIndex(idx);
+                          }}
+                          className={`w-2 h-2 rounded-full transition-all shadow-sm ${
+                            idx === currentImageIndex 
+                              ? 'bg-white scale-125' 
+                              : 'bg-white/50 hover:bg-white/80'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </>
+                )}
+              </>
+            )}
 
             {isOutOfStock && (
               <div className="absolute inset-0 bg-white/40 flex items-center justify-center backdrop-blur-[2px]">
