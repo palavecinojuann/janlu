@@ -264,11 +264,23 @@ export default function SaleList({ sales, products, customers, storeSettings, on
     };
 
     const newAmountPaid = (saleForPayment.amountPaid || 0) + amount;
+    const existingHistory = [...(saleForPayment.paymentHistory || [])];
+
+    // Si no había historial pero ya se había pagado algo, inicializamos el primer pago en el historial
+    if (existingHistory.length === 0 && (saleForPayment.amountPaid || 0) > 0) {
+      existingHistory.push({
+        amount: saleForPayment.amountPaid,
+        method: saleForPayment.paymentMethod || 'efectivo',
+        date: saleForPayment.date || new Date().toISOString(),
+        status: saleForPayment.paymentStatus || 'verified',
+        notes: saleForPayment.paymentNotes || 'Pago inicial registrado'
+      });
+    }
     
     const updatedSale: Sale = {
       ...saleForPayment,
       amountPaid: newAmountPaid,
-      paymentHistory: [...(saleForPayment.paymentHistory || []), newPayment]
+      paymentHistory: [...existingHistory, newPayment]
     };
 
     // 🚀 Actualización Optimista de Pagos
@@ -294,6 +306,17 @@ export default function SaleList({ sales, products, customers, storeSettings, on
         const amountAdded = editAmountPaid - sale.amountPaid;
         const newHistory = [...(sale.paymentHistory || [])];
         
+        // Si no había historial pero ya se había pagado algo, inicializamos el primer pago en el historial
+        if (newHistory.length === 0 && (sale.amountPaid || 0) > 0) {
+          newHistory.push({
+            amount: sale.amountPaid,
+            method: sale.paymentMethod || 'efectivo',
+            date: sale.date || new Date().toISOString(),
+            status: sale.paymentStatus || 'verified',
+            notes: sale.paymentNotes || 'Pago inicial registrado'
+          });
+        }
+
         if (amountAdded !== 0 || editPaymentStatus !== sale.paymentStatus || editPaymentMethod !== sale.paymentMethod) {
           newHistory.push({
             date: new Date(editPaymentDate + 'T12:00:00').toISOString(),

@@ -901,7 +901,24 @@ export function useInventoryOperations(
     } catch (error) {
       nextOrderNumber = 900000 + Math.floor(Math.random() * 90000);
     }
-    const newSale: Sale = { ...saleData, id: uuidv4(), orderNumber: nextOrderNumber, date: new Date().toISOString(), status: saleData.status || 'nuevo' };
+    const initialPayments = [];
+    if (saleData.amountPaid && saleData.amountPaid > 0) {
+      initialPayments.push({
+        amount: saleData.amountPaid,
+        method: saleData.paymentMethod || 'efectivo',
+        date: new Date().toISOString(),
+        status: saleData.paymentStatus || 'verified',
+        notes: saleData.paymentNotes || 'Pago inicial'
+      });
+    }
+    const newSale: Sale = { 
+      ...saleData, 
+      id: uuidv4(), 
+      orderNumber: nextOrderNumber, 
+      date: new Date().toISOString(), 
+      status: saleData.status || 'nuevo',
+      paymentHistory: saleData.paymentHistory || (initialPayments.length > 0 ? initialPayments : undefined)
+    };
     try {
       const batch = writeBatch(db);
       batch.set(doc(db, 'sales', newSale.id), cleanObject(newSale));
