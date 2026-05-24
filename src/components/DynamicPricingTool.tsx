@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Product, RawMaterial, Activity } from '../types';
 import { Search, Check, AlertTriangle, ChevronRight, TrendingUp, DollarSign, RefreshCw } from 'lucide-react';
+import { UMB_FOR_DIMENSION, UNIT_DIMENSIONS, toUMB, Unit } from '../utils/units';
 
 interface DynamicPricingToolProps {
   products: Product[];
@@ -58,18 +59,14 @@ export default function DynamicPricingTool({
         variant.recipe.forEach(item => {
           const material = rawMaterials.find(m => m.id === item.rawMaterialId);
           if (material) {
-            // Assuming item.quantity is in the same unit as material.costPerUnit for simplicity, 
-            // or we should use the proper conversion if needed. 
-            // For now, let's assume recipe cost calculation is direct or we can just calculate the difference.
-            // Actually, we need to calculate the exact cost.
-            // Let's just calculate the cost difference.
             const isTargetMaterial = material.id === selectedMaterial.id;
             const costPerUnit = isTargetMaterial ? newCost : material.costPerUnit;
             
-            // Simplified cost calculation (assuming quantity is in base units)
-            // In a real scenario, we'd use the proper UMB conversion here.
-            oldTotalCost += material.costPerUnit * item.quantity;
-            newTotalCost += costPerUnit * item.quantity;
+            const effectiveUnit = item.unit || material.baseUnit || UMB_FOR_DIMENSION[material.dimension || (material.unit ? UNIT_DIMENSIONS[material.unit as Unit] : 'units')];
+            const quantityUMB = toUMB(item.quantity, effectiveUnit as Unit);
+            
+            oldTotalCost += material.costPerUnit * quantityUMB;
+            newTotalCost += costPerUnit * quantityUMB;
           }
         });
 
