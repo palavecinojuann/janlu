@@ -19,7 +19,9 @@ export const getVariantStock = (variant: Variant | undefined | null, rawMaterial
         // Calculate stock based on recipe requirement
         // item.quantity is the amount of raw material needed for ONE unit of this variant
         if (item.quantity > 0) {
-          const possibleUnits = Math.floor(rm.stock / item.quantity);
+          const effectiveUnit = item.unit || rm.baseUnit || UMB_FOR_DIMENSION[rm.dimension || (rm.unit ? UNIT_DIMENSIONS[rm.unit as Unit] : 'units')];
+          const quantityRequiredInUMB = toUMB(item.quantity, effectiveUnit as Unit);
+          const possibleUnits = Math.floor(rm.stock / quantityRequiredInUMB);
           if (possibleUnits < minStock) minStock = possibleUnits;
         } else {
           return 0;
