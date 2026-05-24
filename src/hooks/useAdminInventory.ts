@@ -260,8 +260,31 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     let grossProfit = 0;
     let netProfit = 0;
     let totalRevenue = 0;
+    let todayRevenue = 0;
     let totalPendingPayment = 0;
     const revenueByMethod = { efectivo: 0, transferencia: 0, tarjeta: 0, mixto: 0 };
+
+    const getLocalYYYYMMDD = (dateStr: string) => {
+      if (!dateStr) return '';
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr.trim())) {
+        return dateStr.trim();
+      }
+      try {
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) {
+          return dateStr.split('T')[0];
+        }
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      } catch {
+        return dateStr.split('T')[0];
+      }
+    };
+
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
     validSales.forEach(sale => {
       let saleCost = 0;
@@ -274,17 +297,56 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
       const saleGrossProfit = sale.totalAmount - saleCost;
       grossProfit += saleGrossProfit;
       netProfit += (saleGrossProfit - additionalCosts);
-      totalRevenue += sale.amountPaid;
-      totalPendingPayment += (sale.totalAmount - sale.amountPaid);
+      
+      let salePaidSum = 0;
 
-      const method = sale.paymentMethod === 'efectivo' || !sale.paymentMethod ? 'efectivo' :
-        sale.paymentMethod === 'transferencia' ? 'transferencia' :
-          sale.paymentMethod === 'tarjeta' ? 'tarjeta' :
-            sale.paymentMethod === 'mixto' ? 'mixto' : 'efectivo';
+      if (sale.paymentHistory && sale.paymentHistory.length > 0) {
+        sale.paymentHistory.forEach(payment => {
+          const amount = payment.amount || 0;
+          salePaidSum += amount;
+          totalRevenue += amount;
 
-      if (method in revenueByMethod) {
-        revenueByMethod[method as keyof typeof revenueByMethod] += sale.amountPaid;
+          if (payment.date) {
+            const paymentDateStr = getLocalYYYYMMDD(payment.date);
+            if (paymentDateStr === todayStr) {
+              todayRevenue += amount;
+            }
+          }
+
+          const rawMethod = payment.method;
+          const method = rawMethod === 'efectivo' || !rawMethod ? 'efectivo' :
+            rawMethod === 'transferencia' ? 'transferencia' :
+              rawMethod === 'tarjeta' ? 'tarjeta' :
+                rawMethod === 'mixto' ? 'mixto' : 'efectivo';
+
+          if (method in revenueByMethod) {
+            revenueByMethod[method as keyof typeof revenueByMethod] += amount;
+          }
+        });
+      } else {
+        const amount = sale.amountPaid || 0;
+        salePaidSum += amount;
+        totalRevenue += amount;
+
+        if (sale.date) {
+          const saleDateStr = getLocalYYYYMMDD(sale.date);
+          if (saleDateStr === todayStr) {
+            todayRevenue += amount;
+          }
+        }
+
+        const rawMethod = sale.paymentMethod;
+        const method = rawMethod === 'efectivo' || !rawMethod ? 'efectivo' :
+          rawMethod === 'transferencia' ? 'transferencia' :
+            rawMethod === 'tarjeta' ? 'tarjeta' :
+              rawMethod === 'mixto' ? 'mixto' : 'efectivo';
+
+        if (method in revenueByMethod) {
+          revenueByMethod[method as keyof typeof revenueByMethod] += amount;
+        }
       }
+
+      totalPendingPayment += Math.max(0, sale.totalAmount - salePaidSum);
     });
 
     const now = new Date();
@@ -301,6 +363,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
       lowStockItems,
       totalSales: validSales.length,
       totalRevenue,
+      todayRevenue,
       totalPendingPayment,
       projectedRevenue,
       grossProfit,

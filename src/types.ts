@@ -288,6 +288,7 @@ export interface DashboardMetrics {
   lowStockItems: number;
   totalSales: number;
   totalRevenue: number;
+  todayRevenue: number;
   totalPendingPayment: number;
   projectedRevenue: number;
   grossProfit: number;
