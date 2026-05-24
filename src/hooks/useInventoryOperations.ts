@@ -461,7 +461,20 @@ export function useInventoryOperations(
       const id = uuidv4();
       const newOrder: ProductionOrder = { ...order, id, status: 'pending', createdAt: new Date().toISOString() };
       await setDoc(doc(db, 'productionOrders', id), cleanObject(newOrder));
-    } catch (error) { handleFirestoreError(error, OperationType.CREATE, 'productionOrders'); }
+
+      // Registrar Auditoría y Actividad
+      await logAction('create_production_order', 'productionOrders', id, newOrder);
+      await addActivity({
+        title: 'Producción Programada',
+        description: `Se programó la fabricación de ${newOrder.quantity} unidades de ${newOrder.productName} (${newOrder.variantName})`,
+        type: 'inventory',
+        status: 'pending',
+        date: newOrder.date,
+        time: new Date().toLocaleTimeString()
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'productionOrders');
+    }
   };
 
   const updateProductionOrder = async (order: ProductionOrder) => {
@@ -469,10 +482,12 @@ export function useInventoryOperations(
     if (!oldOrder) return;
 
     try {
-      if (oldOrder.status === 'completed' && order.status === 'completed') {
+      if (oldOrder.status === 'completed' && (order.status === 'pending' || order.status === 'cancelled')) {
+        // Reversión de stock (Descompletado o Cancelado de orden ya completada)
         const oldProduct = products.find(p => p.id === oldOrder.productId);
         const oldVariant = oldProduct?.variants.find(v => v.id === oldOrder.variantId);
-        let currentMaterials = [...rawMaterials];
+        
+        const batch = writeBatch(db);
 
         if (oldProduct && oldVariant) {
           const updatedOldProduct = {
@@ -484,100 +499,47 @@ export function useInventoryOperations(
               return v;
             })
           };
+          batch.set(doc(db, 'products', updatedOldProduct.id), cleanObject(updatedOldProduct));
 
           if (oldVariant.recipe) {
             oldVariant.recipe.forEach(recipeItem => {
-              currentMaterials = currentMaterials.map(m => {
-                if (m.id === recipeItem.rawMaterialId) {
-                  const effectiveUnit = recipeItem.unit || m.baseUnit || UMB_FOR_DIMENSION[m.dimension || (m.unit ? UNIT_DIMENSIONS[m.unit as Unit] : 'units')];
-                  const quantityUMB = toUMB(recipeItem.quantity, effectiveUnit as Unit);
-                  return { ...m, stock: m.stock + (quantityUMB * oldOrder.quantity) };
-                }
-                return m;
-              });
-            });
-          }
-
-          const newProduct = products.find(p => p.id === order.productId);
-          const newVariant = newProduct?.variants.find(v => v.id === order.variantId);
-
-          if (newProduct && newVariant) {
-            const productToUpdate = (oldProduct.id === newProduct.id) ? updatedOldProduct : newProduct;
-            const finalNewProduct = {
-              ...productToUpdate,
-              variants: productToUpdate.variants.map(v => {
-                if (v.id === newVariant.id) {
-                  return { ...v, stock: v.isFinishedGood !== false ? v.stock + order.quantity : v.stock };
-                }
-                return v;
-              })
-            };
-
-            if (oldProduct.id !== newProduct.id) {
-              await setDoc(doc(db, 'products', updatedOldProduct.id), cleanObject(updatedOldProduct));
-            }
-            await setDoc(doc(db, 'products', finalNewProduct.id), cleanObject(finalNewProduct));
-
-            if (newVariant.recipe) {
-              newVariant.recipe.forEach(recipeItem => {
-                currentMaterials = currentMaterials.map(m => {
-                  if (m.id === recipeItem.rawMaterialId) {
-                    const effectiveUnit = recipeItem.unit || m.baseUnit || UMB_FOR_DIMENSION[m.dimension || (m.unit ? UNIT_DIMENSIONS[m.unit as Unit] : 'units')];
-                    const quantityUMB = toUMB(recipeItem.quantity, effectiveUnit as Unit);
-                    return { ...m, stock: Math.max(0, m.stock - (quantityUMB * order.quantity)) };
-                  }
-                  return m;
-                });
-              });
-            }
-          }
-        }
-
-        for (const material of currentMaterials) {
-          await setDoc(doc(db, 'rawMaterials', material.id), cleanObject(material));
-        }
-      } else if (oldOrder.status === 'completed' && (order.status === 'pending' || order.status === 'cancelled')) {
-        const oldProduct = products.find(p => p.id === oldOrder.productId);
-        const oldVariant = oldProduct?.variants.find(v => v.id === oldOrder.variantId);
-        let currentMaterials = [...rawMaterials];
-
-        if (oldProduct && oldVariant) {
-          const updatedOldProduct = {
-            ...oldProduct,
-            variants: oldProduct.variants.map(v => {
-              if (v.id === oldVariant.id) {
-                return { ...v, stock: v.isFinishedGood !== false ? Math.max(0, v.stock - oldOrder.quantity) : v.stock };
+              const m = rawMaterials.find(rm => rm.id === recipeItem.rawMaterialId);
+              if (m) {
+                const effectiveUnit = recipeItem.unit || m.baseUnit || UMB_FOR_DIMENSION[m.dimension || (m.unit ? UNIT_DIMENSIONS[m.unit as Unit] : 'units')];
+                const quantityUMB = toUMB(recipeItem.quantity, effectiveUnit as Unit);
+                const returnAmount = quantityUMB * oldOrder.quantity;
+                batch.set(
+                  doc(db, 'rawMaterials', m.id), 
+                  { stock: increment(returnAmount) }, 
+                  { merge: true }
+                );
               }
-              return v;
-            })
-          };
-          await setDoc(doc(db, 'products', updatedOldProduct.id), cleanObject(updatedOldProduct));
-
-          if (oldVariant.recipe) {
-            oldVariant.recipe.forEach(recipeItem => {
-              currentMaterials = currentMaterials.map(m => {
-                if (m.id === recipeItem.rawMaterialId) {
-                  const effectiveUnit = recipeItem.unit || m.baseUnit || UMB_FOR_DIMENSION[m.dimension || (m.unit ? UNIT_DIMENSIONS[m.unit as Unit] : 'units')];
-                  const quantityUMB = toUMB(recipeItem.quantity, effectiveUnit as Unit);
-                  return { ...m, stock: m.stock + (quantityUMB * oldOrder.quantity) };
-                }
-                return m;
-              });
             });
           }
         }
-        for (const material of currentMaterials) {
-          await setDoc(doc(db, 'rawMaterials', material.id), material);
-        }
+        batch.set(doc(db, 'productionOrders', order.id), cleanObject(order));
+        await batch.commit();
+
+        // Registrar Auditoría y Actividad
+        await logAction('cancel_production_order', 'productionOrders', order.id, order, oldOrder);
+        await addActivity({
+          title: order.status === 'cancelled' ? 'Producción Cancelada' : 'Producción Revertida',
+          description: `Se ${order.status === 'cancelled' ? 'canceló' : 'revirtió'} la fabricación de ${order.quantity} unidades de ${order.productName} (${order.variantName})`,
+          type: 'inventory',
+          status: 'completed',
+          date: new Date().toISOString().split('T')[0],
+          time: new Date().toLocaleTimeString()
+        });
+
       } else if ((oldOrder.status === 'pending' || oldOrder.status === 'cancelled') && order.status === 'completed') {
+        // Completar orden desde pendiente/cancelado (Chequear stock y descontar)
         const newProduct = products.find(p => p.id === order.productId);
         const newVariant = newProduct?.variants.find(v => v.id === order.variantId);
-        let currentMaterials = [...rawMaterials];
-
+        
         if (newProduct && newVariant) {
           if (newVariant.recipe) {
             for (const recipeItem of newVariant.recipe) {
-              const m = currentMaterials.find(rm => rm.id === recipeItem.rawMaterialId);
+              const m = rawMaterials.find(rm => rm.id === recipeItem.rawMaterialId);
               if (m) {
                 const effectiveUnit = recipeItem.unit || m.baseUnit || UMB_FOR_DIMENSION[m.dimension || (m.unit ? UNIT_DIMENSIONS[m.unit as Unit] : 'units')];
                 const quantityUMB = toUMB(recipeItem.quantity, effectiveUnit as Unit);
@@ -589,41 +551,86 @@ export function useInventoryOperations(
             }
           }
 
-          const updatedNewProduct = {
-            ...newProduct,
-            variants: newProduct.variants.map(v => {
-              if (v.id === newVariant.id) {
-                return { ...v, stock: v.isFinishedGood !== false ? v.stock + order.quantity : v.stock };
-              }
-              return v;
-            })
-          };
-          await setDoc(doc(db, 'products', updatedNewProduct.id), cleanObject(updatedNewProduct));
-
+          const batch = writeBatch(db);
           if (newVariant.recipe) {
             newVariant.recipe.forEach(recipeItem => {
-              currentMaterials = currentMaterials.map(m => {
-                if (m.id === recipeItem.rawMaterialId) {
-                  const effectiveUnit = recipeItem.unit || m.baseUnit || UMB_FOR_DIMENSION[m.dimension || (m.unit ? UNIT_DIMENSIONS[m.unit as Unit] : 'units')];
-                  const quantityUMB = toUMB(recipeItem.quantity, effectiveUnit as Unit);
-                  return { ...m, stock: Math.max(0, m.stock - (quantityUMB * order.quantity)) };
-                }
-                return m;
-              });
+              const m = rawMaterials.find(rm => rm.id === recipeItem.rawMaterialId);
+              if (m) {
+                const effectiveUnit = recipeItem.unit || m.baseUnit || UMB_FOR_DIMENSION[m.dimension || (m.unit ? UNIT_DIMENSIONS[m.unit as Unit] : 'units')];
+                const quantityUMB = toUMB(recipeItem.quantity, effectiveUnit as Unit);
+                batch.set(
+                  doc(db, 'rawMaterials', m.id),
+                  { stock: increment(-(quantityUMB * order.quantity)) },
+                  { merge: true }
+                );
+              }
             });
           }
+
+          const updatedProduct = {
+            ...newProduct,
+            variants: newProduct.variants.map(v => 
+              v.id === newVariant.id ? { ...v, stock: v.isFinishedGood !== false ? v.stock + order.quantity : v.stock } : v
+            )
+          };
+          batch.set(doc(db, 'products', newProduct.id), cleanObject(updatedProduct));
+          batch.set(doc(db, 'productionOrders', order.id), cleanObject(order));
+          await batch.commit();
+
+          // Registrar Auditoría y Actividad
+          await logAction('complete_production_order', 'productionOrders', order.id, order, oldOrder);
+          await addActivity({
+            title: 'Producción Completada',
+            description: `Se completó la fabricación de ${order.quantity} unidades de ${order.productName} (${order.variantName})`,
+            type: 'inventory',
+            status: 'completed',
+            date: new Date().toISOString().split('T')[0],
+            time: new Date().toLocaleTimeString()
+          });
         }
-        for (const material of currentMaterials) {
-          await setDoc(doc(db, 'rawMaterials', material.id), material);
+      } else {
+        // Actualización general o cambios de estado simples (ej. pending -> cancelled sin haber sido completada)
+        await setDoc(doc(db, 'productionOrders', order.id), cleanObject(order));
+        
+        if (oldOrder.status !== order.status) {
+          await logAction('update_production_order_status', 'productionOrders', order.id, order, oldOrder);
+          await addActivity({
+            title: order.status === 'cancelled' ? 'Producción Cancelada' : 'Producción Actualizada',
+            description: `Se ${order.status === 'cancelled' ? 'canceló' : 'actualizó'} la orden de fabricación de ${order.quantity} unidades de ${order.productName} (${order.variantName})`,
+            type: 'inventory',
+            status: 'completed',
+            date: new Date().toISOString().split('T')[0],
+            time: new Date().toLocaleTimeString()
+          });
+        } else {
+          await logAction('update_production_order', 'productionOrders', order.id, order, oldOrder);
         }
       }
-
-      await setDoc(doc(db, 'productionOrders', order.id), cleanObject(order));
-    } catch (error) { handleFirestoreError(error, OperationType.UPDATE, `productionOrders/${order.id}`); }
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `productionOrders/${order.id}`);
+      throw error;
+    }
   };
 
   const deleteProductionOrder = async (id: string) => {
-    try { await deleteDoc(doc(db, 'productionOrders', id)); } catch (error) { handleFirestoreError(error, OperationType.DELETE, `productionOrders/${id}`); }
+    const oldOrder = productionOrders.find(o => o.id === id);
+    try {
+      await deleteDoc(doc(db, 'productionOrders', id));
+
+      if (oldOrder) {
+        await logAction('delete_production_order', 'productionOrders', id, null, oldOrder);
+        await addActivity({
+          title: 'Orden de Producción Eliminada',
+          description: `Se eliminó la orden de ${oldOrder.quantity} unidades de ${oldOrder.productName} (${oldOrder.variantName})`,
+          type: 'inventory',
+          status: 'completed',
+          date: new Date().toISOString().split('T')[0],
+          time: new Date().toLocaleTimeString()
+        });
+      }
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `productionOrders/${id}`);
+    }
   };
 
   const fabricarProducto = async (productId: string, variantId: string, quantity: number) => {
@@ -631,30 +638,49 @@ export function useInventoryOperations(
     const variant = product?.variants.find(v => v.id === variantId);
     if (!product || !variant) return;
     try {
+      const batch = writeBatch(db);
+
       if (variant.recipe) {
         for (const recipeItem of variant.recipe) {
           const m = rawMaterials.find(rm => rm.id === recipeItem.rawMaterialId);
           if (m) {
             const effectiveUnit = recipeItem.unit || m.baseUnit || UMB_FOR_DIMENSION[m.dimension || (m.unit ? UNIT_DIMENSIONS[m.unit as Unit] : 'units')];
-            if (m.stock < toUMB(recipeItem.quantity, effectiveUnit as Unit) * quantity) throw new Error(`Stock insuficiente de ${m.name}`);
+            const discountAmount = toUMB(recipeItem.quantity, effectiveUnit as Unit) * quantity;
+            if (m.stock < discountAmount) {
+              throw new Error(`Stock insuficiente de ${m.name}`);
+            }
+            batch.set(
+              doc(db, 'rawMaterials', m.id), 
+              { stock: increment(-discountAmount) }, 
+              { merge: true }
+            );
           }
         }
-        let newMaterials = [...rawMaterials];
-        variant.recipe.forEach(recipeItem => {
-          newMaterials = newMaterials.map(m => {
-            if (m.id === recipeItem.rawMaterialId) {
-              const effectiveUnit = recipeItem.unit || m.baseUnit || UMB_FOR_DIMENSION[m.dimension || (m.unit ? UNIT_DIMENSIONS[m.unit as Unit] : 'units')];
-              return { ...m, stock: Math.max(0, m.stock - (toUMB(recipeItem.quantity, effectiveUnit as Unit) * quantity)) };
-            }
-            return m;
-          });
-        });
-        for (const material of newMaterials) await setDoc(doc(db, 'rawMaterials', material.id), cleanObject(material));
       }
-      const updatedProduct = { ...product, variants: product.variants.map(v => v.id === variant.id ? { ...v, stock: v.isFinishedGood !== false ? v.stock + quantity : v.stock } : v) };
-      await setDoc(doc(db, 'products', product.id), cleanObject(updatedProduct));
-      await addActivity({ title: 'Producción Completada', description: `Se fabricaron ${quantity} unidades de ${product.name}`, type: 'inventory', status: 'completed', date: new Date().toISOString().split('T')[0], time: new Date().toLocaleTimeString() });
-    } catch (error) { throw error; }
+
+      const updatedProduct = {
+        ...product,
+        variants: product.variants.map(v => 
+          v.id === variant.id ? { ...v, stock: v.isFinishedGood !== false ? v.stock + quantity : v.stock } : v
+        )
+      };
+      batch.set(doc(db, 'products', product.id), cleanObject(updatedProduct));
+      
+      await batch.commit();
+
+      // LOG ACTION & ACTIVITY
+      await logAction('fabricate_product_direct', 'products', product.id, updatedProduct, product);
+      await addActivity({ 
+        title: 'Producción Completada', 
+        description: `Se fabricaron ${quantity} unidades de ${product.name}`, 
+        type: 'inventory', 
+        status: 'completed', 
+        date: new Date().toISOString().split('T')[0], 
+        time: new Date().toLocaleTimeString() 
+      });
+    } catch (error) {
+      throw error;
+    }
   };
 
   const completeProductionOrder = async (id: string) => {
@@ -664,23 +690,49 @@ export function useInventoryOperations(
     const variant = product?.variants.find(v => v.id === order.variantId);
     if (!product || !variant) return;
     try {
+      const batch = writeBatch(db);
+
       if (variant.recipe) {
-        let newMaterials = [...rawMaterials];
         variant.recipe.forEach(recipeItem => {
-          newMaterials = newMaterials.map(m => {
-            if (m.id === recipeItem.rawMaterialId) {
-              const effectiveUnit = recipeItem.unit || m.baseUnit || UMB_FOR_DIMENSION[m.dimension || (m.unit ? UNIT_DIMENSIONS[m.unit as Unit] : 'units')];
-              return { ...m, stock: Math.max(0, m.stock - (toUMB(recipeItem.quantity, effectiveUnit as Unit) * order.quantity)) };
-            }
-            return m;
-          });
+          const m = rawMaterials.find(rm => rm.id === recipeItem.rawMaterialId);
+          if (m) {
+            const effectiveUnit = recipeItem.unit || m.baseUnit || UMB_FOR_DIMENSION[m.dimension || (m.unit ? UNIT_DIMENSIONS[m.unit as Unit] : 'units')];
+            const discountAmount = toUMB(recipeItem.quantity, effectiveUnit as Unit) * order.quantity;
+            batch.set(
+              doc(db, 'rawMaterials', m.id), 
+              { stock: increment(-discountAmount) }, 
+              { merge: true }
+            );
+          }
         });
-        for (const material of newMaterials) await setDoc(doc(db, 'rawMaterials', material.id), cleanObject(material));
       }
-      const updatedProduct = { ...product, variants: product.variants.map(v => v.id === variant.id ? { ...v, stock: v.isFinishedGood !== false ? v.stock + order.quantity : v.stock } : v) };
-      await setDoc(doc(db, 'products', updatedProduct.id), cleanObject(updatedProduct));
-      await setDoc(doc(db, 'productionOrders', id), cleanObject({ ...order, status: 'completed' }));
-    } catch (error) { handleFirestoreError(error, OperationType.WRITE, `productionOrders/${id}/complete`); }
+
+      const updatedProduct = { 
+        ...product, 
+        variants: product.variants.map(v => 
+          v.id === variant.id ? { ...v, stock: v.isFinishedGood !== false ? v.stock + order.quantity : v.stock } : v
+        ) 
+      };
+      batch.set(doc(db, 'products', product.id), cleanObject(updatedProduct));
+      
+      const completedOrder = { ...order, status: 'completed' as const };
+      batch.set(doc(db, 'productionOrders', id), cleanObject(completedOrder));
+      
+      await batch.commit();
+
+      // LOG ACTION & ACTIVITY
+      await logAction('complete_production_order', 'productionOrders', id, completedOrder, order);
+      await addActivity({
+        title: 'Producción Completada',
+        description: `Se completó la fabricación de ${order.quantity} unidades de ${order.productName} (${order.variantName})`,
+        type: 'inventory',
+        status: 'completed',
+        date: new Date().toISOString().split('T')[0],
+        time: new Date().toLocaleTimeString()
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `productionOrders/${id}/complete`);
+    }
   };
 
   const saveSimulation = async (simulation: Simulation) => {
