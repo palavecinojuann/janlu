@@ -24,6 +24,8 @@ interface InventoryViewProps {
   onDeleteRawMaterial: (id: string) => void;
   onRestockRawMaterial: (id: string, quantity: number, newCost?: number) => void;
   onNavigateToCatalog: () => void;
+  onExportCatalogo: () => void;
+  onExportInsumos: () => void;
 }
 
 export default function InventoryView({
@@ -44,7 +46,9 @@ export default function InventoryView({
   onUpdateRawMaterial,
   onDeleteRawMaterial,
   onRestockRawMaterial,
-  onNavigateToCatalog
+  onNavigateToCatalog,
+  onExportCatalogo,
+  onExportInsumos
 }: InventoryViewProps) {
   const [activeTab, setActiveTab] = useState<'products' | 'raw-materials'>(initialTab);
   const [printingVariant, setPrintingVariant] = useState<{ product: Product, variant: Variant } | null>(null);
@@ -96,6 +100,7 @@ export default function InventoryView({
             onAdjustStock={onAdjustStock}
             onProduce={onProduce}
             onNavigateToCatalog={onNavigateToCatalog}
+            onExportCatalogo={onExportCatalogo}
             onPrintVariant={(p, v) => {
               setPrintingVariant({ product: p, variant: v });
               setTimeout(() => window.print(), 300);
@@ -112,6 +117,7 @@ export default function InventoryView({
             onUpdate={onUpdateRawMaterial} 
             onDelete={onDeleteRawMaterial}
             onRestock={onRestockRawMaterial}
+            onExportInsumos={onExportInsumos}
           />
         )}
       </div>

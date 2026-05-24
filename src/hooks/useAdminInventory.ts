@@ -448,6 +448,49 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     URL.revokeObjectURL(url);
   };
 
+  const exportarInsumosCSV = () => {
+    const headers = ['Insumo', 'Stock Actual', 'Unidad de Medida', 'Costo por Unidad', 'Stock Mínimo', 'Categoría'];
+    
+    const escapeCSV = (val: string | number | undefined | null): string => {
+      if (val === undefined || val === null) return '""';
+      const str = String(val);
+      const escaped = str.replace(/"/g, '""');
+      return `"${escaped}"`;
+    };
+
+    const rows = [headers.map(h => escapeCSV(h)).join(',')];
+
+    rawMaterials.forEach(material => {
+      const row = [
+        escapeCSV(material.name),
+        escapeCSV(material.stock),
+        escapeCSV(material.unit),
+        escapeCSV(material.costPerUnit),
+        escapeCSV(material.minStock || 0),
+        escapeCSV(material.category || 'Sin Categoría')
+      ];
+      rows.push(row.join(','));
+    });
+
+    const csvContent = rows.join('\r\n');
+    const bom = '\uFEFF';
+    const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    
+    const today = new Date();
+    const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const filename = `Listado_Insumos_JANLU_${dateStr}.csv`;
+
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return {
     customers,
     sales,
@@ -467,6 +510,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     refresh,
     metrics,
     exportarCatalogoCSV,
+    exportarInsumosCSV,
     loadAuditLogs,
     fetchMoreAuditLogs,
     hasMoreAuditLogs,

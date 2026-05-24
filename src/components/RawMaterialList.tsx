@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { RawMaterial, Product, ProductionOrder } from '../types';
-import { Plus, Edit2, Trash2, AlertTriangle, Search, ArrowUpCircle, X, Upload } from 'lucide-react';
+import { Plus, Edit2, Trash2, AlertTriangle, Search, ArrowUpCircle, X, Upload, Download } from 'lucide-react';
 import RawMaterialForm from './RawMaterialForm';
 import ExcelImportModal from './ExcelImportModal';
 import { formatUMB, toUMB, Unit, Dimension, UMB_FOR_DIMENSION, UNIT_DIMENSIONS } from '../utils/units';
@@ -14,9 +14,20 @@ interface RawMaterialListProps {
   onUpdate: (material: RawMaterial) => void;
   onDelete: (id: string) => void;
   onRestock: (id: string, quantity: number, newCost?: number) => void;
+  onExportInsumos: () => void;
 }
 
-export default function RawMaterialList({ rawMaterials, products, productionOrders, onAdd, onAddMultiple, onUpdate, onDelete, onRestock }: RawMaterialListProps) {
+export default function RawMaterialList({
+  rawMaterials,
+  products,
+  productionOrders,
+  onAdd,
+  onAddMultiple,
+  onUpdate,
+  onDelete,
+  onRestock,
+  onExportInsumos
+}: RawMaterialListProps) {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState<RawMaterial | null>(null);
@@ -122,6 +133,13 @@ export default function RawMaterialList({ rawMaterials, products, productionOrde
       <div className="flex-none flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h2 className="text-2xl font-bold text-stone-800 dark:text-stone-100 tracking-tight">Materias Primas</h2>
         <div className="flex gap-2">
+          <button
+            onClick={onExportInsumos}
+            className="flex items-center px-4 py-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-xl hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors text-sm font-medium border border-indigo-100 dark:border-indigo-800 cursor-pointer"
+          >
+            <Download size={18} className="mr-2" />
+            Exportar Insumos
+          </button>
           <button
             onClick={() => setShowImportModal(true)}
             className="flex items-center px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors text-sm font-medium cursor-pointer"

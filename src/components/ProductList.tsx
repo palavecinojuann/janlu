@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Product, Variant, Sale, RawMaterial } from '../types';
-import { Edit2, Trash2, Search, Filter, Image as ImageIcon, PlusCircle, AlertTriangle, TrendingDown, Share2, Check, ShoppingBag, ArrowUpCircle, Hammer, Printer } from 'lucide-react';
+import { Edit2, Trash2, Search, Filter, Image as ImageIcon, PlusCircle, AlertTriangle, TrendingDown, Share2, Check, ShoppingBag, ArrowUpCircle, Hammer, Printer, Download } from 'lucide-react';
 import StockAdjustmentModal from './StockAdjustmentModal';
 import ProduceModal from './ProduceModal';
 import { getVariantStock } from '../utils/stockUtils';
@@ -18,6 +18,7 @@ interface ProductListProps {
   onProduce: (productId: string, variantId: string, quantity: number) => Promise<void>;
   onNavigateToCatalog: () => void;
   onPrintVariant: (product: Product, variant: Variant) => void;
+  onExportCatalogo: () => void;
 }
 
 export default function ProductList({ 
@@ -32,7 +33,8 @@ export default function ProductList({
   onAdjustStock,
   onProduce,
   onNavigateToCatalog,
-  onPrintVariant
+  onPrintVariant,
+  onExportCatalogo
 }: ProductListProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
@@ -155,6 +157,13 @@ export default function ProductList({
           >
             {copied ? <Check size={18} className="mr-2 text-emerald-500" /> : <Share2 size={18} className="mr-2" />}
             {copied ? '¡Copiado!' : 'Compartir Catálogo'}
+          </button>
+          <button
+            onClick={onExportCatalogo}
+            className="flex items-center justify-center px-4 py-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-xl hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors text-sm font-medium border border-indigo-100 dark:border-indigo-800"
+          >
+            <Download size={18} className="mr-2" />
+            Exportar Lista de Precios
           </button>
           <button
             onClick={onAdd}

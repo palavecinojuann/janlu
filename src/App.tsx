@@ -100,7 +100,8 @@ export default function App() {
     preAuthorizedAdmins, addPreAuth, updatePreAuthRole, removePreAuth,
     auditLogs, clearAuditLogs, storeSettings, isSettingsLoaded, validateCoupon,
     coupons, generateCoupon, updateCoupon, deleteCoupon, addSubscriber,
-    loadAuditLogs, fetchMoreAuditLogs, hasMoreAuditLogs, loadUsersAndPreAuth, loadFinancialDocs, loadSimulations, loadProductionOrders
+    loadAuditLogs, fetchMoreAuditLogs, hasMoreAuditLogs, loadUsersAndPreAuth, loadFinancialDocs, loadSimulations, loadProductionOrders,
+    exportarCatalogoCSV, exportarInsumosCSV
   } = useInventoryContext();
   
   const [currentView, setCurrentView] = useState<View>('dashboard');
@@ -386,6 +387,8 @@ export default function App() {
                     onDeleteRawMaterial={deleteRawMaterial}
                     onRestockRawMaterial={restockRawMaterial}
                     onNavigateToCatalog={navigateToCatalog}
+                    onExportCatalogo={exportarCatalogoCSV}
+                    onExportInsumos={exportarInsumosCSV}
                   />
                 )}
 
