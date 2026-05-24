@@ -289,6 +289,7 @@ export interface DashboardMetrics {
   totalSales: number;
   totalRevenue: number;
   todayRevenue: number;
+  monthlyRevenue: number;
   totalPendingPayment: number;
   projectedRevenue: number;
   grossProfit: number;

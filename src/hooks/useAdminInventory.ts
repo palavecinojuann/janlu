@@ -261,30 +261,51 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     let netProfit = 0;
     let totalRevenue = 0;
     let todayRevenue = 0;
+    let monthlyRevenue = 0;
     let totalPendingPayment = 0;
     const revenueByMethod = { efectivo: 0, transferencia: 0, tarjeta: 0, mixto: 0 };
 
-    const getLocalYYYYMMDD = (dateStr: string) => {
-      if (!dateStr) return '';
-      if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr.trim())) {
-        return dateStr.trim();
+    const getLocalDateParts = (dateStr: string) => {
+      if (!dateStr) return { year: -1, month: -1, day: -1, yyyymmdd: '' };
+      const match = dateStr.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (match) {
+        const year = parseInt(match[1]);
+        const month = parseInt(match[2]) - 1; // 0-indexed
+        const day = parseInt(match[3]);
+        return { year, month, day, yyyymmdd: `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}` };
       }
       try {
         const d = new Date(dateStr);
         if (isNaN(d.getTime())) {
-          return dateStr.split('T')[0];
+          const parts = dateStr.split('T')[0].split('-');
+          if (parts.length >= 3) {
+            const year = parseInt(parts[0]);
+            const month = parseInt(parts[1]) - 1;
+            const day = parseInt(parts[2]);
+            return { year, month, day, yyyymmdd: `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}` };
+          }
+          return { year: -1, month: -1, day: -1, yyyymmdd: '' };
         }
         const year = d.getFullYear();
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
+        const month = d.getMonth();
+        const day = d.getDate();
+        return { year, month, day, yyyymmdd: `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}` };
       } catch {
-        return dateStr.split('T')[0];
+        const parts = dateStr.split('T')[0].split('-');
+        if (parts.length >= 3) {
+          const year = parseInt(parts[0]);
+          const month = parseInt(parts[1]) - 1;
+          const day = parseInt(parts[2]);
+          return { year, month, day, yyyymmdd: `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}` };
+        }
+        return { year: -1, month: -1, day: -1, yyyymmdd: '' };
       }
     };
 
     const today = new Date();
-    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const todayYear = today.getFullYear();
+    const todayMonth = today.getMonth();
+    const todayStr = `${todayYear}-${String(todayMonth + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
     validSales.forEach(sale => {
       let saleCost = 0;
@@ -307,9 +328,12 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
           totalRevenue += amount;
 
           if (payment.date) {
-            const paymentDateStr = getLocalYYYYMMDD(payment.date);
-            if (paymentDateStr === todayStr) {
+            const dateParts = getLocalDateParts(payment.date);
+            if (dateParts.yyyymmdd === todayStr) {
               todayRevenue += amount;
+            }
+            if (dateParts.year === todayYear && dateParts.month === todayMonth) {
+              monthlyRevenue += amount;
             }
           }
 
@@ -329,9 +353,12 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
         totalRevenue += amount;
 
         if (sale.date) {
-          const saleDateStr = getLocalYYYYMMDD(sale.date);
-          if (saleDateStr === todayStr) {
+          const dateParts = getLocalDateParts(sale.date);
+          if (dateParts.yyyymmdd === todayStr) {
             todayRevenue += amount;
+          }
+          if (dateParts.year === todayYear && dateParts.month === todayMonth) {
+            monthlyRevenue += amount;
           }
         }
 
@@ -364,6 +391,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
       totalSales: validSales.length,
       totalRevenue,
       todayRevenue,
+      monthlyRevenue,
       totalPendingPayment,
       projectedRevenue,
       grossProfit,
@@ -371,6 +399,54 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
       revenueByMethod
     };
   }, [products, rawMaterials, sales, quotes, isAdmin]);
+
+  const exportarCatalogoCSV = () => {
+    const headers = ['Producto', 'Descripción', 'Categoría', 'Variante/Tamaño', 'Precio Minorista', 'Precio Mayorista'];
+    
+    const escapeCSV = (val: string | number | undefined | null): string => {
+      if (val === undefined || val === null) return '""';
+      const str = String(val);
+      const escaped = str.replace(/"/g, '""');
+      return `"${escaped}"`;
+    };
+
+    const rows = [headers.map(h => escapeCSV(h)).join(',')];
+
+    products.forEach(product => {
+      const description = product.description || '';
+      const category = product.category || 'Sin Categoría';
+      
+      product.variants.forEach(variant => {
+        const row = [
+          escapeCSV(product.name),
+          escapeCSV(description),
+          escapeCSV(category),
+          escapeCSV(variant.name),
+          escapeCSV(variant.price),
+          escapeCSV(variant.wholesalePrice || variant.price)
+        ];
+        rows.push(row.join(','));
+      });
+    });
+
+    const csvContent = rows.join('\r\n');
+    const bom = '\uFEFF';
+    const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    
+    const today = new Date();
+    const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const filename = `Catalogo_Precios_JANLU_${dateStr}.csv`;
+
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   return {
     customers,
@@ -390,6 +466,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     lastSync,
     refresh,
     metrics,
+    exportarCatalogoCSV,
     loadAuditLogs,
     fetchMoreAuditLogs,
     hasMoreAuditLogs,
