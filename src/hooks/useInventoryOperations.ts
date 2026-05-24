@@ -1,5 +1,5 @@
 import { db } from '../firebase';
-import { doc, setDoc, updateDoc, deleteDoc, writeBatch, runTransaction } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, deleteDoc, writeBatch, runTransaction, increment } from 'firebase/firestore';
 import { v4 as uuidv4 } from 'uuid';
 import { Product, Customer, Sale, Quote, RawMaterial, FinancialDocument, Activity, ProductionOrder, Campaign, Offer, Simulation, Coupon, User, Course, RecipeItem } from '../types';
 import { handleFirestoreError, cleanObject, OperationType } from '../utils/firebaseHelpers';
@@ -871,6 +871,19 @@ export function useInventoryOperations(
         }
       });
 
+      // 🚀 AUTO-DESCUENTO DE CUPOS EN WORKSHOPS (Sincroniza inscriptos en tiempo real)
+      if (newSale.status !== 'cancelado') {
+        newSale.items.forEach(item => {
+          if (item.isCourse && item.courseId) {
+            batch.set(
+              doc(db, 'courses', item.courseId),
+              { enrolledCount: increment(item.quantity) },
+              { merge: true }
+            );
+          }
+        });
+      }
+
       await batch.commit();
 
       if (newSale.status !== 'cancelado') await commitStock(newSale.items);
@@ -887,6 +900,25 @@ export function useInventoryOperations(
       else if (oldSale.status === 'cancelado' && updatedSale.status !== 'cancelado' && updatedSale.status !== 'entregado') await commitStock(updatedSale.items);
       else if (oldSale.status !== 'entregado' && updatedSale.status === 'entregado') await consumeStockDefinitively(updatedSale.items);
       else if (oldSale.status === 'entregado' && updatedSale.status !== 'entregado' && updatedSale.status !== 'cancelado') await revertConsumedStockToCommitted(updatedSale.items);
+
+      // 🚀 MODIFICACIÓN DE CUPOS EN WORKSHOPS POR CAMBIO DE ESTADO DE LA VENTA
+      if (oldSale.status !== 'cancelado' && updatedSale.status === 'cancelado') {
+        const batch = writeBatch(db);
+        updatedSale.items.forEach(item => {
+          if (item.isCourse && item.courseId) {
+            batch.set(doc(db, 'courses', item.courseId), { enrolledCount: increment(-item.quantity) }, { merge: true });
+          }
+        });
+        await batch.commit();
+      } else if (oldSale.status === 'cancelado' && updatedSale.status !== 'cancelado') {
+        const batch = writeBatch(db);
+        updatedSale.items.forEach(item => {
+          if (item.isCourse && item.courseId) {
+            batch.set(doc(db, 'courses', item.courseId), { enrolledCount: increment(item.quantity) }, { merge: true });
+          }
+        });
+        await batch.commit();
+      }
     } catch (error) { handleFirestoreError(error, OperationType.WRITE, 'sales'); }
   };
 
