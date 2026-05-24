@@ -706,6 +706,23 @@ export default function SaleList({ sales, products, customers, storeSettings, on
                                 if (onUpdateSale) {
                                   onUpdateSale(updatedSale);
                                 }
+
+                                // 🚀 Si el nuevo estado es 'entregado' y tiene saldo pendiente, abrimos el modal de pago automáticamente
+                                if (newStatus === 'entregado') {
+                                  const pendingBalance = sale.totalAmount - (sale.amountPaid || 0);
+                                  if (pendingBalance > 0) {
+                                    setSaleForPayment(updatedSale);
+                                    setPaymentAmount(pendingBalance.toFixed(2)); // Pre-cargar el saldo pendiente
+                                    
+                                    const allowedMethods = ['transferencia', 'efectivo', 'mercadopago'];
+                                    const defaultMethod = (sale.paymentMethod && allowedMethods.includes(sale.paymentMethod))
+                                      ? (sale.paymentMethod as 'transferencia' | 'efectivo' | 'mercadopago')
+                                      : 'transferencia';
+                                    
+                                    setPaymentMethod(defaultMethod);
+                                    setIsPaymentModalOpen(true);
+                                  }
+                                }
                               }}
                               className={`text-xs font-medium rounded-full px-2.5 py-1 border-none cursor-pointer focus:ring-2 focus:ring-indigo-500 outline-none ${statusColors[saleStatus]} dark:bg-stone-800 dark:text-stone-200`}
                             >
