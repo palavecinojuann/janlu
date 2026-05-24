@@ -410,7 +410,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
       return `"${escaped}"`;
     };
 
-    const rows = [headers.map(h => escapeCSV(h)).join(',')];
+    const rows = [headers.map(h => escapeCSV(h)).join(';')];
 
     products.forEach(product => {
       const description = product.description || '';
@@ -425,7 +425,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
           escapeCSV(variant.price),
           escapeCSV(variant.wholesalePrice || variant.price)
         ];
-        rows.push(row.join(','));
+        rows.push(row.join(';'));
       });
     });
 
@@ -458,7 +458,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
       return `"${escaped}"`;
     };
 
-    const rows = [headers.map(h => escapeCSV(h)).join(',')];
+    const rows = [headers.map(h => escapeCSV(h)).join(';')];
 
     rawMaterials.forEach(material => {
       const row = [
@@ -469,7 +469,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
         escapeCSV(material.minStock || 0),
         escapeCSV(material.category || 'Sin Categoría')
       ];
-      rows.push(row.join(','));
+      rows.push(row.join(';'));
     });
 
     const csvContent = rows.join('\r\n');
