@@ -253,11 +253,36 @@ export default function OrderConfirmationImage({ sale, storeSettings, customerPh
                   <span>{formatCurrency(sale.amountPaid)}</span>
                 </div>
 
-                {/* Mostrar fecha del último pago si existe historial */}
+                {/* Historial detallado de pagos */}
                 {sale.paymentHistory && sale.paymentHistory.length > 0 && (
-                  <div className="flex justify-between text-[9px] text-stone-400 uppercase tracking-widest">
-                    <span>Último pago registrado el:</span>
-                    <span>{new Date(sale.paymentHistory[sale.paymentHistory.length - 1].date).toLocaleDateString('es-AR', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                  <div className="mt-4 p-5 rounded-2xl bg-stone-100/50 space-y-3 border border-stone-200/50">
+                    <p className="text-xs uppercase tracking-widest font-bold text-stone-400 mb-1">Detalle de Cobros</p>
+                    {sale.paymentHistory.map((ph, idx) => (
+                      <div key={idx} className="flex justify-between items-center text-sm sm:text-base border-b border-stone-200/30 pb-2 last:border-none last:pb-0">
+                        <div className="flex flex-col text-left">
+                          <span className="font-semibold text-stone-800">
+                            {ph.amount >= 0 ? 'Pago Percibido' : 'Ajuste Realizado'}
+                          </span>
+                          <span className="text-xs text-stone-400 capitalize">
+                            {new Date(ph.date).toLocaleDateString('es-AR', { 
+                              year: 'numeric', 
+                              month: 'short', 
+                              day: 'numeric', 
+                              hour: '2-digit', 
+                              minute: '2-digit' 
+                            })} - {ph.method || 'Efectivo'}
+                          </span>
+                          {ph.notes && (
+                            <span className="text-[11px] text-stone-500 italic mt-0.5">
+                              "{ph.notes}"
+                            </span>
+                          )}
+                        </div>
+                        <span className={`font-bold ${ph.amount >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                          {ph.amount >= 0 ? '+' : ''}{formatCurrency(ph.amount)}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 )}
 
