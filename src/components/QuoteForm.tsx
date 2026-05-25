@@ -8,16 +8,24 @@ interface QuoteFormProps {
   offers?: Offer[];
   campaigns?: Campaign[];
   storeSettings?: StoreSettings;
+  quote?: Quote;
   onSave: (quote: Omit<Quote, 'id' | 'date'>) => void;
   onCancel: () => void;
 }
 
-export default function QuoteForm({ products, customers, offers = [], campaigns = [], storeSettings, onSave, onCancel }: QuoteFormProps) {
-  const [customerId, setCustomerId] = useState<string>('');
-  const [customCustomerName, setCustomCustomerName] = useState<string>('');
-  const [validUntilDays, setValidUntilDays] = useState<number>(15);
+export default function QuoteForm({ products, customers, offers = [], campaigns = [], storeSettings, quote, onSave, onCancel }: QuoteFormProps) {
+  const [customerId, setCustomerId] = useState<string>(quote?.customerId || '');
+  const [customCustomerName, setCustomCustomerName] = useState<string>(quote?.customerId === 'guest' ? quote.customerName : '');
   
-  const [items, setItems] = useState<QuoteItem[]>([]);
+  const initialValidDays = useMemo(() => {
+    if (!quote?.validUntil || !quote?.date) return 15;
+    const diffTime = Math.abs(new Date(quote.validUntil).getTime() - new Date(quote.date).getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays || 15;
+  }, [quote]);
+  const [validUntilDays, setValidUntilDays] = useState<number>(initialValidDays);
+  
+  const [items, setItems] = useState<QuoteItem[]>(quote?.items || []);
   
   const [selectedProductId, setSelectedProductId] = useState<string>('');
   const [selectedVariantId, setSelectedVariantId] = useState<string>('');
@@ -38,8 +46,17 @@ export default function QuoteForm({ products, customers, offers = [], campaigns 
   }, [products, selectedCategory]);
 
   // Global Modifier
-  const [globalModifierType, setGlobalModifierType] = useState<'none' | 'desc_%' | 'desc_$' | 'rec_%' | 'rec_$'>('none');
-  const [globalModifierValue, setGlobalModifierValue] = useState<number>(0);
+  const initialModType = useMemo((): 'none' | 'desc_%' | 'desc_$' | 'rec_%' | 'rec_$' => {
+    if (!quote?.globalModifier) return 'none';
+    const isDesc = quote.globalModifier.isDiscount;
+    const isPct = quote.globalModifier.type === 'percentage';
+    if (isDesc && isPct) return 'desc_%';
+    if (isDesc && !isPct) return 'desc_$';
+    if (!isDesc && isPct) return 'rec_%';
+    return 'rec_$';
+  }, [quote]);
+  const [globalModifierType, setGlobalModifierType] = useState<'none' | 'desc_%' | 'desc_$' | 'rec_%' | 'rec_$'>(initialModType);
+  const [globalModifierValue, setGlobalModifierValue] = useState<number>(quote?.globalModifier?.value || 0);
 
   const activeOffers = useMemo(() => {
     if (!Array.isArray(offers)) return [];
@@ -220,7 +237,9 @@ export default function QuoteForm({ products, customers, offers = [], campaigns 
   return (
     <div className="flex-1 overflow-y-auto min-h-0 max-w-5xl mx-auto w-full space-y-6 pb-8">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-stone-800 dark:text-stone-100 tracking-tight">Nuevo Presupuesto</h2>
+        <h2 className="text-2xl font-bold text-stone-800 dark:text-stone-100 tracking-tight">
+          {quote ? 'Editar Presupuesto' : 'Nuevo Presupuesto'}
+        </h2>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">

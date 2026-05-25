@@ -997,6 +997,15 @@ export function useInventoryOperations(
     try { await setDoc(doc(db, 'quotes', newQuote.id), cleanObject(newQuote)); } catch (error) { handleFirestoreError(error, OperationType.WRITE, 'quotes'); }
   };
 
+  const updateQuote = async (quote: Quote) => {
+    try {
+      await setDoc(doc(db, 'quotes', quote.id), cleanObject(quote));
+      await logAction('update_quote', 'quotes', quote.id, quote);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'quotes');
+    }
+  };
+
   const deleteQuote = async (id: string) => {
     try { await deleteDoc(doc(db, 'quotes', id)); } catch (error) { handleFirestoreError(error, OperationType.DELETE, 'quotes'); }
   };
@@ -1074,7 +1083,7 @@ export function useInventoryOperations(
     addPreAuth, updatePreAuthRole, removePreAuth,
     generateCoupon, validateCoupon, updateCoupon, deleteCoupon,
     registerSale, updateSale,
-    addQuote, deleteQuote, approveQuote,
+    addQuote, updateQuote, deleteQuote, approveQuote,
     purchaseStarterKit,
     addCampaign, deleteCampaign,
     addOffer, updateOffer, deleteOffer,

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { Quote } from './types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useInventoryContext } from './contexts/InventoryContext';
 import { auth, db } from './firebase';
@@ -78,6 +79,7 @@ type View =
   | 'edit-raw-material'
   | 'new-sale' 
   | 'new-quote'
+  | 'edit-quote'
   | 'scanner';
 
 export default function App() {
@@ -85,7 +87,7 @@ export default function App() {
     products, addProduct, addMultipleProducts, updateProduct, deleteProduct, adjustStock,
     customers, addCustomer, updateCustomer, deleteCustomer,
     sales, registerSale, updateSale,
-    quotes, addQuote, deleteQuote, approveQuote,
+    quotes, addQuote, deleteQuote, approveQuote, updateQuote,
     rawMaterials, addRawMaterial, addMultipleRawMaterials, updateRawMaterial, deleteRawMaterial, restockRawMaterial,
     financialDocs, addFinancialDoc, deleteFinancialDoc,
     activities, addActivity, updateActivity, deleteActivity,
@@ -107,6 +109,7 @@ export default function App() {
   const [currentView, setCurrentView] = useState<View>('dashboard');
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [editingRawMaterialId, setEditingRawMaterialId] = useState<string | null>(null);
+  const [editingQuoteId, setEditingQuoteId] = useState<string | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [inventoryTab, setInventoryTab] = useState<'products' | 'raw-materials'>('products');
   const [isScanning, setIsScanning] = useState(false);
@@ -393,7 +396,7 @@ export default function App() {
                 )}
 
                 {currentView === 'sales' && <SaleList sales={sales} products={products} customers={customers} storeSettings={storeSettings} onNewSale={() => setCurrentView('new-sale')} onUpdateSale={updateSale} onAttachReceipt={(id, url) => updateSale({...sales.find(s=>s.id===id)!, receiptUrl: url})} initialStatusFilter={saleStatusFilter} />}
-                {currentView === 'quotes' && <QuoteList quotes={quotes} products={products} customers={customers} onNewQuote={() => setCurrentView('new-quote')} onDelete={deleteQuote} onApprove={approveQuote} />}
+                {currentView === 'quotes' && <QuoteList quotes={quotes} products={products} customers={customers} onNewQuote={() => setCurrentView('new-quote')} onDelete={deleteQuote} onApprove={approveQuote} onEditQuote={(id) => { setEditingQuoteId(id); setCurrentView('edit-quote'); }} />}
                 {currentView === 'customers' && <CustomerList customers={customers} sales={sales} offers={offers} onAdd={addCustomer} onUpdate={updateCustomer} onDelete={deleteCustomer} />}
                 {currentView === 'coupon' && (
                   <CouponView 
@@ -412,6 +415,33 @@ export default function App() {
                 {currentView === 'dispatch' && <DispatchView sales={sales} customers={customers} />}
                 {currentView === 'new-sale' && <SaleForm products={products} rawMaterials={rawMaterials} customers={customers} offers={offers} campaigns={campaigns} storeSettings={storeSettings} courses={courses} onSave={(s)=>{handleSmartRegisterSale(s); setCurrentView('sales');}} onCancel={()=>setCurrentView('sales')} onValidateCoupon={validateCoupon} />}
                 {currentView === 'new-quote' && <QuoteForm products={products} customers={customers} offers={offers} campaigns={campaigns} storeSettings={storeSettings} onSave={(q)=>{addQuote(q); setCurrentView('quotes');}} onCancel={()=>setCurrentView('quotes')} />}
+                {currentView === 'edit-quote' && editingQuoteId && (
+                   <QuoteForm 
+                     products={products} 
+                     customers={customers} 
+                     offers={offers} 
+                     campaigns={campaigns} 
+                     storeSettings={storeSettings} 
+                     quote={quotes.find(q => q.id === editingQuoteId)}
+                     onSave={async (q) => {
+                       const originalQuote = quotes.find(quote => quote.id === editingQuoteId);
+                       if (originalQuote) {
+                         await updateQuote({
+                           ...q,
+                           id: editingQuoteId,
+                           quoteNumber: originalQuote.quoteNumber,
+                           date: originalQuote.date
+                         } as Quote);
+                       }
+                       setCurrentView('quotes');
+                       setEditingQuoteId(null);
+                     }} 
+                     onCancel={() => {
+                       setCurrentView('quotes');
+                       setEditingQuoteId(null);
+                     }} 
+                   />
+                 )}
                 {(currentView === 'add-product' || currentView === 'edit-product') && <ProductForm product={currentView === 'edit-product' ? products.find(p=>p.id===editingProductId) : undefined} rawMaterials={rawMaterials} onSave={async(p)=>{if(currentView==='edit-product') await updateProduct(p); else await addProduct(p); setCurrentView('inventory');}} onCancel={()=>setCurrentView('inventory')} />}
                 {currentView === 'edit-raw-material' && editingRawMaterialId && <RawMaterialForm initialData={rawMaterials.find(m=>m.id===editingRawMaterialId)} products={products} onSave={(m)=>{updateRawMaterial(m); setCurrentView('inventory');}} onCancel={()=>setCurrentView('inventory')} />}
                 {currentView === 'production' && <ProductionView products={products} productionOrders={productionOrders} rawMaterials={rawMaterials} onAddOrder={addProductionOrder} onUpdateOrder={updateProductionOrder} onCompleteOrder={completeProductionOrder} onDeleteOrder={deleteProductionOrder} />}

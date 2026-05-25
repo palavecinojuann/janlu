@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { Quote, Product, Customer } from '../types';
-import { FileText, Plus, Download, Trash2, Eye, X, MessageCircle, Copy, CheckCircle } from 'lucide-react';
+import { FileText, Plus, Download, Trash2, Eye, X, MessageCircle, Copy, CheckCircle, Edit2 } from 'lucide-react';
 import { toPng, toBlob } from 'html-to-image';
 
 interface QuoteListProps {
@@ -10,9 +10,10 @@ interface QuoteListProps {
   onNewQuote: () => void;
   onDelete: (id: string) => void;
   onApprove: (quote: Quote) => void;
+  onEditQuote?: (id: string) => void;
 }
 
-export default function QuoteList({ quotes, products, customers, onNewQuote, onDelete, onApprove }: QuoteListProps) {
+export default function QuoteList({ quotes, products, customers, onNewQuote, onDelete, onApprove, onEditQuote }: QuoteListProps) {
   const [quoteToPreview, setQuoteToPreview] = useState<Quote | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -221,6 +222,15 @@ export default function QuoteList({ quotes, products, customers, onNewQuote, onD
                             >
                               <MessageCircle size={16} />
                             </button>
+                            {onEditQuote && (
+                              <button
+                                onClick={() => onEditQuote(quote.id)}
+                                className="p-2 text-stone-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors"
+                                title="Editar Presupuesto"
+                              >
+                                <Edit2 size={16} />
+                              </button>
+                            )}
                             <button
                               onClick={() => setQuoteToPreview(quote)}
                               className="p-2 text-stone-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors"
