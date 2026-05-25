@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { Product, RawMaterial, Offer, Variant, Campaign, Sale, SaleStatus, StoreSettings, Course, CatalogBranch } from '../types';
+import { Product, RawMaterial, Offer, Variant, Campaign, Sale, SaleStatus, StoreSettings, Course, CatalogBranch, UserProfile } from '../types';
 import { Search, Filter, Wind, Droplet, Flame, ShoppingBag, Instagram, Facebook, Phone, Lock, Unlock, Plus, Edit2, Trash2, X, Tag, Clock, Calendar, ShoppingCart, Minus, ChevronRight, ChevronLeft, AlertTriangle, Package, LayoutDashboard, ArrowRightLeft, Upload, CheckCircle, Timer, Zap, LogOut, Loader2, Gift, Shield, Music2, ShieldCheck, Truck, Mail, MapPin, GraduationCap, Copy, Heart, ChevronDown, ChevronUp, BookOpen, MessageCircle } from 'lucide-react';
 import ProductForm from './ProductForm';
 import ProductModal from './ProductModal';
@@ -25,6 +25,7 @@ interface PublicCatalogProps {
   onValidateCoupon?: (code: string, customerEmail?: string) => Promise<{ valid: boolean; discount?: number; error?: string }>;
   onLogin?: () => void;
   currentUser?: any;
+  userProfile?: UserProfile | null;
   isAdmin?: boolean;
   courses?: Course[];
   onAddSubscriber?: (email: string) => Promise<void>;
@@ -690,6 +691,7 @@ export default function PublicCatalog({
   onValidateCoupon,
   onLogin,
   currentUser,
+  userProfile,
   isAdmin = false,
   courses = [],
   onAddSubscriber,
@@ -849,6 +851,16 @@ export default function PublicCatalog({
   const [checkoutStep, setCheckoutStep] = useState<'cart' | 'details' | 'success'>('cart');
   const [whatsappUrl, setWhatsappUrl] = useState<string | null>(null);
   const [customerDetails, setCustomerDetails] = useState({ name: '', email: '', phone: '' });
+
+  useEffect(() => {
+    if (currentUser) {
+      setCustomerDetails(prev => ({
+        name: prev.name || userProfile?.name || currentUser.displayName || '',
+        email: prev.email || userProfile?.email || currentUser.email || '',
+        phone: prev.phone || (userProfile as any)?.phone || currentUser.phoneNumber || ''
+      }));
+    }
+  }, [currentUser, userProfile]);
   const [deliveryMethod, setDeliveryMethod] = useState<'retiro' | 'envio'>('retiro');
   const [paymentMethod, setPaymentMethod] = useState<'transferencia' | 'efectivo' | 'mercadopago' | 'acordar'>('transferencia');
   const [confirmAction, setConfirmAction] = useState<{ type: 'product', id: string } | null>(null);
@@ -2449,25 +2461,23 @@ export default function PublicCatalog({
                   <label className="block text-[10px] uppercase tracking-[0.2em] font-bold text-stone-500 mb-2">Nombre de contacto *</label>
                   <input
                     type="text"
-                    value={customerDetails.name}
+                    value={customerDetails?.name || ''}
                     onChange={(e) => setCustomerDetails(prev => ({ ...prev, name: e.target.value }))}
                     className="w-full px-4 py-3 bg-white border border-stone-200 rounded-xl focus:ring-2 focus:ring-stone-900 focus:border-stone-900 transition-all text-sm"
                     placeholder="Ej. Juan Pérez"
                   />
                 </div>
 
-                {!currentUser && (
-                  <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                    <label className="block text-[10px] uppercase tracking-[0.2em] font-bold text-stone-500 mb-2">Teléfono / WhatsApp *</label>
-                    <input
-                      type="tel"
-                      value={customerDetails.phone}
-                      onChange={(e) => setCustomerDetails(prev => ({ ...prev, phone: e.target.value }))}
-                      className="w-full px-4 py-3 bg-white border border-stone-200 rounded-xl focus:ring-2 focus:ring-stone-900 focus:border-stone-900 transition-all text-sm"
-                      placeholder="Ej. +54 9 11 1234 5678"
-                    />
-                  </div>
-                )}
+                <div>
+                  <label className="block text-[10px] uppercase tracking-[0.2em] font-bold text-stone-500 mb-2">Teléfono / WhatsApp *</label>
+                  <input
+                    type="tel"
+                    value={customerDetails?.phone || ''}
+                    onChange={(e) => setCustomerDetails(prev => ({ ...prev, phone: e.target.value }))}
+                    className="w-full px-4 py-3 bg-white border border-stone-200 rounded-xl focus:ring-2 focus:ring-stone-900 focus:border-stone-900 transition-all text-sm"
+                    placeholder="Ej. +54 9 11 1234 5678"
+                  />
+                </div>
 
                 <div>
                   <label className="block text-[10px] uppercase tracking-[0.2em] font-bold text-stone-500 mb-3">Método de Entrega *</label>
@@ -2568,7 +2578,7 @@ export default function PublicCatalog({
                     <label className="block text-[10px] uppercase tracking-[0.2em] font-bold text-stone-500 mb-2">Email *</label>
                     <input
                       type="email"
-                      value={customerDetails.email}
+                      value={customerDetails?.email || ''}
                       onChange={(e) => setCustomerDetails(prev => ({ ...prev, email: e.target.value }))}
                       className="w-full px-4 py-3 bg-white border border-stone-200 rounded-xl focus:ring-2 focus:ring-stone-900 focus:border-stone-900 transition-all text-sm"
                       placeholder="Ej. juan@email.com"
@@ -2577,97 +2587,99 @@ export default function PublicCatalog({
                 )}
 
                 {/* Banner de Registro */}
-                <div className="mt-8 border-t border-stone-200/50 pt-6">
-                  <div className={`p-5 rounded-2xl border-2 transition-all duration-300 ${
-                    isRegistering 
-                      ? 'border-stone-200 bg-white' 
-                      : 'border-amber-100 bg-amber-50/50 hover:border-amber-200'
-                  }`}>
-                    <div className="flex items-start gap-4">
-                      <div className="w-10 h-10 bg-white rounded-full shadow-sm flex items-center justify-center shrink-0 text-amber-500 border border-stone-100">
-                        <Gift size={18} />
+                {!currentUser && (
+                  <div className="mt-8 border-t border-stone-200/50 pt-6">
+                    <div className={`p-5 rounded-2xl border-2 transition-all duration-300 ${
+                      isRegistering 
+                        ? 'border-stone-200 bg-white' 
+                        : 'border-amber-100 bg-amber-50/50 hover:border-amber-200'
+                    }`}>
+                      <div className="flex items-start gap-4">
+                        <div className="w-10 h-10 bg-white rounded-full shadow-sm flex items-center justify-center shrink-0 text-amber-500 border border-stone-100">
+                          <Gift size={18} />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="text-stone-900 font-serif text-lg leading-tight">
+                            Regístrate y obtén un descuento
+                          </h4>
+                          <p className="text-stone-500 text-xs mt-1">
+                            Únete a nuestra comunidad y recibe un cupón exclusivo.
+                          </p>
+                          
+                          <button
+                            onClick={() => setIsRegistering(!isRegistering)}
+                            className="mt-4 flex items-center gap-2 text-stone-900 font-bold text-xs uppercase tracking-wider hover:text-stone-600 transition-colors"
+                          >
+                            <div className={`w-8 h-4 rounded-full relative transition-colors duration-200 ${isRegistering ? 'bg-stone-900' : 'bg-stone-300'}`}>
+                              <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all duration-200 ${isRegistering ? 'left-4' : 'left-1'}`} />
+                            </div>
+                            {isRegistering ? 'Sí, quiero registrarme' : 'Quiero registrarme'}
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex-1">
-                        <h4 className="text-stone-900 font-serif text-lg leading-tight">
-                          Regístrate y obtén un descuento
-                        </h4>
-                        <p className="text-stone-500 text-xs mt-1">
-                          Únete a nuestra comunidad y recibe un cupón exclusivo.
-                        </p>
-                        
-                        <button
-                          onClick={() => setIsRegistering(!isRegistering)}
-                          className="mt-4 flex items-center gap-2 text-stone-900 font-bold text-xs uppercase tracking-wider hover:text-stone-600 transition-colors"
-                        >
-                          <div className={`w-8 h-4 rounded-full relative transition-colors duration-200 ${isRegistering ? 'bg-stone-900' : 'bg-stone-300'}`}>
-                            <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all duration-200 ${isRegistering ? 'left-4' : 'left-1'}`} />
-                          </div>
-                          {isRegistering ? 'Sí, quiero registrarme' : 'Quiero registrarme'}
-                        </button>
-                      </div>
-                    </div>
 
-                    {isRegistering && (
-                      <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-4 duration-500">
-                        <div className="sm:col-span-1">
-                          <label className="block text-[9px] font-bold text-stone-400 uppercase tracking-widest mb-1">Nombre *</label>
-                          <input
-                            type="text"
-                            value={registrationData.firstName}
-                            onChange={(e) => setRegistrationData(prev => ({ ...prev, firstName: e.target.value }))}
-                            className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:ring-1 focus:ring-stone-900 focus:border-stone-900 transition-all text-sm"
-                            placeholder="Tu nombre"
-                          />
+                      {isRegistering && (
+                        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-4 duration-500">
+                          <div className="sm:col-span-1">
+                            <label className="block text-[9px] font-bold text-stone-400 uppercase tracking-widest mb-1">Nombre *</label>
+                            <input
+                              type="text"
+                              value={registrationData?.firstName || ''}
+                              onChange={(e) => setRegistrationData(prev => ({ ...prev, firstName: e.target.value }))}
+                              className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:ring-1 focus:ring-stone-900 focus:border-stone-900 transition-all text-sm"
+                              placeholder="Tu nombre"
+                            />
+                          </div>
+                          <div className="sm:col-span-1">
+                            <label className="block text-[9px] font-bold text-stone-400 uppercase tracking-widest mb-1">Apellido *</label>
+                            <input
+                              type="text"
+                              value={registrationData?.lastName || ''}
+                              onChange={(e) => setRegistrationData(prev => ({ ...prev, lastName: e.target.value }))}
+                              className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:ring-1 focus:ring-stone-900 focus:border-stone-900 transition-all text-sm"
+                              placeholder="Tu apellido"
+                            />
+                          </div>
+                          <div className="sm:col-span-1">
+                            <label className="block text-[9px] font-bold text-stone-400 uppercase tracking-widest mb-1">Teléfono *</label>
+                            <input
+                              type="tel"
+                              value={registrationData?.phone || ''}
+                              onChange={(e) => setRegistrationData(prev => ({ ...prev, phone: e.target.value }))}
+                              className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:ring-1 focus:ring-stone-900 focus:border-stone-900 transition-all text-sm"
+                              placeholder="Ej. +54 9 11 ..."
+                            />
+                          </div>
+                          <div className="sm:col-span-1">
+                            <label className="block text-[9px] font-bold text-stone-400 uppercase tracking-widest mb-1">Email *</label>
+                            <input
+                              type="email"
+                              value={registrationData?.email || ''}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setRegistrationData(prev => ({ ...prev, email: val }));
+                                if (deliveryMethod === 'envio') {
+                                  setCustomerDetails(prev => ({ ...prev, email: val }));
+                                }
+                              }}
+                              className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:ring-1 focus:ring-stone-900 focus:border-stone-900 transition-all text-sm"
+                              placeholder="tu@email.com"
+                            />
+                          </div>
+                          <div className="sm:col-span-2">
+                            <label className="block text-[9px] font-bold text-stone-400 uppercase tracking-widest mb-1">Fecha de Nacimiento *</label>
+                            <input
+                              type="date"
+                              value={registrationData?.birthDate || ''}
+                              onChange={(e) => setRegistrationData(prev => ({ ...prev, birthDate: e.target.value }))}
+                              className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:ring-1 focus:ring-stone-900 focus:border-stone-900 transition-all text-sm"
+                            />
+                          </div>
                         </div>
-                        <div className="sm:col-span-1">
-                          <label className="block text-[9px] font-bold text-stone-400 uppercase tracking-widest mb-1">Apellido *</label>
-                          <input
-                            type="text"
-                            value={registrationData.lastName}
-                            onChange={(e) => setRegistrationData(prev => ({ ...prev, lastName: e.target.value }))}
-                            className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:ring-1 focus:ring-stone-900 focus:border-stone-900 transition-all text-sm"
-                            placeholder="Tu apellido"
-                          />
-                        </div>
-                        <div className="sm:col-span-1">
-                          <label className="block text-[9px] font-bold text-stone-400 uppercase tracking-widest mb-1">Teléfono *</label>
-                          <input
-                            type="tel"
-                            value={registrationData.phone}
-                            onChange={(e) => setRegistrationData(prev => ({ ...prev, phone: e.target.value }))}
-                            className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:ring-1 focus:ring-stone-900 focus:border-stone-900 transition-all text-sm"
-                            placeholder="Ej. +54 9 11 ..."
-                          />
-                        </div>
-                        <div className="sm:col-span-1">
-                          <label className="block text-[9px] font-bold text-stone-400 uppercase tracking-widest mb-1">Email *</label>
-                          <input
-                            type="email"
-                            value={registrationData.email}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setRegistrationData(prev => ({ ...prev, email: val }));
-                              if (deliveryMethod === 'envio') {
-                                setCustomerDetails(prev => ({ ...prev, email: val }));
-                              }
-                            }}
-                            className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:ring-1 focus:ring-stone-900 focus:border-stone-900 transition-all text-sm"
-                            placeholder="tu@email.com"
-                          />
-                        </div>
-                        <div className="sm:col-span-2">
-                          <label className="block text-[9px] font-bold text-stone-400 uppercase tracking-widest mb-1">Fecha de Nacimiento *</label>
-                          <input
-                            type="date"
-                            value={registrationData.birthDate}
-                            onChange={(e) => setRegistrationData(prev => ({ ...prev, birthDate: e.target.value }))}
-                            className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:ring-1 focus:ring-stone-900 focus:border-stone-900 transition-all text-sm"
-                          />
-                        </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {checkoutError && (
                   <div className="p-4 bg-rose-50 text-rose-700 rounded-xl text-sm flex items-start gap-3 border border-rose-100">
@@ -2804,7 +2816,7 @@ export default function PublicCatalog({
 
       {storeSettings?.whatsappNumber && (
         <a
-          href={`https://wa.me/${storeSettings.whatsappNumber.replace(/\D/g, '')}`}
+          href={`https://wa.me/${storeSettings.whatsappNumber?.toString().replace(/\D/g, '')}`}
           target="_blank"
           rel="noopener noreferrer"
           className="fixed bottom-6 right-6 z-50 bg-[#25D366] text-white p-4 rounded-full shadow-2xl hover:scale-110 transition-transform flex items-center justify-center group"

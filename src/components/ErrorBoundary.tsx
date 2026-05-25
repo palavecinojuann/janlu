@@ -57,6 +57,15 @@ export default class ErrorBoundary extends Component<Props, State> {
             <p className="text-stone-600 dark:text-stone-400 mb-6">
               {errorMessage}
             </p>
+            {errorDetails && (
+              <div className="text-left text-[10px] bg-stone-100 dark:bg-stone-950 p-4 rounded-xl mb-6 overflow-auto max-h-40 font-mono text-rose-600 select-all">
+                <p className="font-bold mb-1">Detalle del error:</p>
+                <p>{errorDetails}</p>
+                {this.state.error?.stack && (
+                  <p className="mt-2 text-[9px] opacity-75 whitespace-pre-wrap">{this.state.error.stack}</p>
+                )}
+              </div>
+            )}
             <button
               onClick={() => window.location.reload()}
               className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl transition-colors"

@@ -518,6 +518,7 @@ export default function App() {
           onValidateCoupon={validateCoupon}
           onLogin={() => setShowAuth(true)}
           currentUser={currentUser}
+          userProfile={userProfile}
           isAdmin={isAdmin}
           onAddSubscriber={addSubscriber}
         />
