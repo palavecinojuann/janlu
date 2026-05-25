@@ -172,7 +172,7 @@ export default function ProductModal({
                       key={idx}
                       src={img}
                       alt={`${product.name} - Imagen ${idx + 1}`}
-                      className={`w-full h-full flex-shrink-0 object-cover object-center bg-stone-50 ${isOutOfStock ? 'grayscale' : ''}`}
+                      className={`w-full h-full flex-shrink-0 object-contain md:object-cover object-center bg-stone-50 ${isOutOfStock ? 'grayscale' : ''}`}
                       referrerPolicy="no-referrer"
                     />
                   ))}
