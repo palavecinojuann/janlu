@@ -3,6 +3,7 @@ import { Product, RawMaterial, Offer, Variant, Campaign, Sale, SaleStatus, Store
 import { Search, Filter, Wind, Droplet, Flame, ShoppingBag, Instagram, Facebook, Phone, Lock, Unlock, Plus, Edit2, Trash2, X, Tag, Clock, Calendar, ShoppingCart, Minus, ChevronRight, ChevronLeft, AlertTriangle, Package, LayoutDashboard, ArrowRightLeft, Upload, CheckCircle, Timer, Zap, LogOut, Loader2, Gift, Shield, Music2, ShieldCheck, Truck, Mail, MapPin, GraduationCap, Copy, Heart, ChevronDown, ChevronUp, BookOpen, MessageCircle } from 'lucide-react';
 import ProductForm from './ProductForm';
 import ProductModal from './ProductModal';
+import ErrorBoundary from './ErrorBoundary';
 import { getVariantStock } from '../utils/stockUtils';
 import { roundFinancial } from '../utils/mathUtils';
 import { useDraggableScroll } from '../useDraggableScroll';
@@ -73,8 +74,8 @@ const CountdownTimer = ({ expiresAt }: { expiresAt: string }) => {
         { label: 'Hrs', value: timeLeft.hours },
         { label: 'Min', value: timeLeft.minutes },
         { label: 'Seg', value: timeLeft.seconds },
-      ].map((item, i) => (
-        <div key={i} className="flex flex-col items-center">
+      ].map((item) => (
+        <div key={item.label} className="flex flex-col items-center">
           <div className="bg-white/20 backdrop-blur-md rounded-lg w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center text-sm sm:text-base font-bold border border-white/30 text-white">
             {item.value.toString().padStart(2, '0')}
           </div>
@@ -585,9 +586,9 @@ const ProductSlider: React.FC<{ title: string; products: Product[]; isAdminMode:
           onMouseUp={onMouseUp}
           onMouseMove={onMouseMove}
         >
-          {products.map((product, index) => (
+          {products.map((product) => (
             <div 
-              key={`${product.id}-${index}`} 
+              key={product.id} 
               className="flex-none w-[200px] sm:w-[280px] snap-start"
             >
               <ProductCard
@@ -1464,6 +1465,7 @@ export default function PublicCatalog({
         </div>
 
       <main>
+        <ErrorBoundary>
 
 
         {activeTab === 'inicio' && (
@@ -1811,9 +1813,9 @@ export default function PublicCatalog({
             )}
 
             <div ref={productsGridRef} className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 sm:gap-x-6 gap-y-10 sm:gap-y-12 py-4">
-              {filteredProducts.map((product, index) => (
+              {filteredProducts.map((product) => (
                 <ProductCard
-                  key={`${product.id}-${index}`}
+                  key={product.id}
                   product={product}
                   isAdminMode={isAdminMode}
                   onEdit={setEditingProduct}
@@ -1937,7 +1939,7 @@ export default function PublicCatalog({
                               <ul className="space-y-3">
                                 {course.syllabus && course.syllabus.length > 0 ? (
                                   course.syllabus.map((item, index) => (
-                                    <li key={index} className="flex items-start gap-2">
+                                    <li key={`syllabus-${index}-${item.substring(0, 15)}`} className="flex items-start gap-2">
                                       <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0"></div>
                                       <span>{item}</span>
                                     </li>
@@ -2132,7 +2134,7 @@ export default function PublicCatalog({
           </div>
         )}
 
-
+        </ErrorBoundary>
       </main>
 
       {/* FOOTER INMERSIVO (Estilo Alta Gama) */}
@@ -2265,25 +2267,25 @@ export default function PublicCatalog({
           onClick={() => setIsCartOpen(false)}
         />
 
-        {/* Panel lateral del carrito (Drawer) */}
         <div 
           className={`absolute top-0 right-0 h-full w-full sm:w-[420px] bg-[#faf9f8] shadow-2xl flex flex-col transform transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
             isCartOpen ? 'translate-x-0' : 'translate-x-full'
           }`}
         >
-          {/* Cabecera del Carrito */}
+          <ErrorBoundary>
+            {/* Cabecera del Carrito */}
           <div className="flex items-center justify-between p-6 sm:px-8 sm:py-6 border-b border-stone-200/50 shrink-0">
             <div className="flex items-baseline gap-3">
               <h2 className="text-2xl font-serif text-stone-900 tracking-tight">
-                {checkoutStep === 'cart' && 'Tu Carrito'}
-                {checkoutStep === 'details' && 'Mis Datos'}
-                {checkoutStep === 'success' && '¡Pedido Exitoso!'}
+                {checkoutStep === 'cart' ? 'Tu Carrito' : null}
+                {checkoutStep === 'details' ? 'Mis Datos' : null}
+                {checkoutStep === 'success' ? '¡Pedido Exitoso!' : null}
               </h2>
-              {checkoutStep === 'cart' && (
+              {checkoutStep === 'cart' ? (
                 <span key="checkout-header-cart-count" className="text-[10px] text-stone-400 uppercase tracking-widest font-bold">
                   {cart.reduce((sum, item) => sum + item.quantity, 0)} {cart.reduce((sum, item) => sum + item.quantity, 0) === 1 ? 'Ítem' : 'Ítems'}
                 </span>
-              )}
+              ) : null}
             </div>
             <button 
               onClick={() => {
@@ -2301,7 +2303,7 @@ export default function PublicCatalog({
 
           {/* Área de Productos con Scroll Independiente */}
           <div className="flex-1 overflow-y-auto p-6 sm:p-8 custom-scrollbar">
-            {checkoutStep === 'cart' && (
+            {checkoutStep === 'cart' ? (
               cart.length === 0 ? (
                 <div key="checkout-step-cart-empty" className="h-full flex flex-col items-center justify-center text-center opacity-50">
                   <ShoppingBag size={48} strokeWidth={1} className="mb-4 text-stone-300" />
@@ -2316,7 +2318,7 @@ export default function PublicCatalog({
                     const discountPercentage = originalPrice > currentPrice ? Math.round((1 - (currentPrice / originalPrice)) * 100) : 0;
 
                     return (
-                      <div key={item.course ? item.course.id : `${item.product?.id}-${item.variant?.id}`} className="flex gap-4">
+                      <div key={item.isCourse && item.course ? `cart-course-${item.course.id}` : `cart-prod-${item.product?.id || ''}-${item.variant?.id || ''}`} className="flex gap-4">
                         <div className="w-20 h-20 rounded-xl bg-stone-50 border border-stone-100 overflow-hidden shrink-0">
                           {item.course ? (
                             item.course.imageUrl ? (
@@ -2349,7 +2351,7 @@ export default function PublicCatalog({
                                     if (item.course && i.course?.id === item.course.id) {
                                       return { ...i, customDescription: newDescription };
                                     }
-                                    if (item.product && i.product?.id === item.product.id && item.variant?.id === item.variant?.id) {
+                                    if (item.product && i.product?.id === item.product.id && i.variant?.id === item.variant?.id) {
                                       return { ...i, customDescription: newDescription };
                                     }
                                     return i;
@@ -2453,9 +2455,9 @@ export default function PublicCatalog({
                   </div>
                 </div>
               )
-            )}
+            ) : null}
 
-            {checkoutStep === 'details' && (
+            {checkoutStep === 'details' ? (
               <div key="checkout-step-details" className="space-y-6">
                 <div>
                   <label className="block text-[10px] uppercase tracking-[0.2em] font-bold text-stone-500 mb-2">Nombre de contacto *</label>
@@ -2681,16 +2683,16 @@ export default function PublicCatalog({
                   </div>
                 )}
 
-                {checkoutError && (
+                {checkoutError ? (
                   <div className="p-4 bg-rose-50 text-rose-700 rounded-xl text-sm flex items-start gap-3 border border-rose-100">
                     <AlertTriangle size={16} className="mt-0.5 shrink-0" />
                     <p className="font-medium">{checkoutError}</p>
                   </div>
-                )}
+                ) : null}
               </div>
-            )}
+            ) : null}
 
-            {checkoutStep === 'success' && (
+            {checkoutStep === 'success' ? (
               <div key="checkout-step-success" className="h-full flex flex-col items-center justify-center text-center space-y-4">
                 <div className="w-20 h-20 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mb-4 border border-emerald-100">
                   <CheckCircle size={32} />
@@ -2757,20 +2759,20 @@ export default function PublicCatalog({
                   Volver a la tienda
                 </button>
               </div>
-            )}
+            ) : null}
           </div>
 
           {/* Footer del Carrito (Subtotales y Checkout) */}
-          {cart.length > 0 && checkoutStep !== 'success' && (
+          {cart.length > 0 && checkoutStep !== 'success' ? (
             <div className="border-t border-stone-200/50 bg-white p-6 sm:p-8 shrink-0">
               <div className="flex justify-between items-end mb-6">
                 <div className="flex flex-col gap-1">
-                  <span className="text-[10px] uppercase tracking-[0.2em] font-bold text-stone-500">Subtotal {appliedCoupon && '(con desc.)'}</span>
+                  <span className="text-[10px] uppercase tracking-[0.2em] font-bold text-stone-500">Subtotal {appliedCoupon ? '(con desc.)' : null}</span>
                 </div>
                 <span className="text-2xl font-serif text-stone-900">{formatCurrency(finalTotal)}</span>
               </div>
               
-              {checkoutStep === 'cart' && (
+              {checkoutStep === 'cart' ? (
                 <button 
                   key="footer-btn-cart"
                   onClick={() => setCheckoutStep('details')}
@@ -2778,11 +2780,11 @@ export default function PublicCatalog({
                   className="w-full bg-stone-900 text-white py-4 text-[10px] sm:text-xs font-bold uppercase tracking-[0.2em] hover:bg-stone-800 transition-colors shadow-xl disabled:opacity-50 flex items-center justify-center gap-2 group"
                 >
                   {hasExceededStock ? 'Modifica las cantidades' : 'Iniciar Compra'}
-                  {!hasExceededStock && <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />}
+                  {!hasExceededStock ? <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" /> : null}
                 </button>
-              )}
+              ) : null}
 
-              {checkoutStep === 'details' && (
+              {checkoutStep === 'details' ? (
                 <div key="footer-btns-details" className="flex gap-3">
                   <button
                     onClick={() => setCheckoutStep('cart')}
@@ -2805,13 +2807,14 @@ export default function PublicCatalog({
                     )}
                   </button>
                 </div>
-              )}
+              ) : null}
               
-              {checkoutStep === 'cart' && (
+              {checkoutStep === 'cart' ? (
                 <p key="footer-text-cart" className="text-center mt-4 text-[9px] text-stone-400 tracking-widest uppercase">Pagos seguros e información en el siguiente paso</p>
-              )}
+              ) : null}
             </div>
-          )}
+          ) : null}
+          </ErrorBoundary>
         </div>
       </div>
 

@@ -178,7 +178,7 @@ export default function ProductModal({
                   ))}
                 </div>
 
-                {allImages.length > 1 && (
+                {allImages.length > 1 ? (
                   <>
                     <button
                       onClick={(e) => {
@@ -215,7 +215,7 @@ export default function ProductModal({
                       ))}
                     </div>
                   </>
-                )}
+                ) : null}
               </>
             )}
 
@@ -277,27 +277,27 @@ export default function ProductModal({
                     </div>
                   )}
 
-                  {installmentsCount > 0 && (
+                  {installmentsCount > 0 ? (
                     <div className={`${cashDiscount > 0 ? 'pt-3 border-t border-stone-200/60' : ''}`}>
                       <p className="text-xs text-stone-700 font-medium uppercase tracking-wider">
                         <span className="font-bold text-stone-900">{installmentsCount} cuotas sin interés</span> de {formatCurrency((currentPrice * (quantityInCart > 0 ? quantityInCart : 1)) / installmentsCount)}
                       </p>
                     </div>
-                  )}
+                  ) : null}
                 </div>
               )}
 
-              {product.description && (
+              {product.description ? (
                 <div className="mt-8 pt-8 border-t border-stone-100">
                   <div className="text-sm text-stone-600 leading-relaxed whitespace-pre-line font-medium">
                     {product.description}
                   </div>
                 </div>
-              )}
+              ) : null}
             </div>
 
             <div className="space-y-8 mt-auto pt-8">
-              {product.variants.length > 1 && (
+              {product.variants.length > 1 ? (
                 <div>
                   <label className="block text-xs font-bold text-stone-900 uppercase tracking-widest mb-4">
                     Medida: <span className="text-stone-500 font-medium ml-1">{localVariant?.name}</span>
@@ -322,17 +322,17 @@ export default function ProductModal({
                             }`}
                         >
                           {v.name}
-                          {variantQuantityInCart > 0 && (
+                          {variantQuantityInCart > 0 ? (
                             <span className={`absolute -top-2 -right-2 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shadow-sm ${isSelected ? 'bg-white text-stone-900' : 'bg-emerald-500 text-white'}`}>
                               {variantQuantityInCart}
                             </span>
-                          )}
+                          ) : null}
                         </button>
                       );
                     })}
                   </div>
                 </div>
-              )}
+              ) : null}
 
               {/* ✨ BARRA DE COMPRA: Botón arreglado con sm:flex-1 */}
               <div className="flex flex-col gap-4 mt-auto">
