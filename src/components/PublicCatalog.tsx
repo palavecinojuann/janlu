@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { Product, RawMaterial, Offer, Variant, Campaign, Sale, SaleStatus, StoreSettings, Course } from '../types';
+import { Product, RawMaterial, Offer, Variant, Campaign, Sale, SaleStatus, StoreSettings, Course, CatalogBranch } from '../types';
 import { Search, Filter, Wind, Droplet, Flame, ShoppingBag, Instagram, Facebook, Phone, Lock, Unlock, Plus, Edit2, Trash2, X, Tag, Clock, Calendar, ShoppingCart, Minus, ChevronRight, ChevronLeft, AlertTriangle, Package, LayoutDashboard, ArrowRightLeft, Upload, CheckCircle, Timer, Zap, LogOut, Loader2, Gift, Shield, Music2, ShieldCheck, Truck, Mail, MapPin, GraduationCap, Copy, Heart, ChevronDown, ChevronUp, BookOpen, MessageCircle } from 'lucide-react';
 import ProductForm from './ProductForm';
 import ProductModal from './ProductModal';
@@ -696,11 +696,12 @@ export default function PublicCatalog({
   sales = []
 }: PublicCatalogProps) {
   const [activeTab, setActiveTab] = useState<'inicio' | 'productos' | 'workshops' | 'mayorista' | 'politicas' | 'contacto'>('inicio');
+  const [activeBranch, setActiveBranch] = useState<CatalogBranch>('vela');
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [expandedCourseId, setExpandedCourseId] = useState<string | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedCategory, setSelectedCategory] = useState('todos');
   const [isAdminMode, setIsAdminMode] = useState(isAdmin);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isAddingProduct, setIsAddingProduct] = useState(false);
@@ -895,7 +896,7 @@ export default function PublicCatalog({
   const handleNavigation = (tab: 'inicio' | 'productos' | 'workshops' | 'mayorista' | 'politicas' | 'contacto') => {
     setActiveTab(tab);
     setSearchTerm(''); // Vaciamos la barra de búsqueda
-    setSelectedCategory('all'); // Reiniciamos las categorías
+    setSelectedCategory('todos'); // Reiniciamos las categorías
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -970,6 +971,23 @@ export default function PublicCatalog({
     return Array.from(new Set(products.map(p => p.category).filter(Boolean))) as string[];
   }, [products]);
 
+  // 1. branchProducts: Filtra el arreglo original 'products'.
+  const branchProducts = useMemo(() => {
+    if (!Array.isArray(products)) return [];
+    return products.filter(product => {
+      const type = product.catalogType || 'vela';
+      return type === activeBranch;
+    });
+  }, [products, activeBranch]);
+
+  // 2. availableCategories: Extrae categorías correspondientes a branchProducts, comenzando con 'todos'.
+  const availableCategories = useMemo(() => {
+    const cats = branchProducts
+      .map(p => p.category)
+      .filter((cat): cat is string => typeof cat === 'string' && cat.trim() !== '');
+    return ['todos', ...Array.from(new Set(cats))];
+  }, [branchProducts]);
+
   const activeOffers = useMemo(() => {
     if (!Array.isArray(offers)) return [];
     const now = new Date();
@@ -994,8 +1012,7 @@ export default function PublicCatalog({
   }, [offers]);
 
   const filteredProducts = useMemo(() => {
-    if (!Array.isArray(products)) return [];
-    const filtered = products.filter(product => {
+    const filtered = branchProducts.filter(product => {
       const name = (product.name || '').toLowerCase();
       const description = (product.description || '').toLowerCase();
       const category = (product.category || '').toLowerCase();
@@ -1016,7 +1033,7 @@ export default function PublicCatalog({
         );
       }
 
-      const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory;
+      const matchesCategory = selectedCategory === 'todos' || product.category === selectedCategory;
       const isVisible = product.showInCatalog === true || product.showInCatalog === undefined;
       
       return matchesSearch && matchesCategory && (isAdminMode || isVisible);
@@ -1028,7 +1045,7 @@ export default function PublicCatalog({
       if (orderA !== orderB) return orderA - orderB;
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
-  }, [products, debouncedSearchTerm, selectedCategory, isAdminMode]);
+  }, [branchProducts, debouncedSearchTerm, selectedCategory, isAdminMode]);
 
   const formatCurrency = useCallback((amount: number) => { 
     return new Intl.NumberFormat('es-AR', { 
@@ -1560,7 +1577,8 @@ export default function PublicCatalog({
                                   // 1. Cerramos el buscador y limpiamos los filtros para no atrapar al usuario
                                   setIsSearchFocused(false);
                                   setSearchTerm('');
-                                  setSelectedCategory('all');
+                                  setSelectedCategory('todos');
+                                  setActiveBranch(product.catalogType || 'vela');
                                   
                                   // 2. Navegamos a la pestaña de productos
                                   setActiveTab('productos');
@@ -1707,31 +1725,67 @@ export default function PublicCatalog({
 
         {activeTab === 'productos' && (
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Menú Editorial de Familias Olfativas */}
-        <div className="w-full max-w-5xl mx-auto px-4 mt-12 mb-16 z-20 relative">
-          <div className="flex flex-col items-center justify-center space-y-8">
-            <h3 className="text-[9px] sm:text-[10px] text-stone-400 uppercase tracking-[0.4em] font-bold flex items-center gap-3">
-              <Wind size={12} /> Explorar por Colección <Wind size={12} />
-            </h3>
-            <div className="flex flex-wrap justify-center gap-x-10 gap-y-6">
+            {/* Selector de Rama del Catálogo (Velas & Decoración vs Insumos & Materia Prima) */}
+            <div className="flex justify-center border-b border-stone-200 dark:border-stone-800 mb-12 max-w-lg mx-auto">
               <button
-                onClick={() => { setSelectedCategory('all'); setSearchTerm(''); }}
-                className={`text-[10px] sm:text-xs uppercase tracking-[0.25em] transition-all duration-300 pb-2 border-b border-transparent ${selectedCategory === 'all' ? 'text-stone-900 border-stone-900 font-bold scale-105' : 'text-stone-400 hover:text-stone-600 hover:border-stone-300'}`}
+                onClick={() => {
+                  setActiveBranch('vela');
+                  setSelectedCategory('todos');
+                  setSearchTerm('');
+                }}
+                className={`flex-1 text-center py-4 font-serif text-sm sm:text-base tracking-wide transition-all duration-300 relative ${
+                  activeBranch === 'vela'
+                    ? 'text-stone-900 dark:text-white font-semibold'
+                    : 'text-stone-400 hover:text-stone-600 dark:hover:text-stone-300'
+                }`}
               >
-                Colección Completa
+                Velas & Decoración
+                {activeBranch === 'vela' && (
+                  <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#8B735B]" />
+                )}
               </button>
-              {categories.map(category => (
-                <button
-                  key={category}
-                  onClick={() => { setSelectedCategory(category); setSearchTerm(''); }}
-                  className={`text-[10px] sm:text-xs uppercase tracking-[0.25em] transition-all duration-300 pb-2 border-b border-transparent ${selectedCategory === category ? 'text-stone-900 border-stone-900 font-bold scale-105' : 'text-stone-400 hover:text-stone-600 hover:border-stone-300'}`}
-                >
-                  {category}
-                </button>
-              ))}
+              <button
+                onClick={() => {
+                  setActiveBranch('insumo');
+                  setSelectedCategory('todos');
+                  setSearchTerm('');
+                }}
+                className={`flex-1 text-center py-4 font-serif text-sm sm:text-base tracking-wide transition-all duration-300 relative ${
+                  activeBranch === 'insumo'
+                    ? 'text-stone-900 dark:text-white font-semibold'
+                    : 'text-stone-400 hover:text-stone-600 dark:hover:text-stone-300'
+                }`}
+              >
+                Insumos & Materia Prima
+                {activeBranch === 'insumo' && (
+                  <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#8B735B]" />
+                )}
+              </button>
             </div>
-          </div>
-        </div>
+
+            {/* Menú Editorial de Familias Olfativas */}
+            <div className="w-full max-w-5xl mx-auto px-4 mt-6 mb-16 z-20 relative">
+              <div className="flex flex-col items-center justify-center space-y-8">
+                <h3 className="text-[9px] sm:text-[10px] text-stone-400 uppercase tracking-[0.4em] font-bold flex items-center gap-3">
+                  <Wind size={12} /> Explorar por Colección <Wind size={12} />
+                </h3>
+                <div className="flex flex-wrap justify-center gap-x-10 gap-y-6">
+                  {availableCategories.map(category => (
+                    <button
+                      key={category}
+                      onClick={() => { setSelectedCategory(category); setSearchTerm(''); }}
+                      className={`text-[10px] sm:text-xs uppercase tracking-[0.25em] transition-all duration-300 pb-2 border-b border-transparent ${
+                        selectedCategory === category 
+                          ? 'text-stone-900 border-stone-900 font-bold scale-105' 
+                          : 'text-stone-400 hover:text-stone-600 hover:border-stone-300'
+                      }`}
+                    >
+                      {category === 'todos' ? 'Colección Completa' : category}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
 
             {isAdminMode && onAddProduct && (
               <div className="mb-8 flex justify-end">
@@ -1784,7 +1838,7 @@ export default function PublicCatalog({
                   No hay productos que coincidan con la búsqueda "{searchTerm}" en la categoría actual.
                 </p>
                 <button
-                  onClick={() => { setSearchTerm(''); setSelectedCategory('all'); }}
+                  onClick={() => { setSearchTerm(''); setSelectedCategory('todos'); }}
                   className="px-6 py-3 bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 text-sm font-bold uppercase tracking-widest rounded-xl hover:bg-indigo-600 dark:hover:bg-indigo-500 hover:text-white transition-colors"
                 >
                   Limpiar todos los filtros

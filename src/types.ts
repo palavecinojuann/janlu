@@ -112,6 +112,8 @@ export interface RawMaterial {
   linkedProductId?: string;
 }
 
+export type CatalogBranch = 'vela' | 'insumo';
+
 export interface Product {
   id: string;
   name: string;
@@ -124,6 +126,7 @@ export interface Product {
   isCustom?: boolean; // If true, requires custom manufacturing
   sortOrder?: number; // Optional order for catalog display
   customNote?: string; // Optional custom note to override global product modal notice
+  catalogType?: CatalogBranch;
   createdAt: string;
   updatedAt: string;
 }

@@ -26,6 +26,7 @@ export default function ProductForm({ product, rawMaterials, onSave, onCancel }:
     variants: [],
     showInCatalog: true,
     customNote: '',
+    catalogType: 'vela',
   });
 
   const [isAddingNewCategory, setIsAddingNewCategory] = useState(false);
@@ -45,6 +46,7 @@ export default function ProductForm({ product, rawMaterials, onSave, onCancel }:
         })) || [],
         showInCatalog: product.showInCatalog ?? true,
         customNote: product.customNote || '',
+        catalogType: product.catalogType || 'vela',
       });
       if (product.category && !PREDEFINED_CATEGORIES.includes(product.category)) {
         setIsAddingNewCategory(true);
@@ -71,7 +73,7 @@ export default function ProductForm({ product, rawMaterials, onSave, onCancel }:
     }
   }, [product]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     if (type === 'checkbox') {
       const checked = (e.target as HTMLInputElement).checked;
@@ -278,6 +280,20 @@ export default function ProductForm({ product, rawMaterials, onSave, onCancel }:
                   className="w-full px-4 py-2 border border-stone-200 dark:border-stone-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-shadow bg-white dark:bg-stone-950 text-stone-900 dark:text-stone-100"
                   placeholder="Ej: Vela Aromática Vainilla"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">Destino de Catálogo (Rama) *</label>
+                <select
+                  name="catalogType"
+                  required
+                  value={formData.catalogType || 'vela'}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2 border border-stone-200 dark:border-stone-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-shadow bg-white dark:bg-stone-950 text-stone-900 dark:text-stone-100"
+                >
+                  <option value="vela">Velas & Decoración</option>
+                  <option value="insumo">Insumos & Materia Prima</option>
+                </select>
               </div>
               
               <div>
