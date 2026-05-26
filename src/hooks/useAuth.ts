@@ -18,6 +18,28 @@ export function useAuth() {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
       if (user) {
+        const userEmail = user.email ? user.email.toLowerCase().trim() : '';
+        let resolvedIsAdmin = false;
+
+        // TAREA 1: Normalización de entrada y consulta dinámica a la lista blanca
+        if (userEmail) {
+          if (userEmail === 'palavecinojuann@gmail.com') {
+            resolvedIsAdmin = true;
+          } else {
+            try {
+              const preAuthSnap = await getDoc(doc(db, 'preAuthorizedAdmins', userEmail));
+              if (preAuthSnap.exists()) {
+                resolvedIsAdmin = true;
+              }
+            } catch (e) {
+              // TAREA 1: Sanitización de permisos (captura silenciosa)
+              resolvedIsAdmin = false;
+            }
+          }
+        }
+
+        setIsAdmin(resolvedIsAdmin);
+
         const userRef = doc(db, 'users', user.uid);
         unsubUserDoc = onSnapshot(userRef, async (docSnap) => {
           if (docSnap.exists()) {
@@ -25,75 +47,59 @@ export function useAuth() {
             let role = userData.role;
             let finalUserProfile = { ...userData } as UserProfile;
 
-            // Si ya existe pero no es admin, comprobamos si fue pre-autorizado por las dudas
-            if (role !== 'admin' && role !== 'superadmin' && role !== 'collaborator' && user.email) {
+            // Sincronizar rol de administrador en base de datos si es necesario
+            if (resolvedIsAdmin && role !== 'admin' && role !== 'superadmin' && role !== 'collaborator') {
               try {
-                const exactEmail = user.email.trim();
-                const lowerEmail = user.email.toLowerCase().trim();
-                
-                let preAuthRole = null;
-                const exactSnap = await getDoc(doc(db, 'preAuthorizedAdmins', exactEmail));
-                if (exactSnap.exists()) preAuthRole = exactSnap.data().role || 'admin';
-                
-                if (!preAuthRole && lowerEmail !== exactEmail) {
-                  const lowerSnap = await getDoc(doc(db, 'preAuthorizedAdmins', lowerEmail));
-                  if (lowerSnap.exists()) preAuthRole = lowerSnap.data().role || 'admin';
+                let preAuthRole: any = 'admin';
+                if (userEmail !== 'palavecinojuann@gmail.com') {
+                  const preAuthSnap = await getDoc(doc(db, 'preAuthorizedAdmins', userEmail));
+                  if (preAuthSnap.exists()) {
+                    preAuthRole = preAuthSnap.data().role || 'admin';
+                  }
+                } else {
+                  preAuthRole = 'superadmin';
                 }
-
-                if (preAuthRole) {
-                  role = preAuthRole;
-                  await setDoc(userRef, { role: preAuthRole }, { merge: true });
-                  finalUserProfile.role = preAuthRole;
-                }
+                role = preAuthRole;
+                await setDoc(userRef, { role: preAuthRole }, { merge: true });
+                finalUserProfile.role = preAuthRole;
               } catch (e) {
-                console.warn("Could not check preAuthorizedAdmins for existing user:", e);
+                console.warn("Could not check/sync preAuthorizedAdmins role for existing user:", e);
               }
             }
 
-            setIsAdmin(role === 'admin' || role === 'superadmin' || role === 'collaborator');
+            setIsAdmin(resolvedIsAdmin);
             setUserProfile(finalUserProfile);
           } else {
-            // Si no está en users, buscamos en preAuthorizedAdmins por su email
-            if (user.email) {
+            // Si no está en users, y es admin pre-autorizado, creamos el perfil oficial
+            if (resolvedIsAdmin && userEmail) {
               try {
-                const exactEmail = user.email.trim();
-                const lowerEmail = user.email.toLowerCase().trim();
-                
-                let preAuthRole = null;
-                const exactSnap = await getDoc(doc(db, 'preAuthorizedAdmins', exactEmail));
-                if (exactSnap.exists()) preAuthRole = exactSnap.data().role || 'admin';
-                
-                if (!preAuthRole && lowerEmail !== exactEmail) {
-                  const lowerSnap = await getDoc(doc(db, 'preAuthorizedAdmins', lowerEmail));
-                  if (lowerSnap.exists()) preAuthRole = lowerSnap.data().role || 'admin';
-                }
-
-                if (preAuthRole) {
-                  setIsAdmin(preAuthRole === 'admin' || preAuthRole === 'superadmin');
-                  
-                  // Creamos el perfil de usuario oficial
-                  const newUser = {
-                    id: user.uid,
-                    uid: user.uid,
-                    email: user.email,
-                    role: preAuthRole,
-                    createdAt: new Date().toISOString(),
-                    name: user.displayName || 'Administrador',
-                    level: 'bronce',
-                    referralCode: `JANLU-${user.uid.substring(0, 4).toUpperCase()}`,
-                    referralPoints: 0,
-                    joinedAt: new Date().toISOString()
-                  };
-                  await setDoc(userRef, newUser);
+                let preAuthRole: any = 'admin';
+                if (userEmail !== 'palavecinojuann@gmail.com') {
+                  const preAuthSnap = await getDoc(doc(db, 'preAuthorizedAdmins', userEmail));
+                  if (preAuthSnap.exists()) {
+                    preAuthRole = preAuthSnap.data().role || 'admin';
+                  }
                 } else {
-                  setIsAdmin(false);
+                  preAuthRole = 'superadmin';
                 }
+                
+                // Creamos el perfil de usuario oficial
+                const newUser = {
+                  id: user.uid,
+                  uid: user.uid,
+                  email: user.email,
+                  role: preAuthRole,
+                  createdAt: new Date().toISOString(),
+                  name: user.displayName || 'Administrador',
+                  level: 'bronce',
+                  referralCode: `JANLU-${user.uid.substring(0, 4).toUpperCase()}`,
+                  referralPoints: 0,
+                  joinedAt: new Date().toISOString()
+                };
+                await setDoc(userRef, newUser);
               } catch (e) {
-                console.warn("Could not check preAuthorizedAdmins for new user:", e);
-                setIsAdmin(false);
+                console.warn("Could not check/sync preAuthorizedAdmins role for new user:", e);
               }
-            } else {
-              setIsAdmin(false);
             }
           }
           setIsAuthReady(true);

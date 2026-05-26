@@ -10,7 +10,7 @@ const db = getFirestore();
  * Escucha la creación de una orden en /sales y descuenta variantes de stock
  * e insumos de materias primas de forma atómica en el servidor.
  */
-export const updateStockOnSale = onDocumentCreated("sales/{saleId}", async (event) => {
+export const updateStockOnSale = onDocumentCreated("sales/{saleId}", async (event: any) => {
   const snapshot = event.data;
   if (!snapshot) {
     console.log("[JANLU] No se encontraron datos en el snapshot.");
@@ -24,7 +24,7 @@ export const updateStockOnSale = onDocumentCreated("sales/{saleId}", async (even
 
   try {
     // 👑 EJECUCIÓN ATÓMICA CON TRANSACCIÓN
-    await db.runTransaction(async (transaction) => {
+    await db.runTransaction(async (transaction: any) => {
       for (const item of items) {
         // 0️⃣ VERIFICACIÓN DE WORKSHOP / CURSO
         if (item.isCourse || item.courseId) {
