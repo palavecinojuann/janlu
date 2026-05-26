@@ -26,6 +26,32 @@ export const updateStockOnSale = onDocumentCreated("sales/{saleId}", async (even
     // 👑 EJECUCIÓN ATÓMICA CON TRANSACCIÓN
     await db.runTransaction(async (transaction) => {
       for (const item of items) {
+        // 0️⃣ VERIFICACIÓN DE WORKSHOP / CURSO
+        if (item.isCourse || item.courseId) {
+          const courseId = item.courseId || item.productId;
+          const courseRef = db.collection("courses").doc(courseId);
+          const courseDoc = await transaction.get(courseRef);
+
+          if (!courseDoc.exists) {
+            console.warn(`[JANLU] El curso/workshop ${courseId} no existe en la base de datos.`);
+            continue;
+          }
+
+          const course = courseDoc.data();
+          const currentEnrolled = course?.enrolledCount || 0;
+          const maxQuota = course?.maxQuota || 0;
+          const targetQuantity = item.quantity || 0;
+
+          if (currentEnrolled + targetQuantity > maxQuota) {
+            throw new Error(`Cupo insuficiente para el workshop/curso: ${course?.title || item.productName}. Quedan ${maxQuota - currentEnrolled} cupos disponibles.`);
+          }
+
+          transaction.update(courseRef, {
+            enrolledCount: currentEnrolled + targetQuantity
+          });
+          continue;
+        }
+
         if (!item.productId) continue;
 
         const productRef = db.collection("products").doc(item.productId);

@@ -922,40 +922,7 @@ export function useInventoryOperations(
     try {
       const batch = writeBatch(db);
       batch.set(doc(db, 'sales', newSale.id), cleanObject(newSale));
-
-      // 🚀 AUTO-DESCUENTO DEL STOCK PÚBLICO (Previene sobre-ventas en la web en tiempo real)
-      saleData.items.forEach(item => {
-        const product = products.find(p => p.id === item.productId);
-        if (product) {
-          const updatedVariants = product.variants.map(v => {
-            if (v.id === item.variantId) {
-              // Restamos la cantidad vendida del stock estático y evitamos números negativos
-              return { ...v, stock: Math.max(0, (v.stock || 0) - item.quantity) };
-            }
-            return v;
-          });
-          
-          // Agregamos la actualización del producto al mismo batch de la venta
-          batch.set(doc(db, 'products', product.id), { ...product, variants: updatedVariants }, { merge: true });
-        }
-      });
-
-      // 🚀 AUTO-DESCUENTO DE CUPOS EN WORKSHOPS (Sincroniza inscriptos en tiempo real)
-      if (newSale.status !== 'cancelado') {
-        newSale.items.forEach(item => {
-          if (item.isCourse && item.courseId) {
-            batch.set(
-              doc(db, 'courses', item.courseId),
-              { enrolledCount: increment(item.quantity) },
-              { merge: true }
-            );
-          }
-        });
-      }
-
       await batch.commit();
-
-      if (newSale.status !== 'cancelado') await commitStock(newSale.items);
       return newSale.id;
     } catch (error) { handleFirestoreError(error, OperationType.WRITE, 'sales'); }
   };
