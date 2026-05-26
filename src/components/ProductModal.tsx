@@ -169,7 +169,7 @@ export default function ProductModal({
                 >
                   {allImages.map((img, idx) => (
                     <img
-                      key={idx}
+                      key={img}
                       src={img}
                       alt={`${product.name} - Imagen ${idx + 1}`}
                       className={`w-full h-full flex-shrink-0 object-contain md:object-cover object-center bg-stone-50 ${isOutOfStock ? 'grayscale' : ''}`}
@@ -199,9 +199,9 @@ export default function ProductModal({
                       <ChevronRight size={20} />
                     </button>
                     <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 z-10">
-                      {allImages.map((_, idx) => (
+                      {allImages.map((img, idx) => (
                         <button
-                          key={idx}
+                          key={img}
                           onClick={(e) => {
                             e.stopPropagation();
                             setCurrentImageIndex(idx);
@@ -219,13 +219,13 @@ export default function ProductModal({
               </>
             )}
 
-            {isOutOfStock && (
+            {isOutOfStock ? (
               <div className="absolute inset-0 bg-white/40 flex items-center justify-center backdrop-blur-[2px]">
                 <span className="bg-white text-stone-900 text-sm font-bold px-8 py-4 uppercase tracking-[0.2em] border border-stone-900 shadow-xl">
                   Agotado
                 </span>
               </div>
-            )}
+            ) : null}
           </div>
 
           {/* 📝 COLUMNA DERECHA (TEXTO): 50% exacto en PC, sin scrolls internos */}
@@ -242,31 +242,31 @@ export default function ProductModal({
                 <div className="flex items-baseline gap-4">
                   <span className="text-3xl md:text-4xl font-bold text-stone-900 tracking-tight">
                     {formatCurrency(currentPrice)}
-                    {quantityInCart > 1 && <span className="text-sm font-medium text-stone-400 ml-2">c/u</span>}
+                    {quantityInCart > 1 ? <span className="text-sm font-medium text-stone-400 ml-2">c/u</span> : null}
                   </span>
-                  {hasDiscount && (
+                  {hasDiscount ? (
                     <span className="text-xl text-stone-300 line-through font-light">
                       {formatCurrency(originalPrice)}
                     </span>
-                  )}
+                  ) : null}
                 </div>
                 <p className="text-[10px] uppercase tracking-widest font-bold text-stone-400">
                   Precio sin impuestos {formatCurrency(currentPrice * 0.82)}
                 </p>
 
-                {quantityInCart > 1 && (
+                {quantityInCart > 1 ? (
                   <div className="mt-4 inline-flex items-center gap-2 bg-stone-900 px-4 py-2 rounded-xl">
                     <span className="text-xs font-bold text-stone-300 uppercase tracking-widest">Total:</span>
                     <span className="text-lg font-bold text-white tracking-tight">
                       {formatCurrency(currentPrice * quantityInCart)}
                     </span>
                   </div>
-                )}
+                ) : null}
               </div>
 
-              {(cashDiscount > 0 || installmentsCount > 0) && (
+              {(cashDiscount > 0 || installmentsCount > 0) ? (
                 <div className="mt-6 space-y-3 bg-stone-50 p-4 rounded-2xl border border-stone-100">
-                  {cashDiscount > 0 && (
+                  {cashDiscount > 0 ? (
                     <div>
                       <p className="text-lg md:text-xl font-bold text-rose-600 flex items-center gap-2">
                         {formatCurrency(cashPrice * (quantityInCart > 0 ? quantityInCart : 1))} <span className="text-xs font-medium uppercase tracking-widest">en Efectivo</span>
@@ -275,7 +275,7 @@ export default function ProductModal({
                         {cashDiscount}% de descuento pagando en billete físico
                       </p>
                     </div>
-                  )}
+                  ) : null}
 
                   {installmentsCount > 0 ? (
                     <div className={`${cashDiscount > 0 ? 'pt-3 border-t border-stone-200/60' : ''}`}>
@@ -285,7 +285,7 @@ export default function ProductModal({
                     </div>
                   ) : null}
                 </div>
-              )}
+              ) : null}
 
               {product.description ? (
                 <div className="mt-8 pt-8 border-t border-stone-100">
@@ -364,11 +364,11 @@ export default function ProductModal({
                       </button>
                     </div>
 
-                    {!isOutOfStock && localVariant && (
+                    {!isOutOfStock && localVariant ? (
                       <span className="text-[11px] sm:text-[10px] text-stone-400 font-bold uppercase tracking-widest text-center mt-1">
                         {getVariantStock(localVariant, rawMaterials)} disponibles
                       </span>
-                    )}
+                    ) : null}
                   </div>
 
                   {/* Botón de Agregar */}
@@ -389,7 +389,7 @@ export default function ProductModal({
               </div>
 
               {/* Notas del producto */}
-              {(product.customNote || storeSettings?.productModalNotice) && (
+              {(product.customNote || storeSettings?.productModalNotice) ? (
                 <div className="mt-8 pt-6 border-t border-stone-100 bg-stone-50/50 -mx-6 sm:-mx-8 md:-mx-10 px-6 sm:px-8 md:px-10 -mb-6 sm:-mb-8 md:-mb-10 pb-6 sm:pb-8 md:pb-10">
                   <div className="flex gap-3 text-stone-500 max-w-md">
                     <Info size={16} className="shrink-0 mt-0.5" />
@@ -398,7 +398,7 @@ export default function ProductModal({
                     </p>
                   </div>
                 </div>
-              )}
+              ) : null}
             </div>
           </div>
         </div>

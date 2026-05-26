@@ -189,22 +189,22 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({
     >
       <div className="aspect-[3/4] bg-stone-50 relative overflow-hidden mb-4">
         {/* Etiqueta de Edición Limitada (Si pertenece a una campaña activa) */}
-        {activeCampaign && (
+        {activeCampaign ? (
           <div className="absolute top-3 left-3 z-20">
             <span className="bg-stone-950 text-stone-100 text-[7px] sm:text-[8px] font-medium uppercase tracking-[0.3em] px-3 py-1.5 shadow-sm">
               Edición Limitada
             </span>
           </div>
-        )}
+        ) : null}
 
         {/* Overlay Elegante de Agotado */}
-        {isOutOfStock && (
+        {isOutOfStock ? (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-stone-100/30 backdrop-blur-[2px] transition-all duration-300">
             <span className="bg-white/95 text-stone-900 text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.4em] px-6 py-2.5 shadow-sm border border-stone-200/50">
               Agotado
             </span>
           </div>
-        )}
+        ) : null}
         <button 
           onClick={onToggleFavorite}
           className="absolute top-3 right-3 z-20 p-2 rounded-full bg-white/60 backdrop-blur-md hover:bg-white transition-all duration-300 shadow-sm"
@@ -228,21 +228,21 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({
           </div>
         )}
         
-        {(productOffers.length > 0 || activeCampaign) && (
+        {(productOffers.length > 0 || activeCampaign) ? (
           <div className={`absolute ${isAdminMode ? 'top-12' : 'top-3'} right-3 bg-stone-900 px-2 py-1 text-[10px] uppercase tracking-widest text-white z-10`}>
             {productOffers.length > 0 
               ? (productOffers[0].type === 'discount' && productOffers[0].discountPercentage ? `${productOffers[0].discountPercentage}% OFF` : productOffers[0].title)
               : `${activeCampaign?.discount}% OFF`}
           </div>
-        )}
+        ) : null}
 
-        {isAdminMode && !product.showInCatalog && (
+        {isAdminMode && !product.showInCatalog ? (
           <div className="absolute top-12 right-3 bg-stone-900/80 backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold text-white shadow-sm uppercase tracking-widest">
             Oculto
           </div>
-        )}
+        ) : null}
 
-        {isAdminMode && (
+        {isAdminMode ? (
           <div className="absolute top-3 left-3 flex gap-2">
             <button 
               onClick={(e) => { e.stopPropagation(); onEdit(product); }}
@@ -251,7 +251,7 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({
             >
               <Edit2 size={16} />
             </button>
-            {onDelete && (
+            {onDelete ? (
               <button 
                 onClick={(e) => { 
                   e.stopPropagation(); 
@@ -262,9 +262,9 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({
               >
                 <Trash2 size={16} />
               </button>
-            )}
+            ) : null}
           </div>
-        )}
+        ) : null}
 
       {/* ✨ BARRA DE COMPRA RÁPIDA (Optimizada para Móvil y PC) */}
         {!isOutOfStock ? (
@@ -522,14 +522,14 @@ const PublicCampaignBanner = ({ campaign, onScrollToProducts }: { campaign: Camp
         <span className="font-bold">{timeLeft}</span>
       </div>
 
-      {onScrollToProducts && (
+      {onScrollToProducts ? (
         <button 
           onClick={onScrollToProducts}
           className="hidden sm:flex items-center gap-2 bg-white text-stone-900 px-4 py-1.5 rounded-full text-[10px] font-bold tracking-widest uppercase hover:bg-stone-200 transition-colors shadow-sm ml-4"
         >
           Aprovechar <ArrowRightLeft size={12} className="rotate-90" />
         </button>
-      )}
+      ) : null}
     </div>
   );
 };
@@ -1355,11 +1355,11 @@ export default function PublicCatalog({
             {/* Logo */}
             <div className="flex-shrink-0 flex items-center cursor-pointer" onClick={() => handleNavigation('inicio')}>
               <h1 className="text-3xl font-cinzel font-bold text-white tracking-tight">JANLU</h1>
-              {isAdminMode && (
+              {isAdminMode ? (
                 <span className="ml-2 px-2 py-0.5 bg-stone-100 text-stone-500 text-[10px] uppercase tracking-widest rounded-full">
                   Admin
                 </span>
-              )}
+              ) : null}
             </div>
 
             {/* Desktop Navigation */}
@@ -1388,7 +1388,7 @@ export default function PublicCatalog({
             
             {/* Actions */}
             <div className="flex items-center space-x-3 sm:space-x-6">
-              {isAdmin && (
+              {isAdmin ? (
                 <button 
                   onClick={() => setIsAdminMode(!isAdminMode)}
                   className={`flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all ${
@@ -1401,8 +1401,8 @@ export default function PublicCatalog({
                   <Shield size={12} />
                   <span className="hidden sm:inline">{isAdminMode ? 'Admin On' : 'Admin Off'}</span>
                 </button>
-              )}
-              {onBackToAdmin && (
+              ) : null}
+              {onBackToAdmin ? (
                 <button 
                   onClick={onBackToAdmin}
                   className="flex items-center gap-1.5 text-stone-500 hover:text-stone-900 transition-colors"
@@ -1413,17 +1413,17 @@ export default function PublicCatalog({
                     {isAdmin ? "Dashboard" : "Salir"}
                   </span>
                 </button>
-              )}
+              ) : null}
               <button 
                 onClick={() => setIsCartOpen(true)}
                 className="relative text-white hover:text-stone-200 transition-colors ml-2 mr-4 sm:mr-6"
               >
                 <ShoppingBag size={20} strokeWidth={1.5} />
-                {cartItemsCount > 0 && (
+                {cartItemsCount > 0 ? (
                   <span className="absolute -top-1.5 -right-1.5 bg-stone-900 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
                     {cartItemsCount}
                   </span>
-                )}
+                ) : null}
               </button>
             </div>
           </div>
@@ -1431,7 +1431,7 @@ export default function PublicCatalog({
           {/* Mobile Navigation (Transparente) */}
           <div className="md:hidden border-t border-white/10 overflow-x-auto hide-scrollbar">
             <nav className="flex items-center px-4 py-3 space-x-6 min-w-max">
-              {isAdmin && onBackToAdmin && (
+              {isAdmin && onBackToAdmin ? (
                 <button
                   onClick={onBackToAdmin}
                   className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] transition-all py-1 text-white font-bold"
@@ -1439,7 +1439,7 @@ export default function PublicCatalog({
                   <LayoutDashboard size={12} />
                   Dashboard
                 </button>
-              )}
+              ) : null}
               {[
                 { id: 'inicio', label: 'Inicio' },
                 { id: 'productos', label: 'Productos' },
@@ -1468,14 +1468,14 @@ export default function PublicCatalog({
         <ErrorBoundary>
 
 
-        {activeTab === 'inicio' && (
+        {activeTab === 'inicio' ? (
           <>
             {/* Hero Carousel */}
-            {heroSlides.length > 0 && (
+            {heroSlides.length > 0 ? (
               <div className="relative w-full h-[65vh] sm:h-[85vh] overflow-hidden bg-stone-950">
                 {heroSlides.map((slide, index) => (
                   <div
-                    key={index}
+                    key={typeof slide === 'string' ? slide : (slide.id || index.toString())}
                     className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
                       index === currentSlide ? 'opacity-100 z-10' : 'opacity-0 z-0'
                     }`}
@@ -1516,9 +1516,9 @@ export default function PublicCatalog({
 
                 {/* Indicadores de diapositiva (Dots) */}
                 <div className="absolute bottom-6 left-0 right-0 z-20 flex justify-center gap-3">
-                  {heroSlides.map((_, index) => (
+                  {heroSlides.map((slide, index) => (
                     <button
-                      key={index}
+                      key={typeof slide === 'string' ? slide : (slide.id || index.toString())}
                       onClick={() => setCurrentSlide(index)}
                       className={`transition-all duration-500 rounded-full ${
                         index === currentSlide 
@@ -1530,7 +1530,7 @@ export default function PublicCatalog({
                   ))}
                 </div>
               </div>
-            )}
+            ) : null}
 
         {/* Buscador Minimalista con Vista Previa Overlay */}
         <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 mt-10 mb-8 z-50 relative">
@@ -1549,7 +1549,7 @@ export default function PublicCatalog({
               size={20} 
               strokeWidth={1.5}
             />
-            {searchTerm.trim().length > 0 && (
+            {searchTerm.trim().length > 0 ? (
               <button
                 onClick={() => setSearchTerm('')}
                 className="absolute right-4 top-1/2 -translate-y-1/2 p-1.5 text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 bg-stone-100 dark:bg-stone-800 rounded-full transition-colors z-10"
@@ -1557,10 +1557,10 @@ export default function PublicCatalog({
               >
                 <X size={14} />
               </button>
-            )}
+            ) : null}
 
             {/* Panel de Vista Previa Inteligente (Overlay) */}
-            {isSearchFocused && (
+            {isSearchFocused ? (
               <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-stone-900 rounded-2xl shadow-2xl border border-stone-200 dark:border-stone-800 overflow-hidden flex flex-col z-50 animate-in slide-in-from-top-2 fade-in duration-200 max-h-[60vh]">
                 {(() => {
                   const isSearchEmpty = searchTerm.trim().length === 0;
@@ -1627,7 +1627,7 @@ export default function PublicCatalog({
                       )}
 
                       {/* El botón de 'Ver todos los resultados' solo aparece si el cliente tipeó algo */}
-                      {!isSearchEmpty && filteredProducts.length > 0 && (
+                      {!isSearchEmpty && filteredProducts.length > 0 ? (
                         <button
                           onClick={() => { 
                             setActiveTab('productos'); 
@@ -1638,12 +1638,12 @@ export default function PublicCatalog({
                         >
                           Ver los {filteredProducts.length} resultados para "{searchTerm}"
                         </button>
-                      )}
+                      ) : null}
                     </>
                   );
                 })()}
               </div>
-            )}
+            ) : null}
           </div>
         </div>
 
@@ -1671,7 +1671,7 @@ export default function PublicCatalog({
         </div>
 
         {/* Banner de Ofertas Alta Gama - Alto Contraste con Live Dot */}
-        {activeOffers.length > 0 && (
+        {activeOffers.length > 0 ? (
           <div className="w-full bg-stone-950 border-y border-stone-800 py-3 sm:py-3.5 shadow-md z-40 relative">
             <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-6">
                <div className="flex items-center gap-3">
@@ -1693,7 +1693,7 @@ export default function PublicCatalog({
                </div>
             </div>
           </div>
-        )}
+        ) : null}
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
           {categories.map((cat, index) => {
@@ -1735,9 +1735,9 @@ export default function PublicCatalog({
           })}
         </div>
       </>
-    )}
+    ) : null}
 
-        {activeTab === 'productos' && (
+        {activeTab === 'productos' ? (
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
             {/* Selector de Rama del Catálogo (Velas & Decoración vs Insumos & Materia Prima) */}
             <div className="flex justify-center border-b border-stone-200 dark:border-stone-800 mb-12 max-w-lg mx-auto">
@@ -1754,9 +1754,9 @@ export default function PublicCatalog({
                 }`}
               >
                 Velas & Decoración
-                {activeBranch === 'vela' && (
+                {activeBranch === 'vela' ? (
                   <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#8B735B]" />
-                )}
+                ) : null}
               </button>
               <button
                 onClick={() => {
@@ -1771,9 +1771,9 @@ export default function PublicCatalog({
                 }`}
               >
                 Insumos & Materia Prima
-                {activeBranch === 'insumo' && (
+                {activeBranch === 'insumo' ? (
                   <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#8B735B]" />
-                )}
+                ) : null}
               </button>
             </div>
 
@@ -1801,7 +1801,7 @@ export default function PublicCatalog({
               </div>
             </div>
 
-            {isAdminMode && onAddProduct && (
+            {isAdminMode && onAddProduct ? (
               <div className="mb-8 flex justify-end">
                 <button
                   onClick={() => setIsAddingProduct(true)}
@@ -1810,7 +1810,7 @@ export default function PublicCatalog({
                   Nuevo Producto
                 </button>
               </div>
-            )}
+            ) : null}
 
             <div ref={productsGridRef} className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 sm:gap-x-6 gap-y-10 sm:gap-y-12 py-4">
               {filteredProducts.map((product) => (
@@ -1840,7 +1840,7 @@ export default function PublicCatalog({
               ))}
             </div>
             
-            {filteredProducts.length === 0 && (
+            {filteredProducts.length === 0 ? (
               <div className="col-span-full py-20 flex flex-col items-center justify-center text-center animate-in fade-in zoom-in duration-300">
                 <div className="w-20 h-20 bg-stone-100 dark:bg-stone-800 rounded-full flex items-center justify-center mb-6">
                   <Search size={32} className="text-stone-300 dark:text-stone-600" />
@@ -1858,11 +1858,11 @@ export default function PublicCatalog({
                   Limpiar todos los filtros
                 </button>
               </div>
-            )}
+            ) : null}
           </div>
-        )}
+        ) : null}
 
-        {activeTab === 'workshops' && (
+        {activeTab === 'workshops' ? (
           <div className="max-w-7xl mx-auto px-4 py-12 animate-in fade-in duration-500">
             <div className="text-center mb-16">
               <h2 className="text-3xl sm:text-4xl font-serif text-stone-900 dark:text-white mb-4 tracking-tight">Cursos Janlu</h2>
@@ -1934,7 +1934,7 @@ export default function PublicCatalog({
                           </button>
 
                           {/* Contenido Expandible */}
-                          {expandedCourseId === course.id && (
+                          {expandedCourseId === course.id ? (
                             <div className="mt-4 text-sm text-stone-500 dark:text-stone-400 animate-in slide-in-from-top-2 fade-in duration-200">
                               <ul className="space-y-3">
                                 {course.syllabus && course.syllabus.length > 0 ? (
@@ -1951,7 +1951,7 @@ export default function PublicCatalog({
                                 )}
                               </ul>
                             </div>
-                          )}
+                          ) : null}
                         </div>
 
                         {/* Footer de Precio y Acción */}
@@ -1992,9 +1992,9 @@ export default function PublicCatalog({
               </div>
             )}
           </div>
-        )}
+        ) : null}
 
-        {activeTab === 'mayorista' && (
+        {activeTab === 'mayorista' ? (
           <div className="max-w-3xl mx-auto px-4 py-20 text-center">
             <h2 className="text-4xl font-serif text-stone-900 mb-6">Ventas Mayoristas</h2>
             <div className="h-px w-20 bg-stone-900 mx-auto mb-8"></div>
@@ -2016,9 +2016,9 @@ export default function PublicCatalog({
               Consultar por WhatsApp
             </a>
           </div>
-        )}
+        ) : null}
 
-        {activeTab === 'politicas' && (
+        {activeTab === 'politicas' ? (
           <div className="max-w-4xl mx-auto px-4 py-20">
             <h2 className="text-4xl font-serif text-stone-900 mb-12 text-center">Nuestras Políticas</h2>
             
@@ -2054,9 +2054,9 @@ export default function PublicCatalog({
               </div>
             </div>
           </div>
-        )}
+        ) : null}
 
-        {activeTab === 'contacto' && (
+        {activeTab === 'contacto' ? (
           <div className="max-w-5xl mx-auto px-4 py-20">
             <div className="grid md:grid-cols-2 gap-16 items-center">
               <div>
@@ -2099,21 +2099,21 @@ export default function PublicCatalog({
                 </div>
 
                 <div className="mt-12 flex gap-4">
-                  {storeSettings?.email && (
+                  {storeSettings?.email ? (
                     <a href={`mailto:${storeSettings.email}`} className="w-12 h-12 bg-stone-900 text-white rounded-full flex items-center justify-center hover:scale-110 transition-transform">
                       <Mail size={20} />
                     </a>
-                  )}
-                  {storeSettings?.instagramUrl && (
+                  ) : null}
+                  {storeSettings?.instagramUrl ? (
                     <a href={getSocialLink('instagram', storeSettings.instagramUrl)} target="_blank" rel="noopener noreferrer" className="w-12 h-12 bg-stone-900 text-white rounded-full flex items-center justify-center hover:scale-110 transition-transform">
                       <Instagram size={20} />
                     </a>
-                  )}
-                  {storeSettings?.facebookUrl && (
+                  ) : null}
+                  {storeSettings?.facebookUrl ? (
                     <a href={getSocialLink('facebook', storeSettings.facebookUrl)} target="_blank" rel="noopener noreferrer" className="w-12 h-12 bg-stone-900 text-white rounded-full flex items-center justify-center hover:scale-110 transition-transform">
                       <Facebook size={20} />
                     </a>
-                  )}
+                  ) : null}
                 </div>
               </div>
               
@@ -2132,7 +2132,7 @@ export default function PublicCatalog({
               </div>
             </div>
           </div>
-        )}
+        ) : null}
 
         </ErrorBoundary>
       </main>
@@ -2221,7 +2221,7 @@ export default function PublicCatalog({
       </footer>
 
       {/* Admin Modals */}
-      {isAdminMode && (isAddingProduct || editingProduct) && (
+      {isAdminMode && (isAddingProduct || editingProduct) ? (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white dark:bg-stone-950 rounded-3xl shadow-2xl w-full max-w-4xl my-8 relative">
             <button 
@@ -2251,7 +2251,7 @@ export default function PublicCatalog({
             </div>
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* 🛒 CARRITO DE COMPRAS (PREMIUM DRAWER) */}
       <div 
@@ -2445,13 +2445,13 @@ export default function PublicCatalog({
                         {isValidatingCoupon ? 'Validando...' : 'Aplicar'}
                       </button>
                     </div>
-                    {checkoutError && <p className="text-rose-500 text-[10px] uppercase tracking-widest mt-3 font-medium">{checkoutError}</p>}
-                    {appliedCoupon && (
+                    {checkoutError ? <p className="text-rose-500 text-[10px] uppercase tracking-widest mt-3 font-medium">{checkoutError}</p> : null}
+                    {appliedCoupon ? (
                       <div className="flex items-center gap-2 mt-3 text-emerald-600 text-[10px] uppercase tracking-widest font-bold">
                         <CheckCircle size={14} />
                         <span>Cupón {appliedCoupon.code} aplicado ({appliedCoupon.discount}% OFF)</span>
                       </div>
-                    )}
+                    ) : null}
                   </div>
                 </div>
               )
@@ -2507,12 +2507,12 @@ export default function PublicCatalog({
                       <span className="text-xs font-bold uppercase tracking-wider text-center">Envío</span>
                     </button>
                   </div>
-                  {deliveryMethod === 'retiro' && storeSettings?.workshopAddress && (
+                  {deliveryMethod === 'retiro' && storeSettings?.workshopAddress ? (
                     <div className="mt-3 p-4 bg-white border border-stone-200 rounded-xl animate-in fade-in slide-in-from-top-1 duration-300">
                       <p className="text-[10px] text-stone-400 font-bold uppercase tracking-widest mb-1">Dirección de retiro:</p>
                       <p className="text-sm text-stone-900 font-medium">{storeSettings.workshopAddress}</p>
                     </div>
-                  )}
+                  ) : null}
                 </div>
 
                 <div>
@@ -2575,7 +2575,7 @@ export default function PublicCatalog({
                   </div>
                 </div>
 
-                {deliveryMethod === 'envio' && (
+                {deliveryMethod === 'envio' ? (
                   <div className="animate-in fade-in slide-in-from-top-2 duration-300">
                     <label className="block text-[10px] uppercase tracking-[0.2em] font-bold text-stone-500 mb-2">Email *</label>
                     <input
@@ -2586,10 +2586,10 @@ export default function PublicCatalog({
                       placeholder="Ej. juan@email.com"
                     />
                   </div>
-                )}
+                ) : null}
 
                 {/* Banner de Registro */}
-                {!currentUser && (
+                {!currentUser ? (
                   <div className="mt-8 border-t border-stone-200/50 pt-6">
                     <div className={`p-5 rounded-2xl border-2 transition-all duration-300 ${
                       isRegistering 
@@ -2620,7 +2620,7 @@ export default function PublicCatalog({
                         </div>
                       </div>
 
-                      {isRegistering && (
+                      {isRegistering ? (
                         <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-4 duration-500">
                           <div className="sm:col-span-1">
                             <label className="block text-[9px] font-bold text-stone-400 uppercase tracking-widest mb-1">Nombre *</label>
@@ -2678,10 +2678,10 @@ export default function PublicCatalog({
                             />
                           </div>
                         </div>
-                      )}
+                      ) : null}
                     </div>
                   </div>
-                )}
+                ) : null}
 
                 {checkoutError ? (
                   <div className="p-4 bg-rose-50 text-rose-700 rounded-xl text-sm flex items-start gap-3 border border-rose-100">
@@ -2702,7 +2702,7 @@ export default function PublicCatalog({
                   Gracias por tu compra. Hemos recibido tu pedido y nos pondremos en contacto contigo pronto.
                 </p>
 
-                {whatsappUrl && (
+                {whatsappUrl ? (
                   <div className="w-full max-w-sm space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300">
                     <p className="text-[10px] text-stone-400 uppercase tracking-widest font-bold">Para finalizar el pedido:</p>
                     <a
@@ -2716,9 +2716,9 @@ export default function PublicCatalog({
                     </a>
                     <p className="text-[9px] text-stone-400 italic">Haz clic arriba si WhatsApp no se abrió automáticamente.</p>
                   </div>
-                )}
+                ) : null}
 
-                {generatedCoupon && (
+                {generatedCoupon ? (
                   <div className="bg-stone-950 text-stone-50 p-6 rounded-2xl shadow-xl w-full max-w-sm animate-in zoom-in-95 duration-500">
                     <div className="flex justify-center mb-4 text-amber-400">
                       <Gift size={24} />
@@ -2745,7 +2745,7 @@ export default function PublicCatalog({
                       Válido hasta: {generatedCoupon.expiry}
                     </p>
                   </div>
-                )}
+                ) : null}
 
                 <button
                   onClick={() => {
@@ -2818,7 +2818,7 @@ export default function PublicCatalog({
         </div>
       </div>
 
-      {storeSettings?.whatsappNumber && (
+      {storeSettings?.whatsappNumber ? (
         <a
           href={`https://wa.me/${storeSettings.whatsappNumber?.toString().replace(/\D/g, '')}`}
           target="_blank"
@@ -2828,9 +2828,9 @@ export default function PublicCatalog({
         >
           <Phone size={24} fill="currentColor" className="group-hover:animate-pulse" />
         </a>
-      )}
+      ) : null}
 
-      {selectedProduct && (
+      {selectedProduct ? (
         <ProductModal
           product={selectedProduct}
           isOpen={isModalOpen}
@@ -2845,9 +2845,9 @@ export default function PublicCatalog({
           rawMaterials={rawMaterials}
           storeSettings={storeSettings}
         />
-      )}
+      ) : null}
 
-      {confirmAction && (
+      {confirmAction ? (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-2xl max-w-sm w-full p-6 border border-stone-200 dark:border-stone-800">
             <h3 className="text-xl font-bold text-stone-800 dark:text-stone-100 mb-4">
@@ -2877,7 +2877,7 @@ export default function PublicCatalog({
             </div>
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

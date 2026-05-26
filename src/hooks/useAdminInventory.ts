@@ -29,6 +29,24 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
   const hasFetchedFinance = useRef(false);
   const hasFetchedSimulations = useRef(false);
   const hasFetchedRecentOrders = useRef(false);
+  
+  const adminListenersMounted = useRef(false);
+  const unsubCouponsRef = useRef<(() => void) | null>(null);
+  const unsubCustomersRef = useRef<(() => void) | null>(null);
+  const unsubQuotesRef = useRef<(() => void) | null>(null);
+  const unsubActivitiesRef = useRef<(() => void) | null>(null);
+  const unsubOrdersActiveRef = useRef<(() => void) | null>(null);
+  const unsubSalesRef = useRef<(() => void) | null>(null);
+
+  const cleanupAllListeners = () => {
+    if (unsubCouponsRef.current) { unsubCouponsRef.current(); unsubCouponsRef.current = null; }
+    if (unsubCustomersRef.current) { unsubCustomersRef.current(); unsubCustomersRef.current = null; }
+    if (unsubQuotesRef.current) { unsubQuotesRef.current(); unsubQuotesRef.current = null; }
+    if (unsubActivitiesRef.current) { unsubActivitiesRef.current(); unsubActivitiesRef.current = null; }
+    if (unsubOrdersActiveRef.current) { unsubOrdersActiveRef.current(); unsubOrdersActiveRef.current = null; }
+    if (unsubSalesRef.current) { unsubSalesRef.current(); unsubSalesRef.current = null; }
+    adminListenersMounted.current = false;
+  };
 
   const refresh = () => {
     hasFetchedAuditLogs.current = false;
@@ -60,6 +78,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
       setFinancialDocs([]);
       setAuditLogsLimit(50);
       setHasMoreAuditLogs(false);
+      cleanupAllListeners();
       hasFetchedAuditLogs.current = false;
       hasFetchedUsers.current = false;
       hasFetchedFinance.current = false;
@@ -68,49 +87,58 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
       return;
     }
 
-    // Admin Listeners
-    const unsubCoupons = onSnapshot(query(collection(db, 'coupons')), (snapshot) => {
-      setCoupons(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Coupon)));
-    });
+    // Admin Listeners (se suscriben una única vez por sesión)
+    if (!adminListenersMounted.current) {
+      adminListenersMounted.current = true;
 
-    // Suscripciones con Paginación Estricta para ahorrar lecturas
-    const unsubSales = onSnapshot(query(collection(db, 'sales'), orderBy('date', 'desc'), limit(salesLimit)), (snapshot) => {
+      unsubCouponsRef.current = onSnapshot(query(collection(db, 'coupons')), (snapshot) => {
+        setCoupons(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Coupon)));
+      });
+
+      unsubCustomersRef.current = onSnapshot(query(collection(db, 'customers'), limit(20)), (snapshot) => {
+        setCustomers(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Customer)));
+      }, (e) => handleFirestoreError(e, OperationType.GET, 'customers'));
+
+      unsubQuotesRef.current = onSnapshot(query(collection(db, 'quotes'), orderBy('date', 'desc'), limit(20)), (snapshot) => {
+        setQuotes(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Quote)));
+      }, (e) => handleFirestoreError(e, OperationType.GET, 'quotes'));
+
+      unsubActivitiesRef.current = onSnapshot(query(collection(db, 'activities'), orderBy('createdAt', 'desc'), limit(20)), (snapshot) => {
+        setActivities(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Activity)));
+      }, (e) => handleFirestoreError(e, OperationType.GET, 'activities'));
+
+      unsubOrdersActiveRef.current = onSnapshot(query(collection(db, 'productionOrders'), where('status', '==', 'pending')), (snapshot) => {
+        const activeOrders = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as ProductionOrder));
+        setProductionOrders(prev => {
+          const merged = new Map<string, ProductionOrder>();
+          prev.forEach(o => merged.set(o.id, o));
+          activeOrders.forEach(o => merged.set(o.id, o));
+          return Array.from(merged.values()).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+        });
+      });
+    }
+
+    // Suscripción con Paginación de Ventas (se recrea al cambiar salesLimit o refreshTrigger)
+    if (unsubSalesRef.current) {
+      unsubSalesRef.current();
+    }
+    unsubSalesRef.current = onSnapshot(query(collection(db, 'sales'), orderBy('date', 'desc'), limit(salesLimit)), (snapshot) => {
       const newSales = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Sale));
       setRealtimeSales(newSales);
       setHasMoreSales(snapshot.docs.length === salesLimit);
     }, (e) => handleFirestoreError(e, OperationType.GET, 'sales'));
 
-    const unsubCustomers = onSnapshot(query(collection(db, 'customers'), limit(20)), (snapshot) => {
-      setCustomers(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Customer)));
-    }, (e) => handleFirestoreError(e, OperationType.GET, 'customers'));
-
-    const unsubQuotes = onSnapshot(query(collection(db, 'quotes'), orderBy('date', 'desc'), limit(20)), (snapshot) => {
-      setQuotes(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Quote)));
-    }, (e) => handleFirestoreError(e, OperationType.GET, 'quotes'));
-
-    const unsubActivities = onSnapshot(query(collection(db, 'activities'), orderBy('createdAt', 'desc'), limit(20)), (snapshot) => {
-      setActivities(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Activity)));
-    }, (e) => handleFirestoreError(e, OperationType.GET, 'activities'));
-
-    const unsubOrdersActive = onSnapshot(query(collection(db, 'productionOrders'), where('status', '==', 'pending')), (snapshot) => {
-      const activeOrders = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as ProductionOrder));
-      setProductionOrders(prev => {
-        const merged = new Map<string, ProductionOrder>();
-        prev.forEach(o => merged.set(o.id, o));
-        activeOrders.forEach(o => merged.set(o.id, o));
-        return Array.from(merged.values()).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-      });
-    });
-
     return () => {
-      unsubCoupons();
-      unsubSales();
-      unsubCustomers();
-      unsubQuotes();
-      unsubActivities();
-      unsubOrdersActive();
+      // El desmontaje real lo maneja el efecto dedicado para evitar limpiar suscripciones válidas en renders efímeros
     };
   }, [isAuthReady, isAdmin, refreshTrigger, salesLimit]);
+
+  // Limpieza total de listeners al desmontar el hook de inventario
+  useEffect(() => {
+    return () => {
+      cleanupAllListeners();
+    };
+  }, []);
 
   const loadAuditLogs = async (customLimit?: number) => {
     if (!isAdmin) return;
