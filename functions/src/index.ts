@@ -3,14 +3,19 @@ import { initializeApp } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 
 initializeApp();
-const db = getFirestore();
+const db = getFirestore("ai-studio-19c9ceaa-c323-42fd-a900-048de6612687");
 
 /**
  * 🚀 updateStockOnSale
  * Escucha la creación de una orden en /sales y descuenta variantes de stock
  * e insumos de materias primas de forma atómica en el servidor.
  */
-export const updateStockOnSale = onDocumentCreated("sales/{saleId}", async (event: any) => {
+export const updateStockOnSale = onDocumentCreated(
+  {
+    document: "sales/{saleId}",
+    database: "ai-studio-19c9ceaa-c323-42fd-a900-048de6612687"
+  },
+  async (event: any) => {
   const snapshot = event.data;
   if (!snapshot) {
     console.log("[JANLU] No se encontraron datos en el snapshot.");
