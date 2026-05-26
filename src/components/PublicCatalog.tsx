@@ -267,7 +267,7 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({
         )}
 
       {/* ✨ BARRA DE COMPRA RÁPIDA (Optimizada para Móvil y PC) */}
-        {!isOutOfStock && (
+        {!isOutOfStock ? (
           <div 
             // CAMBIO 1: En móvil fluye normal (relative) para no tapar la foto. En PC (md:absolute) flota encima.
             className="relative md:absolute md:bottom-0 left-0 right-0 p-3 sm:p-4 transition-transform duration-300 ease-out z-20 translate-y-0 md:translate-y-full md:group-hover:translate-y-0 bg-white/95 md:bg-stone-900/10 backdrop-blur-sm md:backdrop-blur-none border-t border-stone-100 md:border-none w-full"
@@ -313,10 +313,10 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({
               </div>
             )}
           </div>
-        )}
+        ) : null}
             
            {/* ✨ BARRA DE COMPRA RÁPIDA (SOLO PC - FLOTA SOBRE LA IMAGEN) */}
-        {!isOutOfStock && (
+        {!isOutOfStock ? (
           <div 
             className="hidden md:block absolute bottom-0 left-0 right-0 p-4 transition-transform duration-300 ease-out z-20 translate-y-full group-hover:translate-y-0 bg-stone-900/10 backdrop-blur-sm w-full"
             onClick={(e) => e.stopPropagation()} 
@@ -341,11 +341,11 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({
               </div>
             )}
           </div>
-        )}
+        ) : null}
       </div> {/* <-- ESTE DIV CIERRA LA IMAGEN, ES VITAL QUE ESTÉ AQUÍ */}
 
       {/* ✨ BARRA DE COMPRA RÁPIDA (SOLO MÓVIL - FLUYE DEBAJO DE LA IMAGEN) */}
-      {!isOutOfStock && (
+      {!isOutOfStock ? (
         <div className="md:hidden w-full px-2 mb-3" onClick={(e) => e.stopPropagation()}>
           {quantityInCart === 0 ? (
             <button
@@ -371,29 +371,29 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({
             Agrega: {localVariant?.name}
           </p>
         </div>
-      )}
+      ) : null}
       
       <div className="flex flex-col flex-1 px-1">
         <h3 className="text-sm sm:text-base font-serif text-stone-900 mb-1 line-clamp-2">{product.name}</h3>
         
         <div className="flex items-center gap-2 mb-1">
-          {hasDiscount && (
+          {hasDiscount ? (
             <span className="text-xs text-stone-400 line-through">
               {formatCurrency(originalPrice)}
             </span>
-          )}
+          ) : null}
           <span className="text-base font-bold text-stone-950">
             {formatCurrency(currentPrice)}
           </span>
         </div>
 
-        {installmentsCount > 0 && (
+        {installmentsCount > 0 ? (
           <div className="text-xs text-stone-600 mb-1">
             {installmentsCount} cuotas {installmentsWithoutInterest ? 'sin interés' : ''} de {formatCurrency(installmentPrice)}
           </div>
-        )}
+        ) : null}
 
-        {product.variants.length > 1 && (
+        {product.variants.length > 1 ? (
           <div className="flex flex-wrap gap-1 mb-3 mt-1" onClick={(e) => e.stopPropagation()}>
             {product.variants.map(v => {
               const currentStock = getVariantStock(v, rawMaterials);
@@ -418,34 +418,34 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({
                   }`}
                 >
                   {v.name}
-                  {variantQuantityInCart > 0 && (
+                  {variantQuantityInCart > 0 ? (
                     <span className="absolute -top-1.5 -right-1.5 bg-stone-900 text-white text-[8px] w-3.5 h-3.5 rounded-full flex items-center justify-center shadow-sm z-10">
                       {variantQuantityInCart}
                     </span>
-                  )}
+                  ) : null}
                 </button>
               );
             })}
           </div>
-        )}
+        ) : null}
 
-        {totalQuantityInCart > 0 && (
+        {totalQuantityInCart > 0 ? (
           <div className="text-[10px] text-stone-500 font-medium mb-2 flex items-center gap-1">
             <span>🛍️</span> {totalQuantityInCart} en tu carrito
           </div>
-        )}
+        ) : null}
 
-        {cashDiscount > 0 && (
+        {cashDiscount > 0 ? (
           <div className="text-sm font-bold text-stone-900 mb-2">
             {formatCurrency(cashPrice)} <span className="font-normal text-xs text-stone-600">en Efectivo</span>
           </div>
-        )}
+        ) : null}
 
-        {isLowStock && !isOutOfStock && (
+        {isLowStock && !isOutOfStock ? (
           <div className="text-[10px] text-rose-600 uppercase tracking-wider mb-2">
             ¡Solo quedan {totalStock} en stock!
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );
