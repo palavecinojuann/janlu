@@ -1,0 +1,12 @@
+# Firebase Functions compile and runtime output
+lib/
+node_modules/
+
+# Local logs
+*.log
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# Local runtime configuration
+.runtimeconfig.json
