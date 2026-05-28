@@ -102,7 +102,7 @@ export default function App() {
     preAuthorizedAdmins, addPreAuth, updatePreAuthRole, removePreAuth,
     auditLogs, clearAuditLogs, storeSettings, isSettingsLoaded, validateCoupon,
     coupons, generateCoupon, updateCoupon, deleteCoupon, addSubscriber,
-    loadAuditLogs, fetchMoreAuditLogs, hasMoreAuditLogs, loadUsersAndPreAuth, loadFinancialDocs, loadSimulations, loadProductionOrders,
+    loadAuditLogs, fetchMoreAuditLogs, hasMoreAuditLogs, loadUsersAndPreAuth, loadFinancialDocs, loadSimulations, loadProductionOrders, loadCoupons,
     exportarCatalogoCSV, exportarInsumosCSV
   } = useInventoryContext();
   
@@ -137,6 +137,9 @@ export default function App() {
       case 'production':
       case 'inventory':
         loadProductionOrders();
+        break;
+      case 'coupon':
+        loadCoupons();
         break;
       default:
         break;

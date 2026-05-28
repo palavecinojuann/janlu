@@ -1,5 +1,6 @@
+import React from 'react';
 import { db } from '../firebase';
-import { doc, setDoc, updateDoc, deleteDoc, writeBatch, runTransaction, increment } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, deleteDoc, writeBatch, runTransaction, increment, collection, query, where, getDocs } from 'firebase/firestore';
 import { v4 as uuidv4 } from 'uuid';
 import { Product, Customer, Sale, Quote, RawMaterial, FinancialDocument, Activity, ProductionOrder, Campaign, Offer, Simulation, Coupon, User, Course, RecipeItem } from '../types';
 import { handleFirestoreError, cleanObject, OperationType } from '../utils/firebaseHelpers';
@@ -20,7 +21,8 @@ export function useInventoryOperations(
   productionOrders: ProductionOrder[],
   auditLogs: any[],
   coupons: Coupon[],
-  storeSettings: any
+  storeSettings: any,
+  setCoupons?: React.Dispatch<React.SetStateAction<Coupon[]>>
 ) {
   const logAction = async (action: string, collectionName: string, documentId: string, newData?: unknown, previousData?: unknown) => {
     if (!currentUser) return;
@@ -772,11 +774,34 @@ export function useInventoryOperations(
     const code = customCode ? `${customCode}-${uuidv4().substring(0, 6).toUpperCase()}` : `VUELVE-${percentage}-${uuidv4().substring(0, 6).toUpperCase()}`;
     const expiresAt = new Date(); expiresAt.setDate(expiresAt.getDate() + 30);
     const newCoupon: Coupon = { id: uuidv4(), code, discountPercentage: percentage, expiresAt: expiresAt.toISOString(), customerId, isUsed: false, createdAt: new Date().toISOString() };
-    try { await setDoc(doc(db, 'coupons', newCoupon.id), cleanObject(newCoupon)); return newCoupon; } catch (error) { handleFirestoreError(error, OperationType.WRITE, 'coupons'); return null; }
+    try {
+      await setDoc(doc(db, 'coupons', newCoupon.id), cleanObject(newCoupon));
+      if (setCoupons) {
+        setCoupons(prev => [...prev, newCoupon]);
+      }
+      return newCoupon;
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'coupons');
+      return null;
+    }
   };
 
   const validateCoupon = async (code: string, customerEmail?: string): Promise<{ valid: boolean; discount?: number; error?: string }> => {
-    const coupon = coupons.find(c => c.code.toUpperCase() === code.trim().toUpperCase());
+    let coupon: Coupon | undefined = undefined;
+    try {
+      const q = query(
+        collection(db, 'coupons'),
+        where('code', '==', code.trim().toUpperCase())
+      );
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        const docSnap = snapshot.docs[0];
+        coupon = { ...docSnap.data(), id: docSnap.id } as Coupon;
+      }
+    } catch (e) {
+      console.error("Error validating coupon: ", e);
+      return { valid: false, error: 'Error al validar el cupón. Intente de nuevo.' };
+    }
 
     if (!coupon) {
       return { valid: false, error: 'Cupón no encontrado o inactivo' };
@@ -1013,10 +1038,24 @@ export function useInventoryOperations(
   };
 
   const updateCoupon = async (updated: Coupon) => {
-    try { await setDoc(doc(db, 'coupons', updated.id), cleanObject(updated)); } catch (error) { handleFirestoreError(error, OperationType.WRITE, 'coupons'); }
+    try {
+      await setDoc(doc(db, 'coupons', updated.id), cleanObject(updated));
+      if (setCoupons) {
+        setCoupons(prev => prev.map(c => c.id === updated.id ? updated : c));
+      }
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'coupons');
+    }
   };
   const deleteCoupon = async (id: string) => {
-    try { await deleteDoc(doc(db, 'coupons', id)); } catch (error) { handleFirestoreError(error, OperationType.DELETE, 'coupons'); }
+    try {
+      await deleteDoc(doc(db, 'coupons', id));
+      if (setCoupons) {
+        setCoupons(prev => prev.filter(c => c.id !== id));
+      }
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, 'coupons');
+    }
   };
 
   const updateUserRole = async (uid: string, newRole: string) => {

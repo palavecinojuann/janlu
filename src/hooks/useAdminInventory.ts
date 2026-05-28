@@ -29,9 +29,9 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
   const hasFetchedFinance = useRef(false);
   const hasFetchedSimulations = useRef(false);
   const hasFetchedRecentOrders = useRef(false);
+  const hasFetchedCoupons = useRef(false);
   
   const adminListenersMounted = useRef(false);
-  const unsubCouponsRef = useRef<(() => void) | null>(null);
   const unsubCustomersRef = useRef<(() => void) | null>(null);
   const unsubQuotesRef = useRef<(() => void) | null>(null);
   const unsubActivitiesRef = useRef<(() => void) | null>(null);
@@ -39,13 +39,13 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
   const unsubSalesRef = useRef<(() => void) | null>(null);
 
   const cleanupAllListeners = () => {
-    if (unsubCouponsRef.current) { unsubCouponsRef.current(); unsubCouponsRef.current = null; }
     if (unsubCustomersRef.current) { unsubCustomersRef.current(); unsubCustomersRef.current = null; }
     if (unsubQuotesRef.current) { unsubQuotesRef.current(); unsubQuotesRef.current = null; }
     if (unsubActivitiesRef.current) { unsubActivitiesRef.current(); unsubActivitiesRef.current = null; }
     if (unsubOrdersActiveRef.current) { unsubOrdersActiveRef.current(); unsubOrdersActiveRef.current = null; }
     if (unsubSalesRef.current) { unsubSalesRef.current(); unsubSalesRef.current = null; }
     adminListenersMounted.current = false;
+    hasFetchedCoupons.current = false;
   };
 
   const refresh = () => {
@@ -54,6 +54,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     hasFetchedFinance.current = false;
     hasFetchedSimulations.current = false;
     hasFetchedRecentOrders.current = false;
+    hasFetchedCoupons.current = false;
     setAuditLogsLimit(50);
     setRefreshTrigger(prev => prev + 1);
   };
@@ -84,16 +85,13 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
       hasFetchedFinance.current = false;
       hasFetchedSimulations.current = false;
       hasFetchedRecentOrders.current = false;
+      hasFetchedCoupons.current = false;
       return;
     }
 
     // Admin Listeners (se suscriben una única vez por sesión)
     if (!adminListenersMounted.current) {
       adminListenersMounted.current = true;
-
-      unsubCouponsRef.current = onSnapshot(query(collection(db, 'coupons')), (snapshot) => {
-        setCoupons(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Coupon)));
-      });
 
       unsubCustomersRef.current = onSnapshot(query(collection(db, 'customers'), limit(20)), (snapshot) => {
         setCustomers(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Customer)));
@@ -158,6 +156,19 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     const nextLimit = auditLogsLimit + 50;
     setAuditLogsLimit(nextLimit);
     loadAuditLogs(nextLimit);
+  };
+
+  const loadCoupons = async () => {
+    if (!isAdmin || hasFetchedCoupons.current) return;
+    hasFetchedCoupons.current = true;
+    try {
+      const couponsSnap = await getDocs(query(collection(db, 'coupons')));
+      setCoupons(couponsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Coupon)));
+      setLastSync(new Date());
+    } catch (e) {
+      console.warn("Error fetching coupons:", e);
+      hasFetchedCoupons.current = false;
+    }
   };
 
   const loadUsersAndPreAuth = async () => {
@@ -533,6 +544,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     auditLogs,
     users,
     coupons,
+    setCoupons,
     financialDocs,
     lastSync,
     refresh,
@@ -545,6 +557,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     loadUsersAndPreAuth,
     loadFinancialDocs,
     loadSimulations,
-    loadProductionOrders
+    loadProductionOrders,
+    loadCoupons
   };
 }

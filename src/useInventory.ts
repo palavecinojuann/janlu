@@ -27,7 +27,8 @@ export function useInventory() {
     adminData.productionOrders,
     adminData.auditLogs,
     adminData.coupons,
-    publicData.storeSettings
+    publicData.storeSettings,
+    adminData.setCoupons
   );
 
   // Retornamos la combinación de todos los módulos para mantener compatibilidad total
