@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Quote } from './types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useInventoryContext } from './contexts/InventoryContext';
 import { auth, db } from './firebase';
 import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, onSnapshot, query, where } from 'firebase/firestore';
 import { 
   LayoutDashboard, 
   Package, 
@@ -118,6 +118,62 @@ export default function App() {
 
   const [showAuth, setShowAuth] = useState(false);
   const [isPublicCatalog, setIsPublicCatalog] = useState(true);
+
+  // Alertas en tiempo real para nuevos pedidos
+  const [activeNewSales, setActiveNewSales] = useState<string[]>([]);
+  const [seenSales, setSeenSales] = useState<Set<string>>(new Set());
+  const [newOrdersCount, setNewOrdersCount] = useState(0);
+  const isInitialLoad = useRef(true);
+
+  useEffect(() => {
+    if (!currentUser || !isAdmin) {
+      setActiveNewSales([]);
+      setNewOrdersCount(0);
+      return;
+    }
+
+    console.log("[DEBUG-ALERT] Suscribiéndose a alerta de nuevas ventas...");
+    const q = query(
+      collection(db, 'sales'),
+      where('status', 'in', ['nuevo', 'pedido_recibido'])
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const ids = snapshot.docs.map(doc => doc.id);
+      setActiveNewSales(ids);
+
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === 'added') {
+          if (!isInitialLoad.current) {
+            const audio = new Audio('/sounds/notification.mp3');
+            audio.play().catch(err => {
+              console.log('[DEBUG-ALERT] Error al reproducir audio (Autoplay bloqueado):', err);
+            });
+          }
+        }
+      });
+      isInitialLoad.current = false;
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [currentUser, isAdmin]);
+
+  useEffect(() => {
+    const unseen = activeNewSales.filter(id => !seenSales.has(id)).length;
+    setNewOrdersCount(unseen);
+  }, [activeNewSales, seenSales]);
+
+  useEffect(() => {
+    if (currentView === 'sales' && activeNewSales.length > 0) {
+      setSeenSales(prev => {
+        const next = new Set(prev);
+        activeNewSales.forEach(id => next.add(id));
+        return next;
+      });
+    }
+  }, [currentView, activeNewSales]);
 
   // Carga diferida (lazy load) de colecciones Firestore según la vista del panel
   useEffect(() => {
@@ -324,6 +380,7 @@ export default function App() {
               userProfile={userProfile}
               isAdmin={isAdmin}
               storeSettings={storeSettings}
+              newOrdersCount={newOrdersCount}
             />
           </aside>
 

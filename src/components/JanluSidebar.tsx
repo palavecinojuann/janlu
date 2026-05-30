@@ -10,6 +10,7 @@ interface JanluSidebarProps {
   userProfile: UserProfile | null;
   isAdmin?: boolean;
   storeSettings?: StoreSettings;
+  newOrdersCount?: number;
 }
 
 export default function JanluSidebar({ 
@@ -19,7 +20,8 @@ export default function JanluSidebar({
   onClose, 
   userProfile, 
   isAdmin,
-  storeSettings
+  storeSettings,
+  newOrdersCount = 0
 }: JanluSidebarProps) {
   const navItems = [
     { id: 'dashboard', label: 'Inicio', icon: Home },
@@ -145,6 +147,11 @@ export default function JanluSidebar({
               >
                 <Icon className="mr-4 h-5 w-5 shrink-0" />
                 <span className="flex-1 text-left">{item.label}</span>
+                {item.id === 'sell' && newOrdersCount > 0 && (
+                  <span className="bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center animate-pulse mr-2 shrink-0">
+                    {newOrdersCount}
+                  </span>
+                )}
                 {item.badge && (
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
                     item.badge === 'BETA' 
