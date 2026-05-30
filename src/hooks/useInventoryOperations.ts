@@ -838,9 +838,10 @@ export function useInventoryOperations(
   const isBudgetStatus = (status?: string) => 
     status === 'presupuesto' || status === 'presupuesto_vencido' || status === 'presupuesto_rechazado';
   const isActiveStatus = (status?: string) => 
-    status === 'nuevo' || status === 'en_preparacion' || status === 'listo_para_entregar';
+    status === 'nuevo' || status === 'en_preparacion';
   const isCancelledStatus = (status?: string) => status === 'cancelado';
-  const isDeliveredStatus = (status?: string) => status === 'entregado';
+  const isDeliveredStatus = (status?: string) => 
+    status === 'listo_para_entregar' || status === 'entregado';
 
   const commitStock = async (saleItems: Sale['items']) => {
     const batch = writeBatch(db);

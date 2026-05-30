@@ -48,10 +48,10 @@ export const updateStockOnSale = onDocumentWritten(
     type StockState = 'none' | 'committed' | 'consumed';
     const getStockState = (status?: string): StockState => {
       if (!status) return 'none';
-      if (status === 'nuevo' || status === 'en_preparacion' || status === 'listo_para_entregar') {
+      if (status === 'nuevo' || status === 'en_preparacion') {
         return 'committed';
       }
-      if (status === 'entregado') {
+      if (status === 'listo_para_entregar' || status === 'entregado') {
         return 'consumed';
       }
       return 'none';
