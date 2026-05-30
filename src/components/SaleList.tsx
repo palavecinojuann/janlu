@@ -39,6 +39,7 @@ export default function SaleList({ sales, products, customers, storeSettings, on
   const [rejectionReason, setRejectionReason] = useState('');
   const [cancellingSaleId, setCancellingSaleId] = useState<string | null>(null);
   const [editingPaymentSaleId, setEditingPaymentSaleId] = useState<string | null>(null);
+  const [editCustomerName, setEditCustomerName] = useState<string>('');
   const [editPaymentPercentage, setEditPaymentPercentage] = useState<number>(100);
   const [editPaymentMethod, setEditPaymentMethod] = useState<string>('efectivo');
   const [editPaymentStatus, setEditPaymentStatus] = useState<string>('verified');
@@ -329,6 +330,7 @@ export default function SaleList({ sales, products, customers, storeSettings, on
 
         const updatedSale = {
           ...sale,
+          customerName: editCustomerName,
           paymentPercentage: editPaymentPercentage,
           paymentMethod: editPaymentMethod as any,
           paymentStatus: editPaymentStatus as any,
@@ -850,6 +852,7 @@ export default function SaleList({ sales, products, customers, storeSettings, on
                               <button
                                 onClick={() => {
                                   setEditingPaymentSaleId(sale.id);
+                                  setEditCustomerName(sale.customerName || 'Consumidor Final');
                                   setOriginalAmountPaid(sale.amountPaid);
                                   setAdjustmentAmount(0);
                                   setEditPaymentDate(new Date().toISOString().split('T')[0]);
@@ -861,7 +864,7 @@ export default function SaleList({ sales, products, customers, storeSettings, on
                                   setEditPaymentNotes(sale.paymentNotes || '');
                                 }}
                                 className="p-2 text-stone-400 dark:text-stone-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                                title="Editar Pago"
+                                title="Editar Pago / Cliente"
                               >
                                 <CreditCard size={16} />
                               </button>
@@ -1246,10 +1249,22 @@ export default function SaleList({ sales, products, customers, storeSettings, on
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-2xl max-w-md w-full p-6">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold text-stone-800 dark:text-stone-100">Editar Pago</h3>
+              <h3 className="text-lg font-bold text-stone-800 dark:text-stone-100">Editar Pago / Cliente</h3>
               <button onClick={() => setEditingPaymentSaleId(null)} className="text-stone-400 hover:text-stone-600"><X size={20} /></button>
             </div>
             <form onSubmit={handleEditPaymentSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">Nombre del Cliente</label>
+                <input
+                  type="text"
+                  className="w-full bg-stone-100 dark:bg-stone-800 border-none rounded-xl p-3 text-stone-900 dark:text-stone-100 focus:ring-2 focus:ring-indigo-500"
+                  value={editCustomerName}
+                  onChange={(e) => setEditCustomerName(e.target.value)}
+                  placeholder="Ej: Consumidor Final"
+                  required
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">Estado de Pago</label>
