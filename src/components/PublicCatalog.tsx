@@ -1256,7 +1256,7 @@ export default function PublicCatalog({
         amountPaid: 0,
         paymentPercentage: 0,
         paymentMethod: paymentMethod,
-        status: 'presupuesto' as SaleStatus,
+        status: 'nuevo' as SaleStatus,
         paymentStatus: 'pending' as any,
         balanceDue: finalTotal,
         appliedCouponCode: appliedCoupon?.code,

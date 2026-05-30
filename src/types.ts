@@ -178,7 +178,7 @@ export interface SaleItem {
 
 export type PaymentMethod = 'efectivo' | 'transferencia' | 'tarjeta' | 'qr' | 'transfer_full' | 'transfer_partial' | 'on_pickup' | 'mixto' | 'mercadopago' | 'acordar';
 
-export type SaleStatus = 'nuevo' | 'presupuesto' | 'en_preparacion' | 'listo_para_entregar' | 'entregado' | 'cancelado';
+export type SaleStatus = 'nuevo' | 'presupuesto' | 'presupuesto_vencido' | 'presupuesto_rechazado' | 'en_preparacion' | 'listo_para_entregar' | 'entregado' | 'cancelado';
 
 export interface PriceModifier {
   type: 'percentage' | 'fixed';

@@ -22,10 +22,7 @@ export const updateStockOnSale = onDocumentWritten(
       return;
     }
 
-    const beforeSnapshot = change.before;
     const afterSnapshot = change.after;
-
-    const beforeData = beforeSnapshot?.exists() ? beforeSnapshot.data() : null;
     const afterData = afterSnapshot?.exists() ? afterSnapshot.data() : null;
 
     // Si la orden fue completamente eliminada del sistema, salimos
@@ -35,29 +32,24 @@ export const updateStockOnSale = onDocumentWritten(
     }
 
     const saleId = event.params.saleId;
-    const beforeStatus = beforeData?.status;
     const afterStatus = afterData.status;
     const isSynced = afterData.inventorySynced === true;
     const items = afterData.items || [];
+
+    const isBudgetStatus = (status?: string) => 
+      status === "presupuesto" || status === "presupuesto_vencido" || status === "presupuesto_rechazado";
 
     let shouldDeduct = false;
     let shouldRevert = false;
 
     if (!isSynced) {
-      if (!beforeData) {
-        // Caso CREACIÓN: se crea en un estado activo (distinto de presupuesto y cancelado)
-        if (afterStatus !== "presupuesto" && afterStatus !== "cancelado") {
-          shouldDeduct = true;
-        }
-      } else {
-        // Caso ACTUALIZACIÓN: cambia de presupuesto a cualquier otro estado activo
-        if (beforeStatus === "presupuesto" && afterStatus !== "presupuesto" && afterStatus !== "cancelado") {
-          shouldDeduct = true;
-        }
+      // Si no está sincronizado y pasa a ser activo/entregado (es decir, no es presupuesto ni cancelado)
+      if (!isBudgetStatus(afterStatus) && afterStatus !== "cancelado") {
+        shouldDeduct = true;
       }
     } else {
-      // Caso ACTUALIZACIÓN a cancelado: revertir stock si ya estaba sincronizado
-      if (beforeData && afterStatus === "cancelado" && beforeStatus !== "cancelado") {
+      // Si ya estaba sincronizado y pasa a ser inactivo (presupuesto o cancelado)
+      if (isBudgetStatus(afterStatus) || afterStatus === "cancelado") {
         shouldRevert = true;
       }
     }

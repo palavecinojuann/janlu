@@ -835,6 +835,13 @@ export function useInventoryOperations(
     return { valid: true, discount: coupon.discountPercentage || 0 };
   };
 
+  const isBudgetStatus = (status?: string) => 
+    status === 'presupuesto' || status === 'presupuesto_vencido' || status === 'presupuesto_rechazado';
+  const isActiveStatus = (status?: string) => 
+    status === 'nuevo' || status === 'en_preparacion' || status === 'listo_para_entregar';
+  const isCancelledStatus = (status?: string) => status === 'cancelado';
+  const isDeliveredStatus = (status?: string) => status === 'entregado';
+
   const commitStock = async (saleItems: Sale['items']) => {
     const batch = writeBatch(db);
     saleItems.forEach(item => {
@@ -911,6 +918,25 @@ export function useInventoryOperations(
     await batch.commit();
   };
 
+  const restorePhysicalStock = async (saleItems: Sale['items']) => {
+    const batch = writeBatch(db);
+    saleItems.forEach(item => {
+      const product = products.find(p => p.id === item.productId);
+      const variant = product?.variants.find(v => v.id === item.variantId);
+      if (!product || !variant) return;
+      if (variant.isFinishedGood) {
+        const updatedProduct = { ...product, variants: product.variants.map(v => v.id === variant.id ? { ...v, stock: v.stock + item.quantity } : v) };
+        batch.set(doc(db, 'products', product.id), cleanObject(updatedProduct), { merge: true });
+      } else if (variant.recipe) {
+        variant.recipe.forEach(recipeItem => {
+          const rm = rawMaterials.find(r => r.id === recipeItem.rawMaterialId);
+          if (rm) batch.set(doc(db, 'rawMaterials', rm.id), { stock: rm.stock + (recipeItem.quantity * item.quantity) }, { merge: true });
+        });
+      }
+    });
+    await batch.commit();
+  };
+
   const registerSale = async (saleData: Omit<Sale, 'id' | 'date'>) => {
     let nextOrderNumber = 1000;
     try {
@@ -948,6 +974,15 @@ export function useInventoryOperations(
       const batch = writeBatch(db);
       batch.set(doc(db, 'sales', newSale.id), cleanObject(newSale));
       await batch.commit();
+
+      if (isAdmin) {
+        if (!isBudgetStatus(newSale.status) && !isCancelledStatus(newSale.status) && !isDeliveredStatus(newSale.status)) {
+          await commitStock(newSale.items);
+        } else if (isDeliveredStatus(newSale.status)) {
+          await consumeStockDefinitively(newSale.items);
+        }
+      }
+
       return newSale.id;
     } catch (error) { handleFirestoreError(error, OperationType.WRITE, 'sales'); }
   };
@@ -957,25 +992,52 @@ export function useInventoryOperations(
     if (!oldSale) return;
     try {
       await setDoc(doc(db, 'sales', updatedSale.id), cleanObject(updatedSale));
-      if (oldSale.status !== 'cancelado' && updatedSale.status === 'cancelado') await releaseStock(updatedSale.items);
-      else if (oldSale.status === 'cancelado' && updatedSale.status !== 'cancelado' && updatedSale.status !== 'entregado') await commitStock(updatedSale.items);
-      else if (oldSale.status !== 'entregado' && updatedSale.status === 'entregado') await consumeStockDefinitively(updatedSale.items);
-      else if (oldSale.status === 'entregado' && updatedSale.status !== 'entregado' && updatedSale.status !== 'cancelado') await revertConsumedStockToCommitted(updatedSale.items);
+      
+      const oldStatus = oldSale.status;
+      const newStatus = updatedSale.status;
+
+      if (isAdmin) {
+        // Máquina de estados de stock físico y comprometido
+        if (isBudgetStatus(oldStatus) || isCancelledStatus(oldStatus)) {
+          if (isActiveStatus(newStatus)) {
+            await commitStock(updatedSale.items);
+          } else if (isDeliveredStatus(newStatus)) {
+            await consumeStockDefinitively(updatedSale.items);
+          }
+        } else if (isActiveStatus(oldStatus)) {
+          if (isBudgetStatus(newStatus) || isCancelledStatus(newStatus)) {
+            await releaseStock(updatedSale.items);
+          } else if (isDeliveredStatus(newStatus)) {
+            await consumeStockDefinitively(updatedSale.items);
+          }
+        } else if (isDeliveredStatus(oldStatus)) {
+          if (isActiveStatus(newStatus)) {
+            await revertConsumedStockToCommitted(updatedSale.items);
+          } else if (isBudgetStatus(newStatus) || isCancelledStatus(newStatus)) {
+            await restorePhysicalStock(updatedSale.items);
+          }
+        }
+      }
 
       // 🚀 MODIFICACIÓN DE CUPOS EN WORKSHOPS POR CAMBIO DE ESTADO DE LA VENTA
-      if (oldSale.status !== 'cancelado' && updatedSale.status === 'cancelado') {
-        const batch = writeBatch(db);
-        updatedSale.items.forEach(item => {
-          if (item.isCourse && item.courseId) {
-            batch.set(doc(db, 'courses', item.courseId), { enrolledCount: increment(-item.quantity) }, { merge: true });
-          }
-        });
-        await batch.commit();
-      } else if (oldSale.status === 'cancelado' && updatedSale.status !== 'cancelado') {
+      const oldInactive = isBudgetStatus(oldStatus) || isCancelledStatus(oldStatus);
+      const newActive = isActiveStatus(newStatus) || isDeliveredStatus(newStatus);
+      const oldActive = isActiveStatus(oldStatus) || isDeliveredStatus(oldStatus);
+      const newInactive = isBudgetStatus(newStatus) || isCancelledStatus(newStatus);
+
+      if (oldInactive && newActive) {
         const batch = writeBatch(db);
         updatedSale.items.forEach(item => {
           if (item.isCourse && item.courseId) {
             batch.set(doc(db, 'courses', item.courseId), { enrolledCount: increment(item.quantity) }, { merge: true });
+          }
+        });
+        await batch.commit();
+      } else if (oldActive && newInactive) {
+        const batch = writeBatch(db);
+        updatedSale.items.forEach(item => {
+          if (item.isCourse && item.courseId) {
+            batch.set(doc(db, 'courses', item.courseId), { enrolledCount: increment(-item.quantity) }, { merge: true });
           }
         });
         await batch.commit();
