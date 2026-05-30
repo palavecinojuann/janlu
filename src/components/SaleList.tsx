@@ -318,7 +318,7 @@ export default function SaleList({ sales, products, customers, storeSettings, on
           });
         }
 
-        if (amountAdded !== 0 || editPaymentStatus !== sale.paymentStatus || editPaymentMethod !== sale.paymentMethod) {
+        if (amountAdded !== 0) {
           newHistory.push({
             date: new Date(editPaymentDate + 'T12:00:00').toISOString(),
             amount: amountAdded,
@@ -1162,10 +1162,10 @@ export default function SaleList({ sales, products, customers, storeSettings, on
                       <span className="text-stone-500 dark:text-stone-400 print:text-gray-500">Fecha de orden:</span>
                       <span className="text-stone-700 dark:text-stone-300 print:text-gray-700">{new Date(saleToPreview.date).toLocaleDateString()}</span>
                     </div>
-                    {saleToPreview.paymentHistory && saleToPreview.paymentHistory.length > 0 && (
+                    {saleToPreview.paymentHistory && saleToPreview.paymentHistory.filter(ph => ph.amount !== 0).length > 0 && (
                       <div className="pt-2 pb-2 border-y border-stone-100 dark:border-stone-800 print:border-gray-100 my-2">
                         <span className="text-xs uppercase tracking-widest text-gray-500 dark:text-stone-400 print:text-gray-500 mb-2 block">Historial de Pagos</span>
-                        {saleToPreview.paymentHistory.map((ph, i) => (
+                        {saleToPreview.paymentHistory.filter(ph => ph.amount !== 0).map((ph, i) => (
                           <div key={i} className="flex justify-between items-center text-sm mb-1">
                             <div className="flex flex-col">
                               <span className="text-stone-700 dark:text-stone-300 print:text-gray-700 font-medium">

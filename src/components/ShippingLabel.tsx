@@ -113,10 +113,10 @@ export default function ShippingLabel({ sale, customer, notes, customAddress }: 
               <span>PAGADO</span>
             </div>
           )}
-          {sale.paymentHistory && sale.paymentHistory.length > 0 && (
+          {sale.paymentHistory && sale.paymentHistory.filter(ph => ph.amount !== 0).length > 0 && (
             <div className="mt-2 pt-1 border-t border-stone-100">
               <p className="text-[8px] sm:text-[9px] font-bold uppercase text-stone-500 mb-0.5">Historial de Pagos</p>
-              {sale.paymentHistory.map((ph, i) => (
+              {sale.paymentHistory.filter(ph => ph.amount !== 0).map((ph, i) => (
                 <div key={i} className="flex justify-between text-[9px] sm:text-[10px] text-stone-600 mb-0.5">
                   <div className="flex flex-col">
                     <span className="font-bold">{ph.amount > 0 ? 'Pago' : 'Ajuste'}</span>

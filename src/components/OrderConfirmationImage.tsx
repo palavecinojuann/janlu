@@ -253,11 +253,10 @@ export default function OrderConfirmationImage({ sale, storeSettings, customerPh
                   <span>{formatCurrency(sale.amountPaid)}</span>
                 </div>
 
-                {/* Historial detallado de pagos */}
-                {sale.paymentHistory && sale.paymentHistory.length > 0 && (
+                {sale.paymentHistory && sale.paymentHistory.filter(ph => ph.amount !== 0).length > 0 && (
                   <div className="mt-4 p-5 rounded-2xl bg-stone-100/50 space-y-3 border border-stone-200/50">
                     <p className="text-xs uppercase tracking-widest font-bold text-stone-400 mb-1">Detalle de Cobros</p>
-                    {sale.paymentHistory.map((ph, idx) => (
+                    {sale.paymentHistory.filter(ph => ph.amount !== 0).map((ph, idx) => (
                       <div key={idx} className="flex justify-between items-center text-sm sm:text-base border-b border-stone-200/30 pb-2 last:border-none last:pb-0">
                         <div className="flex flex-col text-left">
                           <span className="font-semibold text-stone-800">
