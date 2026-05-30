@@ -143,8 +143,14 @@ export default function OrderConfirmationImage({ sale, storeSettings, customerPh
               </button>
             </div>
             
-            <div className="flex-1 overflow-y-auto mb-6 bg-stone-100 dark:bg-stone-800 rounded-xl p-4 flex justify-center items-start">
-              <img src={previewUrl} alt="Confirmación de Orden" className="max-w-full h-auto shadow-sm rounded-lg" />
+            <div className="flex-1 overflow-y-auto mb-6 flex justify-center items-start">
+              <div className="w-full max-w-md mx-auto bg-stone-100 dark:bg-stone-800 p-4 rounded-xl">
+                <img 
+                  src={previewUrl} 
+                  alt="Confirmación de Orden" 
+                  className="w-full h-auto object-contain shadow-sm rounded-lg" 
+                />
+              </div>
             </div>
 
             <div className="flex flex-col gap-3">

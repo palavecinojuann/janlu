@@ -15,7 +15,9 @@ export function useAuth() {
   useEffect(() => {
     let unsubUserDoc: (() => void) | null = null;
 
+    console.log("[DEBUG-FIRESTORE] Registering onAuthStateChanged listener...");
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      console.log("[DEBUG-FIRESTORE] onAuthStateChanged fired. User:", user?.email || "none");
       setCurrentUser(user);
       if (user) {
         const userEmail = user.email ? user.email.toLowerCase().trim() : '';
@@ -27,6 +29,7 @@ export function useAuth() {
             resolvedIsAdmin = true;
           } else {
             try {
+              console.log(`[DEBUG-FIRESTORE] getDoc 'preAuthorizedAdmins/${userEmail}'...`);
               const preAuthSnap = await getDoc(doc(db, 'preAuthorizedAdmins', userEmail));
               if (preAuthSnap.exists()) {
                 resolvedIsAdmin = true;
@@ -38,10 +41,13 @@ export function useAuth() {
           }
         }
 
+        console.log("[DEBUG-FIRESTORE] Auth evaluation: isAdmin =", resolvedIsAdmin);
         setIsAdmin(resolvedIsAdmin);
 
         const userRef = doc(db, 'users', user.uid);
+        console.log(`[DEBUG-FIRESTORE] Subscribing to user doc snapshot 'users/${user.uid}'...`);
         unsubUserDoc = onSnapshot(userRef, async (docSnap) => {
+          console.log(`[DEBUG-FIRESTORE] 'users/${user.uid}' doc snapshot callback fired. Exists:`, docSnap.exists());
           if (docSnap.exists()) {
             const userData = docSnap.data();
             let role = userData.role;

@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -13,6 +13,11 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 
-// AQUÍ ESTÁ LA MAGIA: Le decimos que use tu base de datos específica, no la vacía
-export const db = getFirestore(app, import.meta.env.VITE_FIRESTORE_DATABASE_ID); 
+// Habilitar caché local persistente para reducir lecturas en recargas/actualizaciones
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({
+    tabManager: persistentMultipleTabManager()
+  })
+}, import.meta.env.VITE_FIRESTORE_DATABASE_ID); 
+
 export const auth = getAuth(app);

@@ -25,13 +25,18 @@ export function usePublicInventory(isAuthReady: boolean) {
   const productsStringRef = useRef<string>('');
 
   useEffect(() => {
+    console.log("[DEBUG-FIRESTORE] useEffect usePublicInventory triggered. isAuthReady:", isAuthReady);
     if (!isAuthReady) return;
 
     const handlePublicError = (e: unknown, op: OperationType, path: string) => {
       console.warn(`[Public collection error] ${path}:`, e);
     };
 
+    console.log("[DEBUG-FIRESTORE] Registering public collection listeners...");
+
+    console.log("[DEBUG-FIRESTORE] Subscribing to 'products' collection...");
     const unsubProducts = onSnapshot(query(collection(db, 'products')), (snapshot) => {
+      console.log(`[DEBUG-FIRESTORE] 'products' snapshot callback fired. Size: ${snapshot.docs.length} docs`);
       const newData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Product));
       const newDataString = JSON.stringify(newData);
 
@@ -42,24 +47,34 @@ export function usePublicInventory(isAuthReady: boolean) {
       }
     }, (e) => handlePublicError(e, OperationType.GET, 'products'));
 
+    console.log("[DEBUG-FIRESTORE] Subscribing to 'campaigns' collection...");
     const unsubCampaigns = onSnapshot(query(collection(db, 'campaigns')), (snapshot) => {
+      console.log(`[DEBUG-FIRESTORE] 'campaigns' snapshot callback fired. Size: ${snapshot.docs.length} docs`);
       setCampaigns(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Campaign)));
     }, (e) => handlePublicError(e, OperationType.GET, 'campaigns'));
 
+    console.log("[DEBUG-FIRESTORE] Subscribing to 'offers' collection...");
     const unsubOffers = onSnapshot(query(collection(db, 'offers')), (snapshot) => {
+      console.log(`[DEBUG-FIRESTORE] 'offers' snapshot callback fired. Size: ${snapshot.docs.length} docs`);
       setOffers(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Offer)));
     }, (e) => handlePublicError(e, OperationType.GET, 'offers'));
 
+    console.log("[DEBUG-FIRESTORE] Subscribing to 'courses' collection...");
     const unsubCourses = onSnapshot(query(collection(db, 'courses')), (snapshot) => {
+      console.log(`[DEBUG-FIRESTORE] 'courses' snapshot callback fired. Size: ${snapshot.docs.length} docs`);
       setCourses(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Course)));
     }, (e) => handlePublicError(e, OperationType.GET, 'courses'));
 
+    console.log("[DEBUG-FIRESTORE] Subscribing to 'rawMaterials' collection...");
     const unsubRawMaterials = onSnapshot(query(collection(db, 'rawMaterials')), (snapshot) => {
+      console.log(`[DEBUG-FIRESTORE] 'rawMaterials' snapshot callback fired. Size: ${snapshot.docs.length} docs`);
       setRawMaterials(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as RawMaterial)));
       console.log("✅ Insumos actualizados (Público)");
     }, (e) => handlePublicError(e, OperationType.GET, 'rawMaterials'));
 
+    console.log("[DEBUG-FIRESTORE] Subscribing to 'settings' global doc...");
     const unsubSettings = onSnapshot(doc(db, 'settings', 'global'), (docSnap) => {
+      console.log(`[DEBUG-FIRESTORE] 'settings' global snapshot callback fired. Exists: ${docSnap.exists()}`);
       if (docSnap.exists()) {
         setStoreSettings(docSnap.data() as StoreSettings);
       }
@@ -70,6 +85,7 @@ export function usePublicInventory(isAuthReady: boolean) {
     });
 
     return () => {
+      console.log("[DEBUG-FIRESTORE] Cleaning up public collection listeners...");
       unsubProducts();
       unsubCampaigns();
       unsubOffers();

@@ -66,7 +66,9 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
   }, [realtimeSales, historicalSales]);
 
   useEffect(() => {
+    console.log("[DEBUG-FIRESTORE] useEffect useAdminInventory triggered. isAuthReady:", isAuthReady, "isAdmin:", isAdmin, "refreshTrigger:", refreshTrigger, "salesLimit:", salesLimit);
     if (!isAuthReady || !isAdmin) {
+      console.log("[DEBUG-FIRESTORE] Resetting admin state and cleaning up listeners (either not admin or auth not ready)...");
       // Reset data when not admin
       setCustomers([]);
       setRealtimeSales([]);
@@ -91,21 +93,30 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
 
     // Admin Listeners (se suscriben una única vez por sesión)
     if (!adminListenersMounted.current) {
+      console.log("[DEBUG-FIRESTORE] Registering persistent admin listeners...");
       adminListenersMounted.current = true;
 
+      console.log("[DEBUG-FIRESTORE] Subscribing to 'customers' collection (limit 20)...");
       unsubCustomersRef.current = onSnapshot(query(collection(db, 'customers'), limit(20)), (snapshot) => {
+        console.log(`[DEBUG-FIRESTORE] 'customers' snapshot callback fired. Size: ${snapshot.docs.length} docs`);
         setCustomers(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Customer)));
       }, (e) => handleFirestoreError(e, OperationType.GET, 'customers'));
 
+      console.log("[DEBUG-FIRESTORE] Subscribing to 'quotes' collection (limit 20)...");
       unsubQuotesRef.current = onSnapshot(query(collection(db, 'quotes'), orderBy('date', 'desc'), limit(20)), (snapshot) => {
+        console.log(`[DEBUG-FIRESTORE] 'quotes' snapshot callback fired. Size: ${snapshot.docs.length} docs`);
         setQuotes(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Quote)));
       }, (e) => handleFirestoreError(e, OperationType.GET, 'quotes'));
 
+      console.log("[DEBUG-FIRESTORE] Subscribing to 'activities' collection (limit 20)...");
       unsubActivitiesRef.current = onSnapshot(query(collection(db, 'activities'), orderBy('createdAt', 'desc'), limit(20)), (snapshot) => {
+        console.log(`[DEBUG-FIRESTORE] 'activities' snapshot callback fired. Size: ${snapshot.docs.length} docs`);
         setActivities(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Activity)));
       }, (e) => handleFirestoreError(e, OperationType.GET, 'activities'));
 
+      console.log("[DEBUG-FIRESTORE] Subscribing to 'productionOrders' collection (status == pending)...");
       unsubOrdersActiveRef.current = onSnapshot(query(collection(db, 'productionOrders'), where('status', '==', 'pending')), (snapshot) => {
+        console.log(`[DEBUG-FIRESTORE] active 'productionOrders' snapshot callback fired. Size: ${snapshot.docs.length} docs`);
         const activeOrders = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as ProductionOrder));
         setProductionOrders(prev => {
           const merged = new Map<string, ProductionOrder>();
@@ -117,10 +128,13 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     }
 
     // Suscripción con Paginación de Ventas (se recrea al cambiar salesLimit o refreshTrigger)
+    console.log(`[DEBUG-FIRESTORE] Subscribing to 'sales' collection (limit ${salesLimit})...`);
     if (unsubSalesRef.current) {
+      console.log("[DEBUG-FIRESTORE] Unsubscribing previous 'sales' listener...");
       unsubSalesRef.current();
     }
     unsubSalesRef.current = onSnapshot(query(collection(db, 'sales'), orderBy('date', 'desc'), limit(salesLimit)), (snapshot) => {
+      console.log(`[DEBUG-FIRESTORE] 'sales' snapshot callback fired. Size: ${snapshot.docs.length} docs`);
       const newSales = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Sale));
       setRealtimeSales(newSales);
       setHasMoreSales(snapshot.docs.length === salesLimit);
@@ -134,6 +148,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
   // Limpieza total de listeners al desmontar el hook de inventario
   useEffect(() => {
     return () => {
+      console.log("[DEBUG-FIRESTORE] useAdminInventory hook unmounting. Cleaning up all admin listeners...");
       cleanupAllListeners();
     };
   }, []);
@@ -141,8 +156,10 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
   const loadAuditLogs = async (customLimit?: number) => {
     if (!isAdmin) return;
     const currentLimit = customLimit || auditLogsLimit;
+    console.log(`[DEBUG-FIRESTORE] loadAuditLogs called. Limit: ${currentLimit}`);
     try {
       const auditLogsSnap = await getDocs(query(collection(db, 'auditLogs'), orderBy('timestamp', 'desc'), limit(currentLimit)));
+      console.log(`[DEBUG-FIRESTORE] getDocs 'auditLogs' returned ${auditLogsSnap.docs.length} docs`);
       const fetchedLogs = auditLogsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as AuditLog));
       setAuditLogs(fetchedLogs);
       setHasMoreAuditLogs(fetchedLogs.length === currentLimit);
@@ -159,10 +176,12 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
   };
 
   const loadCoupons = async () => {
+    console.log("[DEBUG-FIRESTORE] loadCoupons called. hasFetchedCoupons:", hasFetchedCoupons.current);
     if (!isAdmin || hasFetchedCoupons.current) return;
     hasFetchedCoupons.current = true;
     try {
       const couponsSnap = await getDocs(query(collection(db, 'coupons')));
+      console.log(`[DEBUG-FIRESTORE] getDocs 'coupons' returned ${couponsSnap.docs.length} docs`);
       setCoupons(couponsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Coupon)));
       setLastSync(new Date());
     } catch (e) {
@@ -172,13 +191,16 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
   };
 
   const loadUsersAndPreAuth = async () => {
+    console.log("[DEBUG-FIRESTORE] loadUsersAndPreAuth called. hasFetchedUsers:", hasFetchedUsers.current);
     if (!isAdmin || hasFetchedUsers.current) return;
     hasFetchedUsers.current = true;
     try {
       const usersSnap = await getDocs(query(collection(db, 'users')));
+      console.log(`[DEBUG-FIRESTORE] getDocs 'users' returned ${usersSnap.docs.length} docs`);
       setUsers(usersSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as any as User)));
 
       const preAuthSnap = await getDocs(collection(db, 'preAuthorizedAdmins'));
+      console.log(`[DEBUG-FIRESTORE] getDocs 'preAuthorizedAdmins' returned ${preAuthSnap.docs.length} docs`);
       setPreAuthorizedAdmins(preAuthSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as any as PreAuthorizedAdmin)));
       setLastSync(new Date());
     } catch (e) {
@@ -188,10 +210,12 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
   };
 
   const loadFinancialDocs = async () => {
+    console.log("[DEBUG-FIRESTORE] loadFinancialDocs called. hasFetchedFinance:", hasFetchedFinance.current);
     if (!isAdmin || hasFetchedFinance.current) return;
     hasFetchedFinance.current = true;
     try {
       const financialDocsSnap = await getDocs(query(collection(db, 'financialDocs')));
+      console.log(`[DEBUG-FIRESTORE] getDocs 'financialDocs' returned ${financialDocsSnap.docs.length} docs`);
       setFinancialDocs(financialDocsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as FinancialDocument)));
       setLastSync(new Date());
     } catch (e) {
@@ -201,10 +225,12 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
   };
 
   const loadSimulations = async () => {
+    console.log("[DEBUG-FIRESTORE] loadSimulations called. hasFetchedSimulations:", hasFetchedSimulations.current);
     if (!isAdmin || hasFetchedSimulations.current) return;
     hasFetchedSimulations.current = true;
     try {
       const simulationsSnap = await getDocs(query(collection(db, 'simulations')));
+      console.log(`[DEBUG-FIRESTORE] getDocs 'simulations' returned ${simulationsSnap.docs.length} docs`);
       setSimulations(simulationsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Simulation)));
       setLastSync(new Date());
     } catch (e) {
@@ -214,6 +240,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
   };
 
   const loadProductionOrders = async () => {
+    console.log("[DEBUG-FIRESTORE] loadProductionOrders called. hasFetchedRecentOrders:", hasFetchedRecentOrders.current);
     if (!isAdmin || hasFetchedRecentOrders.current) return;
     hasFetchedRecentOrders.current = true;
     try {
@@ -222,6 +249,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
       const thirtyDaysAgoISO = thirtyDaysAgo.toISOString();
 
       const ordersRecentSnap = await getDocs(query(collection(db, 'productionOrders'), where('createdAt', '>=', thirtyDaysAgoISO), orderBy('createdAt', 'desc')));
+      console.log(`[DEBUG-FIRESTORE] getDocs 'productionOrders' (recent) returned ${ordersRecentSnap.docs.length} docs`);
       const recentOrders = ordersRecentSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as ProductionOrder));
       setProductionOrders(prev => {
         const merged = new Map<string, ProductionOrder>();
