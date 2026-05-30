@@ -968,7 +968,8 @@ export function useInventoryOperations(
       orderNumber: nextOrderNumber, 
       date: new Date().toISOString(), 
       status: saleData.status || 'nuevo',
-      paymentHistory: saleData.paymentHistory || (initialPayments.length > 0 ? initialPayments : undefined)
+      paymentHistory: saleData.paymentHistory || (initialPayments.length > 0 ? initialPayments : undefined),
+      inventorySynced: isAdmin ? true : false
     };
     try {
       const batch = writeBatch(db);
@@ -991,7 +992,11 @@ export function useInventoryOperations(
     const oldSale = sales.find(sale => sale.id === updatedSale.id);
     if (!oldSale) return;
     try {
-      await setDoc(doc(db, 'sales', updatedSale.id), cleanObject(updatedSale));
+      const saleToSave = {
+        ...updatedSale,
+        inventorySynced: isAdmin ? true : (updatedSale.inventorySynced || false)
+      };
+      await setDoc(doc(db, 'sales', updatedSale.id), cleanObject(saleToSave));
       
       const oldStatus = oldSale.status;
       const newStatus = updatedSale.status;

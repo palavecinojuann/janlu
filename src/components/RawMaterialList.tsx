@@ -104,7 +104,9 @@ export default function RawMaterialList({
   }, [productionOrders, products, rawMaterials]);
 
   const getCommittedStock = (materialId: string) => {
-    return committedStockMap[materialId] || 0;
+    const material = rawMaterials.find(m => m.id === materialId);
+    const databaseCompromised = material?.compromisedStock || 0;
+    return (committedStockMap[materialId] || 0) + databaseCompromised;
   };
 
   const formatCurrency = (value: number) => new Intl.NumberFormat('es-AR', { 

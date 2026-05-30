@@ -241,6 +241,7 @@ export interface Sale {
   laborCost?: number;
   paymentGatewayFee?: number;
   materialsDeducted?: boolean;
+  inventorySynced?: boolean;
   receiptUrl?: string;
   customerEmail?: string;
   deliveryMethod?: 'retiro' | 'envio';

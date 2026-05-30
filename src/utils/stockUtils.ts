@@ -21,7 +21,8 @@ export const getVariantStock = (variant: Variant | undefined | null, rawMaterial
         if (item.quantity > 0) {
           const effectiveUnit = item.unit || rm.baseUnit || UMB_FOR_DIMENSION[rm.dimension || (rm.unit ? UNIT_DIMENSIONS[rm.unit as Unit] : 'units')];
           const quantityRequiredInUMB = toUMB(item.quantity, effectiveUnit as Unit);
-          const possibleUnits = Math.floor(rm.stock / quantityRequiredInUMB);
+          const availableRMStock = Math.max(0, rm.stock - (rm.compromisedStock || 0));
+          const possibleUnits = Math.floor(availableRMStock / quantityRequiredInUMB);
           if (possibleUnits < minStock) minStock = possibleUnits;
         } else {
           return 0;
