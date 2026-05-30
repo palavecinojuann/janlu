@@ -165,14 +165,16 @@ export default function App() {
     setNewOrdersCount(unseen);
   }, [activeNewSales, seenSales]);
 
+  const prevViewRef = useRef(currentView);
   useEffect(() => {
-    if (currentView === 'sales' && activeNewSales.length > 0) {
+    if (currentView === 'sales' && prevViewRef.current !== 'sales') {
       setSeenSales(prev => {
         const next = new Set(prev);
         activeNewSales.forEach(id => next.add(id));
         return next;
       });
     }
+    prevViewRef.current = currentView;
   }, [currentView, activeNewSales]);
 
   // Carga diferida (lazy load) de colecciones Firestore según la vista del panel
@@ -374,6 +376,13 @@ export default function App() {
               onNavigate={(view) => {
                 setCurrentView(view as View);
                 setIsMobileMenuOpen(false);
+                if (view === 'sales') {
+                  setSeenSales(prev => {
+                    const next = new Set(prev);
+                    activeNewSales.forEach(id => next.add(id));
+                    return next;
+                  });
+                }
               }}
               onNavigateToCatalog={navigateToCatalog}
               onClose={() => setIsMobileMenuOpen(false)}
