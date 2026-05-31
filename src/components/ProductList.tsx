@@ -199,6 +199,7 @@ export default function ProductList({
               ) : (
                 filteredProducts.map((product) => {
                   const totalStock = product.variants.reduce((sum, v) => sum + getVariantStock(v, rawMaterials), 0);
+                  const totalCompromised = product.variants.reduce((sum, v) => sum + (v.isFinishedGood !== false ? (v.compromisedStock || 0) : 0), 0);
                   const prices = product.variants.map(v => v.price);
                   const minPrice = Math.min(...prices);
                   const maxPrice = Math.max(...prices);
@@ -300,9 +301,16 @@ export default function ProductList({
                         </div>
                       </td>
                       <td className="p-4">
-                        <span className={`font-medium ${totalStock <= 5 ? 'text-rose-600 dark:text-rose-400' : 'text-stone-900 dark:text-stone-100'}`}>
-                          {totalStock}
-                        </span>
+                        <div className="flex flex-col">
+                          <span className={`font-medium ${totalStock <= 5 ? 'text-rose-600 dark:text-rose-400' : 'text-stone-900 dark:text-stone-100'}`}>
+                            {totalStock}
+                          </span>
+                          {totalCompromised > 0 && (
+                            <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold whitespace-nowrap mt-0.5" title="Unidades comprometidas en pedidos activos">
+                              {totalCompromised} comp.
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="p-4">
                         <button
