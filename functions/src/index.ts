@@ -23,10 +23,10 @@ export const updateStockOnSale = onDocumentWritten(
     }
 
     const beforeSnapshot = change.before;
-    const beforeData = beforeSnapshot?.exists() ? beforeSnapshot.data() : null;
+    const beforeData = beforeSnapshot?.exists ? beforeSnapshot.data() : null;
 
     const afterSnapshot = change.after;
-    const afterData = afterSnapshot?.exists() ? afterSnapshot.data() : null;
+    const afterData = afterSnapshot?.exists ? afterSnapshot.data() : null;
 
     // Si la orden fue completamente eliminada del sistema, salimos
     if (!afterData) {
