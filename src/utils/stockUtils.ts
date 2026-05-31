@@ -7,7 +7,7 @@ export const getVariantStock = (variant: Variant | undefined | null, rawMaterial
   
   // If explicitly marked as a finished good, use its own stock field
   if (variant.isFinishedGood === true) {
-    return variant.stock;
+    return Math.max(0, variant.stock - (variant.compromisedStock || 0));
   }
   
   // If it has a recipe, calculate stock based on ingredients
@@ -35,5 +35,5 @@ export const getVariantStock = (variant: Variant | undefined | null, rawMaterial
   }
   
   // Default to its own stock field
-  return variant.stock;
+  return Math.max(0, variant.stock - (variant.compromisedStock || 0));
 };

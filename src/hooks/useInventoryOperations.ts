@@ -881,19 +881,27 @@ export function useInventoryOperations(
     await batch.commit();
   };
 
-  const consumeStockDefinitively = async (saleItems: Sale['items']) => {
+  const consumeStockDefinitively = async (saleItems: Sale['items'], deductCompromised: boolean = true) => {
     const batch = writeBatch(db);
     saleItems.forEach(item => {
       const product = products.find(p => p.id === item.productId);
       const variant = product?.variants.find(v => v.id === item.variantId);
       if (!product || !variant) return;
       if (variant.isFinishedGood) {
-        const updatedProduct = { ...product, variants: product.variants.map(v => v.id === variant.id ? { ...v, stock: Math.max(0, v.stock - item.quantity), compromisedStock: Math.max(0, (v.compromisedStock || 0) - item.quantity) } : v) };
+        const compromisedStock = deductCompromised
+          ? Math.max(0, (variant.compromisedStock || 0) - item.quantity)
+          : (variant.compromisedStock || 0);
+        const updatedProduct = { ...product, variants: product.variants.map(v => v.id === variant.id ? { ...v, stock: Math.max(0, v.stock - item.quantity), compromisedStock } : v) };
         batch.set(doc(db, 'products', product.id), cleanObject(updatedProduct), { merge: true });
       } else if (variant.recipe) {
         variant.recipe.forEach(recipeItem => {
           const rm = rawMaterials.find(r => r.id === recipeItem.rawMaterialId);
-          if (rm) batch.set(doc(db, 'rawMaterials', rm.id), { stock: Math.max(0, rm.stock - (recipeItem.quantity * item.quantity)), compromisedStock: Math.max(0, (rm.compromisedStock || 0) - (recipeItem.quantity * item.quantity)) }, { merge: true });
+          if (rm) {
+            const compromisedStock = deductCompromised
+              ? Math.max(0, (rm.compromisedStock || 0) - (recipeItem.quantity * item.quantity))
+              : (rm.compromisedStock || 0);
+            batch.set(doc(db, 'rawMaterials', rm.id), { stock: Math.max(0, rm.stock - (recipeItem.quantity * item.quantity)), compromisedStock }, { merge: true });
+          }
         });
       }
     });
@@ -981,7 +989,7 @@ export function useInventoryOperations(
         if (!isBudgetStatus(newSale.status) && !isCancelledStatus(newSale.status) && !isDeliveredStatus(newSale.status)) {
           await commitStock(newSale.items);
         } else if (isDeliveredStatus(newSale.status)) {
-          await consumeStockDefinitively(newSale.items);
+          await consumeStockDefinitively(newSale.items, false);
         }
       }
 
@@ -1008,13 +1016,13 @@ export function useInventoryOperations(
           if (isActiveStatus(newStatus)) {
             await commitStock(updatedSale.items);
           } else if (isDeliveredStatus(newStatus)) {
-            await consumeStockDefinitively(updatedSale.items);
+            await consumeStockDefinitively(updatedSale.items, false);
           }
         } else if (isActiveStatus(oldStatus)) {
           if (isBudgetStatus(newStatus) || isCancelledStatus(newStatus)) {
             await releaseStock(updatedSale.items);
           } else if (isDeliveredStatus(newStatus)) {
-            await consumeStockDefinitively(updatedSale.items);
+            await consumeStockDefinitively(updatedSale.items, true);
           }
         } else if (isDeliveredStatus(oldStatus)) {
           if (isActiveStatus(newStatus)) {

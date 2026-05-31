@@ -256,6 +256,14 @@ export default function ProductList({
                                   {v.name}: {getVariantStock(v, rawMaterials)}
                                   {v.isFinishedGood !== false && <ArrowUpCircle size={14} className="ml-1.5 text-emerald-500 group-hover/btn:scale-110 transition-transform" />}
                                 </button>
+                                {v.isFinishedGood !== false && v.compromisedStock > 0 && (
+                                  <span 
+                                    className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-semibold bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-400 border border-amber-200 dark:border-amber-800/50" 
+                                    title={`Físico: ${v.stock} | Comprometido: ${v.compromisedStock}`}
+                                  >
+                                    {v.compromisedStock} comp.
+                                  </span>
+                                )}
                                 {v.recipe && v.recipe.length > 0 && (
                                   <button
                                     onClick={() => setProducingProduct({ product, variant: v })}
