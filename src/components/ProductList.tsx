@@ -183,7 +183,9 @@ export default function ProductList({
                 <th className="p-4 font-medium">Producto</th>
                 <th className="p-4 font-medium">Categoría</th>
                 <th className="p-4 font-medium">Variantes</th>
-                <th className="p-4 font-medium">Stock Total</th>
+                <th className="p-4 font-medium">Stock Físico</th>
+                <th className="p-4 font-medium">Stock Comprometido</th>
+                <th className="p-4 font-medium">Stock Disponible</th>
                 <th className="p-4 font-medium">Catálogo</th>
                 <th className="p-4 font-medium">Rango de Precios</th>
                 <th className="p-4 font-medium text-right">Acciones</th>
@@ -192,14 +194,15 @@ export default function ProductList({
             <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
               {filteredProducts.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-stone-500 dark:text-stone-400">
+                  <td colSpan={9} className="p-8 text-center text-stone-500 dark:text-stone-400">
                     No se encontraron productos.
                   </td>
                 </tr>
               ) : (
                 filteredProducts.map((product) => {
-                  const totalStock = product.variants.reduce((sum, v) => sum + getVariantStock(v, rawMaterials), 0);
+                  const totalPhysicalStock = product.variants.reduce((sum, v) => sum + (v.isFinishedGood !== false ? (v.stock || 0) : getVariantStock(v, rawMaterials)), 0);
                   const totalCompromised = product.variants.reduce((sum, v) => sum + (v.isFinishedGood !== false ? (v.compromisedStock || 0) : 0), 0);
+                  const totalAvailable = product.variants.reduce((sum, v) => sum + getVariantStock(v, rawMaterials), 0);
                   const prices = product.variants.map(v => v.price);
                   const minPrice = Math.min(...prices);
                   const maxPrice = Math.max(...prices);
@@ -301,16 +304,25 @@ export default function ProductList({
                         </div>
                       </td>
                       <td className="p-4">
-                        <div className="flex flex-col">
-                          <span className={`font-medium ${totalStock <= 5 ? 'text-rose-600 dark:text-rose-400' : 'text-stone-900 dark:text-stone-100'}`}>
-                            {totalStock}
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-stone-100 dark:bg-stone-800 text-stone-800 dark:text-stone-300">
+                          {totalPhysicalStock}
+                        </span>
+                      </td>
+                      <td className="p-4">
+                        {totalCompromised > 0 ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-400">
+                            {totalCompromised}
                           </span>
-                          {totalCompromised > 0 && (
-                            <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold whitespace-nowrap mt-0.5" title="Unidades comprometidas en pedidos activos">
-                              {totalCompromised} comp.
-                            </span>
-                          )}
-                        </div>
+                        ) : (
+                          <span className="text-stone-400 dark:text-stone-600 text-sm">-</span>
+                        )}
+                      </td>
+                      <td className="p-4">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          totalAvailable <= 5 ? 'bg-rose-100 dark:bg-rose-900/30 text-rose-800 dark:text-rose-400' : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-400'
+                        }`}>
+                          {totalAvailable}
+                        </span>
                       </td>
                       <td className="p-4">
                         <button

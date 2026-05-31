@@ -200,7 +200,7 @@ export const updateStockOnSale = onDocumentWritten(
               let compromisedStock = v.compromisedStock || 0;
 
               // Only mutate finished good stock at variant level
-              if (v.isFinishedGood === true) {
+              if (v.isFinishedGood !== false) {
                 // Apply transition logic for finished goods
                 if (oldState === 'none' && newState === 'committed') {
                   compromisedStock += item.quantity;
