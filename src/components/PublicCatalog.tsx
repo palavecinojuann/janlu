@@ -1466,9 +1466,8 @@ export default function PublicCatalog({
 
       <main>
         <ErrorBoundary>
-
-
-        {activeTab === 'inicio' ? (
+          <div key={activeTab}>
+            {activeTab === 'inicio' ? (
           <>
             {/* Hero Carousel */}
             {heroSlides.length > 0 ? (
@@ -2133,7 +2132,7 @@ export default function PublicCatalog({
             </div>
           </div>
         ) : null}
-
+          </div>
         </ErrorBoundary>
       </main>
 
