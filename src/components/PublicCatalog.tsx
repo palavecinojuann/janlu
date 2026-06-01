@@ -2220,37 +2220,39 @@ export default function PublicCatalog({
       </footer>
 
       {/* Admin Modals */}
-      {isAdminMode && (isAddingProduct || editingProduct) ? (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white dark:bg-stone-950 rounded-3xl shadow-2xl w-full max-w-4xl my-8 relative">
-            <button 
-              onClick={() => { setIsAddingProduct(false); setEditingProduct(null); }}
-              className="absolute top-6 right-6 text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 z-10 bg-white dark:bg-stone-900 rounded-full p-2 shadow-sm"
-            >
-              <X size={24} />
-            </button>
-            <div className="p-8">
-              <ProductForm
-                product={editingProduct || undefined}
-                rawMaterials={rawMaterials}
-                onSave={async (product) => {
-                  if (editingProduct && onUpdateProduct) {
-                    await onUpdateProduct(product);
-                  } else if (onAddProduct) {
-                    await onAddProduct(product);
-                  }
-                  setIsAddingProduct(false);
-                  setEditingProduct(null);
-                }}
-                onCancel={() => {
-                  setIsAddingProduct(false);
-                  setEditingProduct(null);
-                }}
-              />
+      <div key="admin-modal-wrapper">
+        {isAdminMode && (isAddingProduct || editingProduct) ? (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4 overflow-y-auto">
+            <div className="bg-white dark:bg-stone-950 rounded-3xl shadow-2xl w-full max-w-4xl my-8 relative">
+              <button 
+                onClick={() => { setIsAddingProduct(false); setEditingProduct(null); }}
+                className="absolute top-6 right-6 text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 z-10 bg-white dark:bg-stone-900 rounded-full p-2 shadow-sm"
+              >
+                <X size={24} />
+              </button>
+              <div className="p-8">
+                <ProductForm
+                  product={editingProduct || undefined}
+                  rawMaterials={rawMaterials}
+                  onSave={async (product) => {
+                    if (editingProduct && onUpdateProduct) {
+                      await onUpdateProduct(product);
+                    } else if (onAddProduct) {
+                      await onAddProduct(product);
+                    }
+                    setIsAddingProduct(false);
+                    setEditingProduct(null);
+                  }}
+                  onCancel={() => {
+                    setIsAddingProduct(false);
+                    setEditingProduct(null);
+                  }}
+                />
+              </div>
             </div>
           </div>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
 
       {/* 🛒 CARRITO DE COMPRAS (PREMIUM DRAWER) */}
       <div 
@@ -2818,66 +2820,75 @@ export default function PublicCatalog({
         </div>
       </div>
 
-      {storeSettings?.whatsappNumber ? (
-        <a
-          href={`https://wa.me/${storeSettings.whatsappNumber?.toString().replace(/\D/g, '')}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="fixed bottom-6 right-6 z-50 bg-[#25D366] text-white p-4 rounded-full shadow-2xl hover:scale-110 transition-transform flex items-center justify-center group"
-          aria-label="Contactar por WhatsApp"
-        >
-          <Phone size={24} fill="currentColor" className="group-hover:animate-pulse" />
-        </a>
-      ) : null}
+      {/* Botón Flotante de WhatsApp */}
+      <div key="whatsapp-button-wrapper">
+        {storeSettings?.whatsappNumber ? (
+          <a
+            href={`https://wa.me/${storeSettings.whatsappNumber?.toString().replace(/\D/g, '')}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="fixed bottom-6 right-6 z-50 bg-[#25D366] text-white p-4 rounded-full shadow-2xl hover:scale-110 transition-transform flex items-center justify-center group"
+            aria-label="Contactar por WhatsApp"
+          >
+            <Phone size={24} fill="currentColor" className="group-hover:animate-pulse" />
+          </a>
+        ) : null}
+      </div>
 
-      {selectedProduct ? (
-        <ProductModal
-          product={selectedProduct}
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          onUpdateCart={handleUpdateCart}
-          activeOffers={activeOffers}
-          activeCampaign={activeCampaign}
-          formatCurrency={formatCurrency}
-          getEffectivePrice={getEffectivePrice}
-          formatStock={formatStock}
-          cart={cart}
-          rawMaterials={rawMaterials}
-          storeSettings={storeSettings}
-        />
-      ) : null}
+      {/* Modal de Detalle de Producto */}
+      <div key="product-modal-wrapper">
+        {selectedProduct ? (
+          <ProductModal
+            product={selectedProduct}
+            isOpen={isModalOpen}
+            onClose={() => setIsModalOpen(false)}
+            onUpdateCart={handleUpdateCart}
+            activeOffers={activeOffers}
+            activeCampaign={activeCampaign}
+            formatCurrency={formatCurrency}
+            getEffectivePrice={getEffectivePrice}
+            formatStock={formatStock}
+            cart={cart}
+            rawMaterials={rawMaterials}
+            storeSettings={storeSettings}
+          />
+        ) : null}
+      </div>
 
-      {confirmAction ? (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-2xl max-w-sm w-full p-6 border border-stone-200 dark:border-stone-800">
-            <h3 className="text-xl font-bold text-stone-800 dark:text-stone-100 mb-4">
-              Eliminar Producto
-            </h3>
-            <p className="text-stone-600 dark:text-stone-400 mb-6">
-              ¿Estás seguro de que deseas eliminar este producto? Esta acción no se puede deshacer.
-            </p>
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => setConfirmAction(null)}
-                className="px-4 py-2 text-stone-600 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-xl transition-colors font-medium"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={() => {
-                  if (onDeleteProduct) {
-                    onDeleteProduct(confirmAction.id);
-                  }
-                  setConfirmAction(null);
-                }}
-                className="px-4 py-2 bg-rose-600 text-white rounded-xl hover:bg-rose-700 transition-colors font-medium"
-              >
-                Eliminar
-              </button>
+      {/* Modal de Confirmación de Acción */}
+      <div key="confirm-modal-wrapper">
+        {confirmAction ? (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-2xl max-w-sm w-full p-6 border border-stone-200 dark:border-stone-800">
+              <h3 className="text-xl font-bold text-stone-800 dark:text-stone-100 mb-4">
+                Eliminar Producto
+              </h3>
+              <p className="text-stone-600 dark:text-stone-400 mb-6">
+                ¿Estás seguro de que deseas eliminar este producto? Esta acción no se puede deshacer.
+              </p>
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => setConfirmAction(null)}
+                  className="px-4 py-2 text-stone-600 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-xl transition-colors font-medium"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => {
+                    if (onDeleteProduct) {
+                      onDeleteProduct(confirmAction.id);
+                    }
+                    setConfirmAction(null);
+                  }}
+                  className="px-4 py-2 bg-rose-600 text-white rounded-xl hover:bg-rose-700 transition-colors font-medium"
+                >
+                  Eliminar
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
     </div>
   );
 }
