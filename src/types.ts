@@ -140,6 +140,16 @@ export interface AssignedOffer {
   isActive: boolean;
 }
 
+export interface CustomerBenefit {
+  id: string;
+  type: 'discount' | 'gift';
+  value: number | string; // e.g. 15 (percent discount) or "Vela Vainilla" (gift name)
+  code?: string; // Optional coupon code
+  grantedAt: string;
+  isUsed: boolean;
+  usedAt?: string;
+}
+
 export interface Customer {
   id: string;
   name: string;
@@ -161,6 +171,9 @@ export interface Customer {
   assignedOffers?: AssignedOffer[];
   isAcademyStudent?: boolean;
   academyJoinDate?: string;
+  completedSalesCount?: number;
+  purchaseHistory?: string[];
+  benefits?: CustomerBenefit[];
 }
 
 export interface SaleItem {
@@ -382,6 +395,14 @@ export interface StoreSettings {
   transferDiscountPercentage?: number;
   cashDiscountPercentage?: number;
   productModalNotice?: string;
+  welcomeBenefitType?: 'discount' | 'gift';
+  welcomeDiscountPercentage?: number;
+  welcomeGiftName?: string;
+  welcomeCouponExpiresDays?: number;
+  loyaltyMilestone?: number;
+  loyaltyBenefitType?: 'discount' | 'gift';
+  loyaltyDiscountPercentage?: number;
+  loyaltyGiftName?: string;
 }
 
 export interface Course {

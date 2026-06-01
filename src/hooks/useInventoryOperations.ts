@@ -6,7 +6,7 @@ import { Product, Customer, Sale, Quote, RawMaterial, FinancialDocument, Activit
 import { handleFirestoreError, cleanObject, OperationType } from '../utils/firebaseHelpers';
 import { roundFinancial, roundPrecise } from '../utils/mathUtils';
 import { toUMB, Unit, UNIT_DIMENSIONS, UMB_FOR_DIMENSION } from '../utils/units';
-import { generateNextCustomerNumber } from '../useCustomer';
+import { generateNextCustomerNumber, addCustomerWithAntiMatching, grantManualBenefitToCustomer, handleSaleStatusCompleted, handleSaleStatusReverted } from '../useCustomer';
 import { User as FirebaseUser } from 'firebase/auth';
 
 export function useInventoryOperations(
@@ -195,50 +195,10 @@ export function useInventoryOperations(
 
   const addCustomer = async (customer: Customer) => {
     try {
-      const normalizeEmail = (e?: string) => e?.trim().toLowerCase() || '';
-      const normalizePhone = (p?: string) => p?.replace(/\D/g, '') || '';
-      const nEmail = normalizeEmail(customer.email);
-      const nPhone = normalizePhone(customer.phone);
-      const isDuplicate = customers.some(c => (nEmail && normalizeEmail(c.email) === nEmail) || (nPhone && normalizePhone(c.phone) === nPhone));
-      if (isDuplicate) throw new Error('Ya existe un cliente con este email o teléfono.');
-
-      let finalCustomer = {
-        ...customer,
-        welcomeDiscountUsed: customer.welcomeDiscountUsed ?? false,
-        discountPercentage: customer.discountPercentage ?? 10,
-        assignedOffers: customer.assignedOffers ?? [],
-        registeredAt: customer.registeredAt || new Date().toISOString(),
-        createdAt: customer.createdAt || new Date().toISOString()
-      };
-      if (!finalCustomer.customerNumber) finalCustomer.customerNumber = await generateNextCustomerNumber();
-      if (!finalCustomer.discountExpiresAt) {
-        const regDate = new Date(finalCustomer.registeredAt);
-        finalCustomer.discountExpiresAt = new Date(regDate.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
-      }
-      const cleaned = cleanObject(finalCustomer);
-      await setDoc(doc(db, 'customers', finalCustomer.id), cleaned);
-      await logAction('create', 'customers', finalCustomer.id, cleaned);
-
-      // 🎁 Generar cupón de BIENVENIDA corto
-      if (finalCustomer.email && finalCustomer.email.trim() !== '') {
-        const suffix = Math.random().toString(36).substring(2, 6).toUpperCase();
-        const code = `HOLA10-${suffix}`;
-        const couponExpiresAt = new Date();
-        couponExpiresAt.setDate(couponExpiresAt.getDate() + 30);
-        
-        const newCoupon: Coupon = {
-          id: uuidv4(),
-          code,
-          discountPercentage: 10,
-          expiresAt: couponExpiresAt.toISOString(),
-          customerId: finalCustomer.id,
-          isUsed: false,
-          createdAt: new Date().toISOString()
-        };
-        await setDoc(doc(db, 'coupons', newCoupon.id), cleanObject(newCoupon));
-      }
+      await addCustomerWithAntiMatching(customer);
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'customers');
+      throw error;
     }
   };
 
@@ -1033,6 +993,13 @@ export function useInventoryOperations(
         }
       }
 
+      // 🏆 Trigger de Hito de Compra (Fidelización)
+      if (oldSale.status !== 'entregado' && updatedSale.status === 'entregado') {
+        await handleSaleStatusCompleted(updatedSale);
+      } else if (oldSale.status === 'entregado' && updatedSale.status !== 'entregado') {
+        await handleSaleStatusReverted(updatedSale);
+      }
+
       // 🚀 MODIFICACIÓN DE CUPOS EN WORKSHOPS POR CAMBIO DE ESTADO DE LA VENTA
       const oldInactive = isBudgetStatus(oldStatus) || isCancelledStatus(oldStatus);
       const newActive = isActiveStatus(newStatus) || isDeliveredStatus(newStatus);
@@ -1170,6 +1137,7 @@ export function useInventoryOperations(
     addCampaign, deleteCampaign,
     addOffer, updateOffer, deleteOffer,
     addSubscriber,
-    updateUserRole, clearAuditLogs, updateStoreSettings
+    updateUserRole, clearAuditLogs, updateStoreSettings,
+    grantManualBenefitToCustomer
   };
 }

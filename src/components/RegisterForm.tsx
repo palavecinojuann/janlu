@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { auth, db } from '../firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { generateNextCustomerNumber } from '../useCustomer';
+import { doc, setDoc, serverTimestamp, collection, query, where, getDocs, limit } from 'firebase/firestore';
+import { addCustomerWithAntiMatching } from '../useCustomer';
 import { Mail, Lock, User, Phone, Calendar, AlertCircle, Loader2 } from 'lucide-react';
 
 interface RegisterFormProps {
@@ -26,18 +26,33 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
     setError(null);
 
     try {
-      // 1. Create user in Firebase Auth
+      const normalizeEmail = (val?: string) => val?.trim().toLowerCase() || '';
+      const normalizePhone = (val?: string) => val?.replace(/\D/g, '') || '';
+      const emailNorm = normalizeEmail(email);
+      const phoneNorm = normalizePhone(phone);
+
+      // 1. Server-side cross validation for duplicates
+      if (emailNorm) {
+        const emailQuery = query(collection(db, 'customers'), where('email', '==', emailNorm), limit(1));
+        const emailSnap = await getDocs(emailQuery);
+        if (!emailSnap.empty) {
+          throw new Error('El email ya se encuentra registrado');
+        }
+      }
+
+      if (phoneNorm) {
+        const phoneQuery = query(collection(db, 'customers'), where('phone', '==', phoneNorm), limit(1));
+        const phoneSnap = await getDocs(phoneQuery);
+        if (!phoneSnap.empty) {
+          throw new Error('El número telefónico ya se encuentra registrado');
+        }
+      }
+
+      // 2. Create user in Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // 2. Generate correlative customer number
-      const customerNumber = await generateNextCustomerNumber();
-
-      // 3. Create customer document in Firestore
-      const now = new Date();
-      const expiresAt = new Date();
-      expiresAt.setDate(now.getDate() + 7); // 7 days later
-
+      // 3. Register in Firestore using atomic, anti-matching duplicate protection function
       const customerData = {
         id: user.uid,
         name: firstName,
@@ -45,16 +60,10 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
         email: email,
         phone: phone,
         birthDate: birthDate,
-        customerNumber: customerNumber,
-        registeredAt: now.toISOString(),
-        createdAt: now.toISOString(),
-        discountExpiresAt: expiresAt.toISOString(),
-        welcomeDiscountUsed: false,
-        discountPercentage: 10,
-        customerType: 'retail'
+        customerType: 'retail' as const
       };
 
-      await setDoc(doc(db, 'customers', user.uid), customerData);
+      await addCustomerWithAntiMatching(customerData);
 
       // 4. Also create a user profile for the dashboard if needed
       // (The useInventory hook handles this automatically onAuthStateChanged, 
