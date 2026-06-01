@@ -242,6 +242,7 @@ export function useInventoryOperations(
           category: material.category || 'Insumos',
           photoUrl: material.photoUrl || '',
           showInCatalog: true,
+          catalogType: 'insumo',
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           variants: [{
@@ -299,6 +300,7 @@ export function useInventoryOperations(
           category: updated.category || 'Insumos',
           photoUrl: updated.photoUrl || '',
           showInCatalog: true,
+          catalogType: 'insumo',
           createdAt: existingProduct?.createdAt || new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           variants: [{
@@ -347,6 +349,7 @@ export function useInventoryOperations(
               description: material.description || '',
               category: material.category || 'Insumos',
               photoUrl: material.photoUrl || '',
+              catalogType: 'insumo',
               variants: [{
                 ...existingProduct.variants[0],
                 name: material.unit,
