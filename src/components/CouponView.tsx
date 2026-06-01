@@ -237,12 +237,17 @@ export default function CouponView({
       </div>
 
       {isFormOpen && (
-        <div className="flex-1 overflow-y-auto min-h-0 bg-white dark:bg-stone-900 p-6 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800">
+        <div 
+          key={editingCouponId ? `edit-coupon-${editingCouponId}` : (editingId ? `edit-offer-${editingId}` : 'new-form')}
+          className="flex-1 overflow-y-auto min-h-0 bg-white dark:bg-stone-900 p-6 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800"
+        >
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-lg font-bold text-stone-800 dark:text-stone-100">
-              {activeTab === 'offers' 
-                ? (editingId ? 'Editar Oferta' : 'Crear Nueva Oferta')
-                : (editingCouponId ? 'Editar Cupón' : 'Crear Nuevo Cupón')}
+              {activeTab === 'offers' ? (
+                <span key="offer-title">{editingId ? 'Editar Oferta' : 'Crear Nueva Oferta'}</span>
+              ) : (
+                <span key="coupon-title">{editingCouponId ? 'Editar Cupón' : 'Crear Nuevo Cupón'}</span>
+              )}
             </h3>
             <button onClick={() => setIsFormOpen(false)} className="text-stone-400 hover:text-stone-600">
               <X size={20} />
@@ -461,7 +466,8 @@ export default function CouponView({
                     disabled={!!editingCouponId}
                     value={couponFormData.code}
                     onChange={e => setCouponFormData({ ...couponFormData, code: e.target.value.toUpperCase() })}
-                    className="w-full px-4 py-2 bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-800 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none disabled:opacity-50"
+                    className="w-full px-4 py-2 bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-800 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none disabled:opacity-50 notranslate"
+                    translate="no"
                     placeholder="Ej: BIENVENIDA20"
                   />
                 </div>
@@ -475,7 +481,8 @@ export default function CouponView({
                     required
                     value={couponFormData.discountPercentage || ''}
                     onChange={e => setCouponFormData({ ...couponFormData, discountPercentage: parseFloat(e.target.value) })}
-                    className="w-full px-4 py-2 bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-800 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                    className="w-full px-4 py-2 bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-800 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none notranslate"
+                    translate="no"
                   />
                 </div>
 
@@ -486,7 +493,8 @@ export default function CouponView({
                     required
                     value={couponFormData.expiresAt || ''}
                     onChange={e => setCouponFormData({ ...couponFormData, expiresAt: e.target.value })}
-                    className="w-full px-4 py-2 bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-800 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                    className="w-full px-4 py-2 bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-800 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none notranslate"
+                    translate="no"
                   />
                 </div>
 
@@ -517,9 +525,11 @@ export default function CouponView({
                 type="submit"
                 className="px-6 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 font-medium transition-colors"
               >
-                {activeTab === 'offers' 
-                  ? (editingId ? 'Guardar Cambios' : 'Crear Oferta')
-                  : (editingCouponId ? 'Guardar Cambios' : 'Crear Cupón')}
+                <span>
+                  {activeTab === 'offers' 
+                    ? (editingId ? 'Guardar Cambios' : 'Crear Oferta')
+                    : (editingCouponId ? 'Guardar Cambios' : 'Crear Cupón')}
+                </span>
               </button>
             </div>
           </form>
@@ -641,33 +651,36 @@ export default function CouponView({
                         return (
                           <tr key={coupon.id} className="hover:bg-stone-50 dark:hover:bg-stone-800/50 transition-colors">
                             <td className="px-6 py-4">
-                              <span className="font-mono font-bold text-stone-800 dark:text-stone-100 bg-stone-100 dark:bg-stone-800 px-2 py-1 rounded">
+                              <span 
+                                translate="no" 
+                                className="font-mono font-bold text-stone-800 dark:text-stone-100 bg-stone-100 dark:bg-stone-800 px-2 py-1 rounded notranslate"
+                              >
                                 {coupon.code}
                               </span>
                             </td>
                             <td className="px-6 py-4">
                               <span className="text-indigo-600 dark:text-indigo-400 font-bold">
-                                {coupon.discountPercentage}%
+                                <span key="pct">{coupon.discountPercentage}</span><span key="symbol">%</span>
                               </span>
                             </td>
                             <td className="px-6 py-4 text-sm text-stone-600 dark:text-stone-400">
-                              {coupon.expiresAt}
+                              <span key="expiry">{coupon.expiresAt}</span>
                             </td>
                             <td className="px-6 py-4">
                               {coupon.isUsed ? (
                                 <span className="flex items-center text-stone-500 text-xs">
                                   <CheckCircle size={14} className="mr-1 text-green-500" />
-                                  Usado
+                                  <span key="status">Usado</span>
                                 </span>
                               ) : isExpired ? (
                                 <span className="flex items-center text-red-500 text-xs">
                                   <AlertCircle size={14} className="mr-1" />
-                                  Expirado
+                                  <span key="status">Expirado</span>
                                 </span>
                               ) : (
                                 <span className="flex items-center text-green-600 text-xs font-medium">
                                   <RefreshCw size={14} className="mr-1" />
-                                  Disponible
+                                  <span key="status">Disponible</span>
                                 </span>
                               )}
                             </td>
