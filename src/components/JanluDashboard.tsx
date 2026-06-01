@@ -748,7 +748,7 @@ export default function JanluDashboard({
                       ))}
                     </Pie>
                     <Tooltip 
-                      formatter={(value: number) => [`${value} unid.`, 'Stock']}
+                      formatter={(value: number) => [`${value} ${value === 1 ? 'unidad' : 'unidades'}`, 'Stock']}
                       contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.05)', fontSize: '10px' }}
                     />
                   </PieChart>

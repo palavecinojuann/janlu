@@ -460,7 +460,7 @@ export default function ProductionView({
                         <div className="text-sm font-medium text-stone-900 dark:text-stone-100">{order.productName}</div>
                         <div className="text-xs text-stone-500 dark:text-stone-400">{order.variantName}</div>
                       </td>
-                      <td className="p-4 text-sm font-mono font-medium text-stone-900 dark:text-stone-100">{order.quantity} unid.</td>
+                      <td className="p-4 text-sm font-mono font-medium text-stone-900 dark:text-stone-100">{order.quantity} {order.quantity === 1 ? 'unidad' : 'unidades'}</td>
                       <td className="p-4">{getStatusBadge(order.status)}</td>
                       <td className="p-4 text-right">
                         <div className="flex justify-end gap-2">

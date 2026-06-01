@@ -694,7 +694,7 @@ export default function SaleList({ sales, products, customers, storeSettings, on
                           )}
                         </td>
                         <td className="p-4 text-sm text-stone-600 dark:text-stone-400">
-                          <div className="font-medium">{totalItems} unid.</div>
+                          <div className="font-medium">{totalItems} {totalItems === 1 ? 'unidad' : 'unidades'}</div>
                           <div className="text-xs text-stone-400 dark:text-stone-500 truncate max-w-[150px]">
                             {sale.items.map(i => i.productName).join(', ')}
                           </div>
