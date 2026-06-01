@@ -429,23 +429,23 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({
           </div>
         ) : null}
 
-        {totalQuantityInCart > 0 ? (
+        {totalQuantityInCart > 0 && (
           <div className="text-[10px] text-stone-500 font-medium mb-2 flex items-center gap-1">
-            <span>🛍️</span> {totalQuantityInCart} en tu carrito
+            <span>🛍️</span> <span>{totalQuantityInCart} en tu carrito</span>
           </div>
-        ) : null}
+        )}
 
-        {cashDiscount > 0 ? (
+        {cashDiscount > 0 && (
           <div className="text-sm font-bold text-stone-900 mb-2">
-            {formatCurrency(cashPrice)} <span className="font-normal text-xs text-stone-600">en Efectivo</span>
+            <span>{formatCurrency(cashPrice)}</span> <span className="font-normal text-xs text-stone-600">en Efectivo</span>
           </div>
-        ) : null}
+        )}
 
-        {isLowStock && !isOutOfStock ? (
+        {isLowStock && !isOutOfStock && (
           <div className="text-[10px] text-rose-600 uppercase tracking-wider mb-2">
-            ¡Solo quedan {totalStock} en stock!
+            <span>¡Solo quedan {totalStock} en stock!</span>
           </div>
-        ) : null}
+        )}
       </div>
     </div>
   );
@@ -2255,7 +2255,8 @@ export default function PublicCatalog({
 
       {/* 🛒 CARRITO DE COMPRAS (PREMIUM DRAWER) */}
       <div 
-        className={`fixed inset-0 z-[120] transition-all duration-500 ${
+        translate="no"
+        className={`fixed inset-0 z-[120] transition-all duration-500 notranslate ${
           isCartOpen ? 'opacity-100 visible' : 'opacity-0 invisible'
         }`}
       >
@@ -2277,15 +2278,15 @@ export default function PublicCatalog({
           <div className="flex items-center justify-between p-6 sm:px-8 sm:py-6 border-b border-stone-200/50 shrink-0">
             <div className="flex items-baseline gap-3">
               <h2 className="text-2xl font-serif text-stone-900 tracking-tight">
-                {checkoutStep === 'cart' ? 'Tu Carrito' : null}
-                {checkoutStep === 'details' ? 'Mis Datos' : null}
-                {checkoutStep === 'success' ? '¡Pedido Exitoso!' : null}
+                {checkoutStep === 'cart' && <span key="title-cart">Tu Carrito</span>}
+                {checkoutStep === 'details' && <span key="title-details">Mis Datos</span>}
+                {checkoutStep === 'success' && <span key="title-success">¡Pedido Exitoso!</span>}
               </h2>
-              {checkoutStep === 'cart' ? (
+              {checkoutStep === 'cart' && (
                 <span key="checkout-header-cart-count" className="text-[10px] text-stone-400 uppercase tracking-widest font-bold">
                   {cart.reduce((sum, item) => sum + item.quantity, 0)} {cart.reduce((sum, item) => sum + item.quantity, 0) === 1 ? 'Ítem' : 'Ítems'}
                 </span>
-              ) : null}
+              )}
             </div>
             <button 
               onClick={() => {
@@ -2303,7 +2304,7 @@ export default function PublicCatalog({
 
           {/* Área de Productos con Scroll Independiente */}
           <div className="flex-1 overflow-y-auto p-6 sm:p-8 custom-scrollbar">
-            {checkoutStep === 'cart' ? (
+            {checkoutStep === 'cart' && (
               cart.length === 0 ? (
                 <div key="checkout-step-cart-empty" className="h-full flex flex-col items-center justify-center text-center opacity-50">
                   <ShoppingBag size={48} strokeWidth={1} className="mb-4 text-stone-300" />
@@ -2455,9 +2456,9 @@ export default function PublicCatalog({
                   </div>
                 </div>
               )
-            ) : null}
+            )}
 
-            {checkoutStep === 'details' ? (
+            {checkoutStep === 'details' && (
               <div key="checkout-step-details" className="space-y-6">
                 <div>
                   <label className="block text-[10px] uppercase tracking-[0.2em] font-bold text-stone-500 mb-2">Nombre de contacto *</label>
@@ -2690,9 +2691,9 @@ export default function PublicCatalog({
                   </div>
                 ) : null}
               </div>
-            ) : null}
+            )}
 
-            {checkoutStep === 'success' ? (
+            {checkoutStep === 'success' && (
               <div key="checkout-step-success" className="h-full flex flex-col items-center justify-center text-center space-y-4">
                 <div className="w-20 h-20 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mb-4 border border-emerald-100">
                   <CheckCircle size={32} />
@@ -2759,7 +2760,7 @@ export default function PublicCatalog({
                   Volver a la tienda
                 </button>
               </div>
-            ) : null}
+            )}
           </div>
 
           {/* Footer del Carrito (Subtotales y Checkout) */}
@@ -2772,19 +2773,19 @@ export default function PublicCatalog({
                 <span className="text-2xl font-serif text-stone-900">{formatCurrency(finalTotal)}</span>
               </div>
               
-              {checkoutStep === 'cart' ? (
+              {checkoutStep === 'cart' && (
                 <button 
                   key="footer-btn-cart"
                   onClick={() => setCheckoutStep('details')}
                   disabled={hasExceededStock}
                   className="w-full bg-stone-900 text-white py-4 text-[10px] sm:text-xs font-bold uppercase tracking-[0.2em] hover:bg-stone-800 transition-colors shadow-xl disabled:opacity-50 flex items-center justify-center gap-2 group"
                 >
-                  {hasExceededStock ? 'Modifica las cantidades' : 'Iniciar Compra'}
-                  {!hasExceededStock ? <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" /> : null}
+                  <span>{hasExceededStock ? 'Modifica las cantidades' : 'Iniciar Compra'}</span>
+                  {!hasExceededStock && <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />}
                 </button>
-              ) : null}
+              )}
 
-              {checkoutStep === 'details' ? (
+              {checkoutStep === 'details' && (
                 <div key="footer-btns-details" className="flex gap-3">
                   <button
                     onClick={() => setCheckoutStep('cart')}
@@ -2801,17 +2802,17 @@ export default function PublicCatalog({
                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     ) : (
                       <>
-                        Enviar Pedido
+                        <span>Enviar Pedido</span>
                         <ShoppingBag size={14} className="group-hover:translate-x-1 transition-transform" />
                       </>
                     )}
                   </button>
                 </div>
-              ) : null}
+              )}
               
-              {checkoutStep === 'cart' ? (
+              {checkoutStep === 'cart' && (
                 <p key="footer-text-cart" className="text-center mt-4 text-[9px] text-stone-400 tracking-widest uppercase">Pagos seguros e información en el siguiente paso</p>
-              ) : null}
+              )}
             </div>
           ) : null}
           </ErrorBoundary>
