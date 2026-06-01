@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useInventoryContext } from '../contexts/InventoryContext';
 import { Customer, Sale, Offer, AssignedOffer } from '../types';
 import { v4 as uuidv4 } from 'uuid';
-import { Users, Plus, Trash2, Edit2, Search, X, MessageCircle, Instagram, Tag, Calendar as CalendarIcon, Check, AlertCircle, Gift } from 'lucide-react';
+import { Users, Plus, Trash2, Edit2, Search, X, MessageCircle, Instagram, Tag, Calendar as CalendarIcon, Check, AlertCircle, Gift, Award } from 'lucide-react';
 
 interface CustomerListProps {
   customers: Customer[];
@@ -14,10 +14,11 @@ interface CustomerListProps {
 }
 
 export default function CustomerList({ customers: initialCustomers, sales, offers, onAdd, onUpdate, onDelete }: CustomerListProps) {
-  const { customers, generateCoupon } = useInventoryContext();
+  const { customers, generateCoupon, grantManualBenefitToCustomer } = useInventoryContext();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [managingOffersId, setManagingOffersId] = useState<string | null>(null);
+  const [managingBenefitsId, setManagingBenefitsId] = useState<string | null>(null);
   const [formData, setFormData] = useState<{name: string, surname: string, email: string, phone: string, address: string, instagram: string, birthDate: string, registeredAt: string, customerType: 'retail' | 'wholesale'}>({ 
     name: '', 
     surname: '',
@@ -263,7 +264,20 @@ export default function CustomerList({ customers: initialCustomers, sales, offer
                               📅 Reg: {new Date(c.registeredAt).toLocaleDateString('es-AR', { timeZone: 'UTC' })}
                             </div>
                           )}
+                          <div className="text-[10px] text-amber-500 font-bold uppercase tracking-wider flex items-center gap-1" title="Compras entregadas">
+                            🛍️ Compras: {c.completedSalesCount || 0}
+                          </div>
                         </div>
+                        {c.benefits && c.benefits.length > 0 && (
+                          <div className="mt-1.5 flex flex-wrap gap-1">
+                            {c.benefits.map((b) => (
+                              <span key={b.id} className={`text-[8px] font-bold px-1.5 py-0.5 rounded border flex items-center gap-1 ${b.isUsed ? 'bg-stone-100 text-stone-400 border-stone-200 line-through' : 'bg-emerald-50 text-emerald-600 border-emerald-200'}`} title={b.isUsed ? `Usado el ${new Date(b.usedAt || '').toLocaleDateString()}` : 'Disponible'}>
+                                🎁 {b.type === 'discount' ? `${b.value}% OFF` : b.value} {b.code ? `(${b.code})` : ''}
+                                {b.isUsed && <span className="text-[7px] uppercase font-bold opacity-60">(Usado)</span>}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </td>
                       <td className="p-4">
                         <span className={`px-2 py-1 text-xs font-medium rounded-full ${c.customerType === 'wholesale' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400' : 'bg-stone-100 text-stone-800 dark:bg-stone-800 dark:text-stone-300'}`}>
@@ -319,6 +333,13 @@ export default function CustomerList({ customers: initialCustomers, sales, offer
                             <Tag size={16} />
                           </button>
                           <button 
+                            onClick={(e) => { e.stopPropagation(); setManagingBenefitsId(c.id); }} 
+                            className="p-2 text-stone-400 dark:text-stone-500 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg"
+                            title="Otorgar Beneficio Manual"
+                          >
+                            <Award size={16} />
+                          </button>
+                          <button 
                             onClick={(e) => { e.stopPropagation(); handleEdit(c); }} 
                             className="p-2 text-stone-400 dark:text-stone-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg"
                           >
@@ -359,6 +380,18 @@ export default function CustomerList({ customers: initialCustomers, sales, offer
           onUpdate={(updatedCustomer) => {
             onUpdate(updatedCustomer);
             setManagingOffersId(null);
+          }}
+        />
+      )}
+
+      {managingBenefitsId && (
+        <BenefitManagementModal 
+          customer={customers.find(c => c.id === managingBenefitsId)!}
+          onClose={() => setManagingBenefitsId(null)}
+          onGrantBenefit={async (customerId, benefitData) => {
+            if (grantManualBenefitToCustomer) {
+              await grantManualBenefitToCustomer(customerId, benefitData);
+            }
           }}
         />
       )}
@@ -483,6 +516,116 @@ function OfferManagementModal({ customer, offers, onClose, onUpdate }: OfferMana
         <div className="p-6 border-t border-stone-100 dark:border-stone-800 flex justify-end gap-3 bg-stone-50 dark:bg-stone-950/50">
           <button onClick={onClose} className="px-4 py-2 text-stone-600 dark:text-stone-400 hover:bg-stone-200 dark:hover:bg-stone-800 rounded-xl font-medium transition-colors">Cancelar</button>
           <button onClick={handleSave} className="px-6 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 font-medium shadow-lg shadow-indigo-200 dark:shadow-none transition-all">Guardar Cambios</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface BenefitManagementModalProps {
+  customer: Customer;
+  onClose: () => void;
+  onGrantBenefit: (customerId: string, benefitData: { type: 'discount' | 'gift'; value: string | number }) => Promise<void>;
+}
+
+function BenefitManagementModal({ customer, onClose, onGrantBenefit }: BenefitManagementModalProps) {
+  const [type, setType] = useState<'discount' | 'gift'>('discount');
+  const [value, setValue] = useState<string>('15');
+  const [loading, setLoading] = useState(false);
+
+  const handleGrant = async () => {
+    setLoading(true);
+    try {
+      const numericValue = type === 'discount' ? Number(value) : value;
+      if (type === 'discount' && (isNaN(numericValue as number) || (numericValue as number) <= 0 || (numericValue as number) > 100)) {
+        alert('Por favor ingresa un porcentaje de descuento válido (1-100).');
+        setLoading(false);
+        return;
+      }
+      if (!value.toString().trim()) {
+        alert('Por favor ingresa un valor de regalo.');
+        setLoading(false);
+        return;
+      }
+
+      await onGrantBenefit(customer.id, { type, value: numericValue });
+      alert('¡Beneficio otorgado con éxito!');
+      onClose();
+    } catch (e) {
+      console.error(e);
+      alert('Error al otorgar el beneficio.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div className="bg-white dark:bg-stone-900 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+        <div className="p-6 border-b border-stone-100 dark:border-stone-800 flex justify-between items-center bg-stone-50 dark:bg-stone-950/50">
+          <div>
+            <h3 className="text-xl font-bold text-stone-900 dark:text-stone-100">Otorgar Beneficio Manual</h3>
+            <p className="text-sm text-stone-500 dark:text-stone-400">{customer.name} {customer.surname} ({customer.customerNumber || 'S/N'})</p>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-stone-200 dark:hover:bg-stone-800 rounded-full transition-colors">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-2">Tipo de Beneficio</label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => { setType('discount'); setValue('15'); }}
+                className={`p-3 rounded-xl border text-center font-medium text-sm transition-all ${
+                  type === 'discount'
+                    ? 'border-indigo-600 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/20'
+                    : 'border-stone-200 hover:border-stone-300'
+                }`}
+              >
+                Cupón Descuento
+              </button>
+              <button
+                type="button"
+                onClick={() => { setType('gift'); setValue('Vela Aromática 100g'); }}
+                className={`p-3 rounded-xl border text-center font-medium text-sm transition-all ${
+                  type === 'gift'
+                    ? 'border-indigo-600 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/20'
+                    : 'border-stone-200 hover:border-stone-300'
+                }`}
+              >
+                Regalo Físico
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">
+              {type === 'discount' ? 'Porcentaje de Descuento (%)' : 'Descripción del Regalo'}
+            </label>
+            <input
+              type={type === 'discount' ? 'number' : 'text'}
+              min="1"
+              max="100"
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              className="w-full px-3 py-2 border border-stone-200 dark:border-stone-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none bg-white dark:bg-stone-950 text-stone-900 dark:text-stone-100"
+              placeholder={type === 'discount' ? 'Ej. 15' : 'Ej. Vela Vainilla'}
+            />
+          </div>
+        </div>
+
+        <div className="p-6 border-t border-stone-100 dark:border-stone-800 flex justify-end gap-3 bg-stone-50 dark:bg-stone-950/50">
+          <button onClick={onClose} className="px-4 py-2 text-stone-600 dark:text-stone-400 hover:bg-stone-200 dark:hover:bg-stone-800 rounded-xl font-medium transition-colors">Cancelar</button>
+          <button
+            onClick={handleGrant}
+            disabled={loading}
+            className="px-6 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 font-medium shadow-lg shadow-indigo-200 dark:shadow-none transition-all disabled:opacity-50"
+          >
+            {loading ? 'Otorgando...' : 'Confirmar'}
+          </button>
         </div>
       </div>
     </div>
