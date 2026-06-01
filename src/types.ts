@@ -126,7 +126,7 @@ export interface Product {
   isCustom?: boolean; // If true, requires custom manufacturing
   sortOrder?: number; // Optional order for catalog display
   customNote?: string; // Optional custom note to override global product modal notice
-  catalogType?: CatalogBranch;
+  catalogType?: 'vela' | 'insumo';
   createdAt: string;
   updatedAt: string;
 }

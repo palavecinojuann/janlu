@@ -1752,7 +1752,7 @@ export default function PublicCatalog({
                     : 'text-stone-400 hover:text-stone-600 dark:hover:text-stone-300'
                 }`}
               >
-                Velas & Decoración
+                Velas & Deco
                 {activeBranch === 'vela' ? (
                   <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#8B735B]" />
                 ) : null}

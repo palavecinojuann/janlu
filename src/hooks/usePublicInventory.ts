@@ -37,7 +37,14 @@ export function usePublicInventory(isAuthReady: boolean) {
     console.log("[DEBUG-FIRESTORE] Subscribing to 'products' collection...");
     const unsubProducts = onSnapshot(query(collection(db, 'products')), (snapshot) => {
       console.log(`[DEBUG-FIRESTORE] 'products' snapshot callback fired. Size: ${snapshot.docs.length} docs`);
-      const newData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Product));
+      const newData = snapshot.docs.map(doc => {
+        const data = doc.data() as Product;
+        return {
+          ...data,
+          id: doc.id,
+          catalogType: data.catalogType || 'vela'
+        };
+      });
       const newDataString = JSON.stringify(newData);
 
       if (newDataString !== productsStringRef.current) {
