@@ -46,6 +46,11 @@ export function useAuth() {
 
         const userRef = doc(db, 'users', user.uid);
         console.log(`[DEBUG-FIRESTORE] Subscribing to user doc snapshot 'users/${user.uid}'...`);
+        if (unsubUserDoc) {
+          console.log("[DEBUG-FIRESTORE] Cleaning up previous user doc subscription before registering a new one.");
+          unsubUserDoc();
+          unsubUserDoc = null;
+        }
         unsubUserDoc = onSnapshot(userRef, async (docSnap) => {
           console.log(`[DEBUG-FIRESTORE] 'users/${user.uid}' doc snapshot callback fired. Exists:`, docSnap.exists());
           if (docSnap.exists()) {

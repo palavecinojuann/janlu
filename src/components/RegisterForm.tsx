@@ -73,12 +73,12 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
         uid: user.uid,
         email: email,
         role: 'customer',
-        createdAt: now.toISOString(),
+        createdAt: new Date().toISOString(),
         name: `${firstName} ${lastName}`,
         level: 'bronce',
         referralCode: `JANLU-${user.uid.substring(0, 4).toUpperCase()}`,
         referralPoints: 0,
-        joinedAt: now.toISOString(),
+        joinedAt: new Date().toISOString(),
       });
 
       if (onSuccess) onSuccess();

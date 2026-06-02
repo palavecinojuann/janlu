@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { db } from '../firebase';
 import { collection, onSnapshot, query, orderBy, where, getDocs, startAfter, DocumentSnapshot, limit } from 'firebase/firestore';
 import { Sale, Customer, RawMaterial, Quote, Activity, FinancialDocument, ProductionOrder, Simulation, PreAuthorizedAdmin, AuditLog, User, Coupon, Product } from '../types';
@@ -43,7 +43,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
   const latestRecentSales = useRef<Map<string, Sale>>(new Map());
   const searchedSalesRef = useRef<Map<string, Sale>>(new Map());
 
-  const updateRealtimeSales = () => {
+  const updateRealtimeSales = useCallback(() => {
     const mergedMap = new Map<string, Sale>();
     latestPendingSales.current.forEach((sale, id) => {
       mergedMap.set(id, sale);
@@ -55,7 +55,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
       mergedMap.set(id, sale);
     });
     setRealtimeSales(Array.from(mergedMap.values()));
-  };
+  }, []);
 
   const cleanupAllListeners = () => {
     if (unsubCustomersRef.current) { unsubCustomersRef.current(); unsubCustomersRef.current = null; }
@@ -72,7 +72,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     searchedSalesRef.current.clear();
   };
 
-  const refresh = () => {
+  const refresh = useCallback(() => {
     hasFetchedUsers.current = false;
     hasFetchedFinance.current = false;
     hasFetchedSimulations.current = false;
@@ -81,7 +81,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     setLastVisibleLog(null);
     setHasMoreLogs(true);
     setRefreshTrigger(prev => prev + 1);
-  };
+  }, []);
 
   const sales = useMemo(() => {
     const combined = [...realtimeSales, ...historicalSales];
@@ -159,7 +159,8 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
 
     const qPending = query(
       collection(db, 'sales'),
-      where('status', 'not-in', ['entregado', 'cancelado'])
+      where('status', 'not-in', ['entregado', 'cancelado']),
+      limit(100)
     );
 
     const qRecent = query(
@@ -199,7 +200,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     return () => {
       // El desmontaje real lo maneja el efecto dedicado para evitar limpiar suscripciones válidas en renders efímeros
     };
-  }, [isAuthReady, isAdmin, refreshTrigger, salesLimit]);
+  }, [isAuthReady, isAdmin, refreshTrigger, salesLimit, updateRealtimeSales]);
 
   // Limpieza total de listeners al desmontar el hook de inventario
   useEffect(() => {
@@ -209,7 +210,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     };
   }, []);
 
-  const fetchInitialAuditLogs = async () => {
+  const fetchInitialAuditLogs = useCallback(async () => {
     if (!isAdmin) return;
     // NOTA: Arquitectura bajo demanda y paginada para la colección auditLogs para optimizar cuotas de lectura.
     setLoadingLogs(true);
@@ -233,9 +234,9 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     } finally {
       setLoadingLogs(false);
     }
-  };
+  }, [isAdmin]);
 
-  const fetchMoreAuditLogs = async () => {
+  const fetchMoreAuditLogs = useCallback(async () => {
     if (!isAdmin || !hasMoreLogs || !lastVisibleLog || loadingLogs) return;
     // NOTA: Arquitectura bajo demanda y paginada para la colección auditLogs para optimizar cuotas de lectura.
     setLoadingLogs(true);
@@ -260,9 +261,9 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     } finally {
       setLoadingLogs(false);
     }
-  };
+  }, [isAdmin, hasMoreLogs, lastVisibleLog, loadingLogs]);
 
-  const loadCoupons = async () => {
+  const loadCoupons = useCallback(async () => {
     console.log("[DEBUG-FIRESTORE] loadCoupons called. hasFetchedCoupons:", hasFetchedCoupons.current);
     if (!isAdmin || hasFetchedCoupons.current) return;
     hasFetchedCoupons.current = true;
@@ -275,9 +276,9 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
       console.warn("Error fetching coupons:", e);
       hasFetchedCoupons.current = false;
     }
-  };
+  }, [isAdmin]);
 
-  const loadUsersAndPreAuth = async () => {
+  const loadUsersAndPreAuth = useCallback(async () => {
     console.log("[DEBUG-FIRESTORE] loadUsersAndPreAuth called. hasFetchedUsers:", hasFetchedUsers.current);
     if (!isAdmin || hasFetchedUsers.current) return;
     hasFetchedUsers.current = true;
@@ -294,9 +295,9 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
       console.warn("Error fetching users:", e);
       hasFetchedUsers.current = false;
     }
-  };
+  }, [isAdmin]);
 
-  const loadFinancialDocs = async () => {
+  const loadFinancialDocs = useCallback(async () => {
     console.log("[DEBUG-FIRESTORE] loadFinancialDocs called. hasFetchedFinance:", hasFetchedFinance.current);
     if (!isAdmin || hasFetchedFinance.current) return;
     hasFetchedFinance.current = true;
@@ -309,9 +310,9 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
       console.warn("Error fetching financial docs:", e);
       hasFetchedFinance.current = false;
     }
-  };
+  }, [isAdmin]);
 
-  const loadSimulations = async () => {
+  const loadSimulations = useCallback(async () => {
     console.log("[DEBUG-FIRESTORE] loadSimulations called. hasFetchedSimulations:", hasFetchedSimulations.current);
     if (!isAdmin || hasFetchedSimulations.current) return;
     hasFetchedSimulations.current = true;
@@ -324,9 +325,9 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
       console.warn("Error fetching simulations:", e);
       hasFetchedSimulations.current = false;
     }
-  };
+  }, [isAdmin]);
 
-  const loadProductionOrders = async () => {
+  const loadProductionOrders = useCallback(async () => {
     console.log("[DEBUG-FIRESTORE] loadProductionOrders called. hasFetchedRecentOrders:", hasFetchedRecentOrders.current);
     if (!isAdmin || hasFetchedRecentOrders.current) return;
     hasFetchedRecentOrders.current = true;
@@ -349,13 +350,13 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
       console.warn("Error fetching recent production orders:", e);
       hasFetchedRecentOrders.current = false;
     }
-  };
+  }, [isAdmin]);
 
-  const fetchMoreSales = () => {
+  const fetchMoreSales = useCallback(() => {
     setSalesLimit(prev => prev + 20);
-  };
+  }, []);
 
-  const searchHistoricalSale = async (searchQuery: string) => {
+  const searchHistoricalSale = useCallback(async (searchQuery: string) => {
     try {
       let q = query(collection(db, 'sales'));
       const orderNum = parseInt(searchQuery);
@@ -384,7 +385,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
       console.error("Error en búsqueda histórica:", error);
       return false;
     }
-  };
+  }, [updateRealtimeSales]);
 
   const metrics = useMemo(() => {
     if (!isAdmin) return null;
@@ -551,7 +552,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     };
   }, [products, rawMaterials, sales, quotes, isAdmin]);
 
-  const exportarCatalogoCSV = () => {
+  const exportarCatalogoCSV = useCallback(() => {
     const headers = ['Producto', 'Descripción', 'Categoría', 'Variante/Tamaño', 'Precio Minorista', 'Precio Mayorista'];
     
     const escapeCSV = (val: string | number | undefined | null): string => {
@@ -597,9 +598,9 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  };
+  }, [products]);
 
-  const exportarInsumosCSV = () => {
+  const exportarInsumosCSV = useCallback(() => {
     const headers = ['Insumo', 'Stock Actual', 'Unidad de Medida', 'Costo por Unidad', 'Stock Mínimo', 'Categoría'];
     
     const escapeCSV = (val: string | number | undefined | null): string => {
@@ -640,7 +641,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  };
+  }, [rawMaterials]);
 
   return {
     customers,
