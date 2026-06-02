@@ -23,6 +23,10 @@ export function usePublicInventory(isAuthReady: boolean) {
   });
   const [isSettingsLoaded, setIsSettingsLoaded] = useState(false);
   const productsStringRef = useRef<string>('');
+  const rawMaterialsStringRef = useRef<string>('');
+  const campaignsStringRef = useRef<string>('');
+  const offersStringRef = useRef<string>('');
+  const coursesStringRef = useRef<string>('');
 
   useEffect(() => {
     console.log("[DEBUG-FIRESTORE] useEffect usePublicInventory triggered. isAuthReady:", isAuthReady);
@@ -57,26 +61,49 @@ export function usePublicInventory(isAuthReady: boolean) {
     console.log("[DEBUG-FIRESTORE] Subscribing to 'campaigns' collection...");
     const unsubCampaigns = onSnapshot(query(collection(db, 'campaigns')), (snapshot) => {
       console.log(`[DEBUG-FIRESTORE] 'campaigns' snapshot callback fired. Size: ${snapshot.docs.length} docs`);
-      setCampaigns(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Campaign)));
+      const newData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Campaign));
+      const newDataString = JSON.stringify(newData);
+      if (newDataString !== campaignsStringRef.current) {
+        campaignsStringRef.current = newDataString;
+        setCampaigns(newData);
+        console.log("✅ Campañas actualizadas (Cambio real detectado)");
+      }
     }, (e) => handlePublicError(e, OperationType.GET, 'campaigns'));
 
     console.log("[DEBUG-FIRESTORE] Subscribing to 'offers' collection...");
     const unsubOffers = onSnapshot(query(collection(db, 'offers')), (snapshot) => {
       console.log(`[DEBUG-FIRESTORE] 'offers' snapshot callback fired. Size: ${snapshot.docs.length} docs`);
-      setOffers(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Offer)));
+      const newData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Offer));
+      const newDataString = JSON.stringify(newData);
+      if (newDataString !== offersStringRef.current) {
+        offersStringRef.current = newDataString;
+        setOffers(newData);
+        console.log("✅ Ofertas actualizadas (Cambio real detectado)");
+      }
     }, (e) => handlePublicError(e, OperationType.GET, 'offers'));
 
     console.log("[DEBUG-FIRESTORE] Subscribing to 'courses' collection...");
     const unsubCourses = onSnapshot(query(collection(db, 'courses')), (snapshot) => {
       console.log(`[DEBUG-FIRESTORE] 'courses' snapshot callback fired. Size: ${snapshot.docs.length} docs`);
-      setCourses(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Course)));
+      const newData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Course));
+      const newDataString = JSON.stringify(newData);
+      if (newDataString !== coursesStringRef.current) {
+        coursesStringRef.current = newDataString;
+        setCourses(newData);
+        console.log("✅ Cursos actualizados (Cambio real detectado)");
+      }
     }, (e) => handlePublicError(e, OperationType.GET, 'courses'));
 
     console.log("[DEBUG-FIRESTORE] Subscribing to 'rawMaterials' collection...");
     const unsubRawMaterials = onSnapshot(query(collection(db, 'rawMaterials')), (snapshot) => {
       console.log(`[DEBUG-FIRESTORE] 'rawMaterials' snapshot callback fired. Size: ${snapshot.docs.length} docs`);
-      setRawMaterials(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as RawMaterial)));
-      console.log("✅ Insumos actualizados (Público)");
+      const newData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as RawMaterial));
+      const newDataString = JSON.stringify(newData);
+      if (newDataString !== rawMaterialsStringRef.current) {
+        rawMaterialsStringRef.current = newDataString;
+        setRawMaterials(newData);
+        console.log("✅ Insumos actualizados (Cambio real detectado)");
+      }
     }, (e) => handlePublicError(e, OperationType.GET, 'rawMaterials'));
 
     console.log("[DEBUG-FIRESTORE] Subscribing to 'settings' global doc...");
