@@ -102,7 +102,7 @@ export default function App() {
     preAuthorizedAdmins, addPreAuth, updatePreAuthRole, removePreAuth,
     auditLogs, clearAuditLogs, storeSettings, isSettingsLoaded, validateCoupon,
     coupons, generateCoupon, updateCoupon, deleteCoupon, addSubscriber,
-    loadAuditLogs, fetchMoreAuditLogs, hasMoreAuditLogs, loadUsersAndPreAuth, loadFinancialDocs, loadSimulations, loadProductionOrders, loadCoupons,
+    fetchInitialAuditLogs, fetchMoreAuditLogs, hasMoreLogs, loadingLogs, loadUsersAndPreAuth, loadFinancialDocs, loadSimulations, loadProductionOrders, loadCoupons,
     exportarCatalogoCSV, exportarInsumosCSV
   } = useInventoryContext();
   
@@ -550,9 +550,9 @@ export default function App() {
                   <AuditLogsView 
                     logs={auditLogs} 
                     clearLogs={clearAuditLogs} 
-                    loadLogs={loadAuditLogs}
+                    loadLogs={fetchInitialAuditLogs}
                     loadMoreLogs={fetchMoreAuditLogs}
-                    hasMore={hasMoreAuditLogs}
+                    hasMore={hasMoreLogs}
                   />
                 )}
               </div>

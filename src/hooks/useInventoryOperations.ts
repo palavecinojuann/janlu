@@ -1,6 +1,6 @@
 import React from 'react';
 import { db } from '../firebase';
-import { doc, setDoc, updateDoc, deleteDoc, writeBatch, runTransaction, increment, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, deleteDoc, writeBatch, runTransaction, increment, collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { v4 as uuidv4 } from 'uuid';
 import { Product, Customer, Sale, Quote, RawMaterial, FinancialDocument, Activity, ProductionOrder, Campaign, Offer, Simulation, Coupon, User, Course, RecipeItem } from '../types';
 import { handleFirestoreError, cleanObject, OperationType } from '../utils/firebaseHelpers';
@@ -22,7 +22,10 @@ export function useInventoryOperations(
   auditLogs: any[],
   coupons: Coupon[],
   storeSettings: any,
-  setCoupons?: React.Dispatch<React.SetStateAction<Coupon[]>>
+  setCoupons?: React.Dispatch<React.SetStateAction<Coupon[]>>,
+  setAuditLogs?: React.Dispatch<React.SetStateAction<any[]>>,
+  setLastVisibleLog?: React.Dispatch<React.SetStateAction<any>>,
+  setHasMoreLogs?: React.Dispatch<React.SetStateAction<boolean>>
 ) {
   const logAction = async (action: string, collectionName: string, documentId: string, newData?: unknown, previousData?: unknown) => {
     if (!currentUser) return;
@@ -1111,11 +1114,31 @@ export function useInventoryOperations(
   const clearAuditLogs = async () => {
     if (!isAdmin) return;
     try {
-      const batch = writeBatch(db);
-      auditLogs.forEach(log => { batch.delete(doc(db, 'auditLogs', log.id)); });
-      await batch.commit();
+      // NOTA: Arquitectura bajo demanda y paginada para la colección auditLogs para optimizar cuotas de lectura.
+      let hasMore = true;
+      while (hasMore) {
+        const snapshot = await getDocs(query(collection(db, 'auditLogs'), limit(500)));
+        if (snapshot.empty) {
+          hasMore = false;
+          break;
+        }
+        const batch = writeBatch(db);
+        snapshot.docs.forEach(docSnap => {
+          batch.delete(docSnap.ref);
+        });
+        await batch.commit();
+        if (snapshot.docs.length < 500) {
+          hasMore = false;
+        }
+      }
       await logAction('clear_logs', 'auditLogs', 'all');
-    } catch (error) { handleFirestoreError(error, OperationType.DELETE, 'auditLogs'); }
+      
+      if (setAuditLogs) setAuditLogs([]);
+      if (setLastVisibleLog) setLastVisibleLog(null);
+      if (setHasMoreLogs) setHasMoreLogs(false);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, 'auditLogs');
+    }
   };
 
   const updateStoreSettings = async (newSettings: any) => {

@@ -21,10 +21,10 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
   const [financialDocs, setFinancialDocs] = useState<FinancialDocument[]>([]);
   const [lastSync, setLastSync] = useState<Date>(new Date());
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [salesLimit, setSalesLimit] = useState(20);
-  const [auditLogsLimit, setAuditLogsLimit] = useState(50);
-  const [hasMoreAuditLogs, setHasMoreAuditLogs] = useState(false);
-  const hasFetchedAuditLogs = useRef(false);
+  const [salesLimit, setSalesLimit] = useState(50);
+  const [lastVisibleLog, setLastVisibleLog] = useState<any>(null);
+  const [hasMoreLogs, setHasMoreLogs] = useState<boolean>(true);
+  const [loadingLogs, setLoadingLogs] = useState<boolean>(false);
   const hasFetchedUsers = useRef(false);
   const hasFetchedFinance = useRef(false);
   const hasFetchedSimulations = useRef(false);
@@ -38,6 +38,25 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
   const unsubOrdersActiveRef = useRef<(() => void) | null>(null);
   const unsubSalesRef = useRef<(() => void) | null>(null);
 
+  // NOTA: Cachés en memoria para la optimización de la ráfaga inicial de Firestore
+  const latestPendingSales = useRef<Map<string, Sale>>(new Map());
+  const latestRecentSales = useRef<Map<string, Sale>>(new Map());
+  const searchedSalesRef = useRef<Map<string, Sale>>(new Map());
+
+  const updateRealtimeSales = () => {
+    const mergedMap = new Map<string, Sale>();
+    latestPendingSales.current.forEach((sale, id) => {
+      mergedMap.set(id, sale);
+    });
+    latestRecentSales.current.forEach((sale, id) => {
+      mergedMap.set(id, sale);
+    });
+    searchedSalesRef.current.forEach((sale, id) => {
+      mergedMap.set(id, sale);
+    });
+    setRealtimeSales(Array.from(mergedMap.values()));
+  };
+
   const cleanupAllListeners = () => {
     if (unsubCustomersRef.current) { unsubCustomersRef.current(); unsubCustomersRef.current = null; }
     if (unsubQuotesRef.current) { unsubQuotesRef.current(); unsubQuotesRef.current = null; }
@@ -46,16 +65,21 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     if (unsubSalesRef.current) { unsubSalesRef.current(); unsubSalesRef.current = null; }
     adminListenersMounted.current = false;
     hasFetchedCoupons.current = false;
+    
+    // Limpieza de las cachés de ventas
+    latestPendingSales.current.clear();
+    latestRecentSales.current.clear();
+    searchedSalesRef.current.clear();
   };
 
   const refresh = () => {
-    hasFetchedAuditLogs.current = false;
     hasFetchedUsers.current = false;
     hasFetchedFinance.current = false;
     hasFetchedSimulations.current = false;
     hasFetchedRecentOrders.current = false;
     hasFetchedCoupons.current = false;
-    setAuditLogsLimit(50);
+    setLastVisibleLog(null);
+    setHasMoreLogs(true);
     setRefreshTrigger(prev => prev + 1);
   };
 
@@ -79,10 +103,9 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
       setAuditLogs([]);
       setCoupons([]);
       setFinancialDocs([]);
-      setAuditLogsLimit(50);
-      setHasMoreAuditLogs(false);
+      setLastVisibleLog(null);
+      setHasMoreLogs(true);
       cleanupAllListeners();
-      hasFetchedAuditLogs.current = false;
       hasFetchedUsers.current = false;
       hasFetchedFinance.current = false;
       hasFetchedSimulations.current = false;
@@ -127,18 +150,51 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
       });
     }
 
-    // Suscripción con Paginación de Ventas (se recrea al cambiar salesLimit o refreshTrigger)
-    console.log(`[DEBUG-FIRESTORE] Subscribing to 'sales' collection (limit ${salesLimit})...`);
+    // NOTA: Optimización de ráfaga inicial para limitar lecturas de ventas históricas cerradas.
+    console.log(`[DEBUG-FIRESTORE] Subscribing to 'sales' collection (pending and recent limit ${salesLimit})...`);
     if (unsubSalesRef.current) {
-      console.log("[DEBUG-FIRESTORE] Unsubscribing previous 'sales' listener...");
+      console.log("[DEBUG-FIRESTORE] Unsubscribing previous 'sales' listeners...");
       unsubSalesRef.current();
     }
-    unsubSalesRef.current = onSnapshot(query(collection(db, 'sales'), orderBy('date', 'desc'), limit(salesLimit)), (snapshot) => {
-      console.log(`[DEBUG-FIRESTORE] 'sales' snapshot callback fired. Size: ${snapshot.docs.length} docs`);
-      const newSales = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Sale));
-      setRealtimeSales(newSales);
+
+    const qPending = query(
+      collection(db, 'sales'),
+      where('status', 'not-in', ['entregado', 'cancelado'])
+    );
+
+    const qRecent = query(
+      collection(db, 'sales'),
+      orderBy('date', 'desc'),
+      limit(salesLimit)
+    );
+
+
+
+    const unsubPending = onSnapshot(qPending, (snapshot) => {
+      console.log(`[DEBUG-FIRESTORE] 'sales' (pending) snapshot callback fired. Size: ${snapshot.docs.length} docs`);
+      const pendingMap = new Map<string, Sale>();
+      snapshot.docs.forEach(doc => {
+        pendingMap.set(doc.id, { ...doc.data(), id: doc.id } as Sale);
+      });
+      latestPendingSales.current = pendingMap;
+      updateRealtimeSales();
+    }, (e) => handleFirestoreError(e, OperationType.GET, 'sales_pending'));
+
+    const unsubRecent = onSnapshot(qRecent, (snapshot) => {
+      console.log(`[DEBUG-FIRESTORE] 'sales' (recent) snapshot callback fired. Size: ${snapshot.docs.length} docs`);
+      const recentMap = new Map<string, Sale>();
+      snapshot.docs.forEach(doc => {
+        recentMap.set(doc.id, { ...doc.data(), id: doc.id } as Sale);
+      });
+      latestRecentSales.current = recentMap;
       setHasMoreSales(snapshot.docs.length === salesLimit);
-    }, (e) => handleFirestoreError(e, OperationType.GET, 'sales'));
+      updateRealtimeSales();
+    }, (e) => handleFirestoreError(e, OperationType.GET, 'sales_recent'));
+
+    unsubSalesRef.current = () => {
+      unsubPending();
+      unsubRecent();
+    };
 
     return () => {
       // El desmontaje real lo maneja el efecto dedicado para evitar limpiar suscripciones válidas en renders efímeros
@@ -153,26 +209,57 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     };
   }, []);
 
-  const loadAuditLogs = async (customLimit?: number) => {
+  const fetchInitialAuditLogs = async () => {
     if (!isAdmin) return;
-    const currentLimit = customLimit || auditLogsLimit;
-    console.log(`[DEBUG-FIRESTORE] loadAuditLogs called. Limit: ${currentLimit}`);
+    // NOTA: Arquitectura bajo demanda y paginada para la colección auditLogs para optimizar cuotas de lectura.
+    setLoadingLogs(true);
     try {
-      const auditLogsSnap = await getDocs(query(collection(db, 'auditLogs'), orderBy('timestamp', 'desc'), limit(currentLimit)));
-      console.log(`[DEBUG-FIRESTORE] getDocs 'auditLogs' returned ${auditLogsSnap.docs.length} docs`);
-      const fetchedLogs = auditLogsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as AuditLog));
+      const q = query(
+        collection(db, 'auditLogs'),
+        orderBy('timestamp', 'desc'),
+        limit(50)
+      );
+      const snapshot = await getDocs(q);
+      console.log(`[DEBUG-FIRESTORE] getDocs 'auditLogs' (initial) returned ${snapshot.docs.length} docs`);
+      const fetchedLogs = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as AuditLog));
       setAuditLogs(fetchedLogs);
-      setHasMoreAuditLogs(fetchedLogs.length === currentLimit);
+      
+      const lastDoc = snapshot.docs[snapshot.docs.length - 1] || null;
+      setLastVisibleLog(lastDoc);
+      setHasMoreLogs(snapshot.docs.length === 50);
       setLastSync(new Date());
     } catch (e) {
-      console.warn("Error fetching audit logs:", e);
+      console.warn("Error fetching initial audit logs:", e);
+    } finally {
+      setLoadingLogs(false);
     }
   };
 
-  const fetchMoreAuditLogs = () => {
-    const nextLimit = auditLogsLimit + 50;
-    setAuditLogsLimit(nextLimit);
-    loadAuditLogs(nextLimit);
+  const fetchMoreAuditLogs = async () => {
+    if (!isAdmin || !hasMoreLogs || !lastVisibleLog || loadingLogs) return;
+    // NOTA: Arquitectura bajo demanda y paginada para la colección auditLogs para optimizar cuotas de lectura.
+    setLoadingLogs(true);
+    try {
+      const q = query(
+        collection(db, 'auditLogs'),
+        orderBy('timestamp', 'desc'),
+        startAfter(lastVisibleLog),
+        limit(50)
+      );
+      const snapshot = await getDocs(q);
+      console.log(`[DEBUG-FIRESTORE] getDocs 'auditLogs' (more) returned ${snapshot.docs.length} docs`);
+      const fetchedLogs = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as AuditLog));
+      
+      setAuditLogs(prev => [...prev, ...fetchedLogs]);
+      const lastDoc = snapshot.docs[snapshot.docs.length - 1] || null;
+      setLastVisibleLog(lastDoc);
+      setHasMoreLogs(snapshot.docs.length === 50);
+      setLastSync(new Date());
+    } catch (e) {
+      console.warn("Error fetching more audit logs:", e);
+    } finally {
+      setLoadingLogs(false);
+    }
   };
 
   const loadCoupons = async () => {
@@ -284,15 +371,12 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
       const foundSales = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Sale));
 
       if (foundSales.length > 0) {
-        // Inyectamos el pedido encontrado en el estado actual de ventas en pantalla
-        setRealtimeSales(prev => {
-          const current = [...prev];
-          foundSales.forEach(fs => {
-            if (!current.some(s => s.id === fs.id)) current.push(fs);
-          });
-          // Re-ordenamos para que el pedido buscado quede acomodado correctamente por fecha
-          return current.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        // NOTA: Optimización de ráfaga inicial para limitar lecturas de ventas históricas cerradas.
+        // Registramos el pedido encontrado en la caché de búsquedas y actualizamos el estado unificado.
+        foundSales.forEach(fs => {
+          searchedSalesRef.current.set(fs.id, fs);
         });
+        updateRealtimeSales();
         return true;
       }
       return false;
@@ -579,9 +663,15 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     metrics,
     exportarCatalogoCSV,
     exportarInsumosCSV,
-    loadAuditLogs,
+    fetchInitialAuditLogs,
     fetchMoreAuditLogs,
-    hasMoreAuditLogs,
+    hasMoreLogs,
+    loadingLogs,
+    loadAuditLogs: fetchInitialAuditLogs,
+    hasMoreAuditLogs: hasMoreLogs,
+    setAuditLogs,
+    setLastVisibleLog,
+    setHasMoreLogs,
     loadUsersAndPreAuth,
     loadFinancialDocs,
     loadSimulations,
