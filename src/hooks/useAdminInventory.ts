@@ -160,7 +160,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     const qPending = query(
       collection(db, 'sales'),
       where('status', 'not-in', ['entregado', 'cancelado']),
-      limit(100)
+      limit(30)
     );
 
     const qRecent = query(
@@ -387,9 +387,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     }
   }, [updateRealtimeSales]);
 
-  const metrics = useMemo(() => {
-    if (!isAdmin) return null;
-
+  const variantStocksAndMetrics = useMemo(() => {
     const variantDataMap = new Map<string, { cost: number; price: number; stock: number }>();
     let totalStock = 0;
     let totalValueCost = 0;
@@ -407,6 +405,14 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
         if (stock > 0 && stock <= 5) lowStockItems++;
       });
     });
+
+    return { variantDataMap, totalStock, totalValueCost, totalValuePrice, lowStockItems };
+  }, [products, rawMaterials]);
+
+  const metrics = useMemo(() => {
+    if (!isAdmin) return null;
+
+    const { variantDataMap, totalStock, totalValueCost, totalValuePrice, lowStockItems } = variantStocksAndMetrics;
 
     const validSales = sales.filter(s => s.status !== 'cancelado');
     let grossProfit = 0;
@@ -550,7 +556,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
       netProfit,
       revenueByMethod
     };
-  }, [products, rawMaterials, sales, quotes, isAdmin]);
+  }, [products, variantStocksAndMetrics, sales, quotes, isAdmin]);
 
   const exportarCatalogoCSV = useCallback(() => {
     const headers = ['Producto', 'Descripción', 'Categoría', 'Variante/Tamaño', 'Precio Minorista', 'Precio Mayorista'];
