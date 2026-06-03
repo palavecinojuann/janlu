@@ -5,7 +5,9 @@ import { Sale, Customer, RawMaterial, Quote, Activity, FinancialDocument, Produc
 import { getVariantStock } from '../utils/stockUtils';
 import { handleFirestoreError, OperationType } from '../utils/firebaseHelpers';
 
-export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, products: Product[], rawMaterials: RawMaterial[]) {
+export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, products: Product[]) {
+  const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>([]);
+  const rawMaterialsStringRef = useRef<string>('');
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [realtimeSales, setRealtimeSales] = useState<Sale[]>([]);
   const [historicalSales, setHistoricalSales] = useState<Sale[]>([]);
@@ -37,6 +39,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
   const unsubActivitiesRef = useRef<(() => void) | null>(null);
   const unsubOrdersActiveRef = useRef<(() => void) | null>(null);
   const unsubSalesRef = useRef<(() => void) | null>(null);
+  const unsubRawMaterialsRef = useRef<(() => void) | null>(null);
 
   // NOTA: Cachés en memoria para la optimización de la ráfaga inicial de Firestore
   const latestPendingSales = useRef<Map<string, Sale>>(new Map());
@@ -63,6 +66,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     if (unsubActivitiesRef.current) { unsubActivitiesRef.current(); unsubActivitiesRef.current = null; }
     if (unsubOrdersActiveRef.current) { unsubOrdersActiveRef.current(); unsubOrdersActiveRef.current = null; }
     if (unsubSalesRef.current) { unsubSalesRef.current(); unsubSalesRef.current = null; }
+    if (unsubRawMaterialsRef.current) { unsubRawMaterialsRef.current(); unsubRawMaterialsRef.current = null; }
     adminListenersMounted.current = false;
     hasFetchedCoupons.current = false;
     
@@ -103,6 +107,8 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
       setAuditLogs([]);
       setCoupons([]);
       setFinancialDocs([]);
+      setRawMaterials([]);
+      rawMaterialsStringRef.current = '';
       setLastVisibleLog(null);
       setHasMoreLogs(true);
       cleanupAllListeners();
@@ -148,6 +154,18 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
           return Array.from(merged.values()).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
         });
       });
+
+      console.log("[DEBUG-FIRESTORE] Subscribing to 'rawMaterials' collection (admin)...");
+      unsubRawMaterialsRef.current = onSnapshot(query(collection(db, 'rawMaterials')), (snapshot) => {
+        console.log(`[DEBUG-FIRESTORE] 'rawMaterials' (admin) snapshot callback fired. Size: ${snapshot.docs.length} docs`);
+        const newData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as RawMaterial));
+        const newDataString = JSON.stringify(newData);
+        if (newDataString !== rawMaterialsStringRef.current) {
+          rawMaterialsStringRef.current = newDataString;
+          setRawMaterials(newData);
+          console.log("✅ Insumos actualizados en Panel Admin (Cambio real detectado)");
+        }
+      }, (e) => handleFirestoreError(e, OperationType.GET, 'rawMaterials'));
     }
 
     // NOTA: Optimización de ráfaga inicial para limitar lecturas de ventas históricas cerradas.
@@ -645,6 +663,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
 
   return {
     customers,
+    rawMaterials,
     sales,
     fetchMoreSales,
     searchHistoricalSale,

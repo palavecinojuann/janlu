@@ -10,8 +10,8 @@ export const getVariantStock = (variant: Variant | undefined | null, rawMaterial
     return Math.max(0, variant.stock - (variant.compromisedStock || 0));
   }
   
-  // If it has a recipe, calculate stock based on ingredients
-  if (variant.recipe && variant.recipe.length > 0) {
+  // If it has a recipe, calculate stock based on ingredients (only if rawMaterials list is loaded)
+  if (variant.recipe && variant.recipe.length > 0 && rms.length > 0) {
     let minStock = Infinity;
     for (const item of variant.recipe) {
       const rm = rms.find(m => m.id === item.rawMaterialId);

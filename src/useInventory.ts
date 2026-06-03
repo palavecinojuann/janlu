@@ -12,7 +12,7 @@ export function useInventory() {
 
   // 3. Capa de Datos Administrativos (Ventas, Clientes, Insumos)
   // CRÍTICO: El celular del cliente ya no descarga esta información
-  const adminData = useAdminInventory(auth.isAdmin, auth.isAuthReady, publicData.products, publicData.rawMaterials);
+  const adminData = useAdminInventory(auth.isAdmin, auth.isAuthReady, publicData.products);
 
   // 4. Capa de Operaciones (Mutaciones y Lógica Transaccional)
   const operations = useInventoryOperations(

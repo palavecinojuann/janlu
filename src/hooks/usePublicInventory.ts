@@ -9,7 +9,6 @@ export function usePublicInventory(isAuthReady: boolean) {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [offers, setOffers] = useState<Offer[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
-  const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>([]);
   const [storeSettings, setStoreSettings] = useState<StoreSettings>({
     whatsappNumber: '',
     instagramUrl: '',
@@ -23,7 +22,6 @@ export function usePublicInventory(isAuthReady: boolean) {
   });
   const [isSettingsLoaded, setIsSettingsLoaded] = useState(false);
   const productsStringRef = useRef<string>('');
-  const rawMaterialsStringRef = useRef<string>('');
   const campaignsStringRef = useRef<string>('');
   const offersStringRef = useRef<string>('');
   const coursesStringRef = useRef<string>('');
@@ -94,17 +92,7 @@ export function usePublicInventory(isAuthReady: boolean) {
       }
     }, (e) => handlePublicError(e, OperationType.GET, 'courses'));
 
-    console.log("[DEBUG-FIRESTORE] Subscribing to 'rawMaterials' collection...");
-    const unsubRawMaterials = onSnapshot(query(collection(db, 'rawMaterials')), (snapshot) => {
-      console.log(`[DEBUG-FIRESTORE] 'rawMaterials' snapshot callback fired. Size: ${snapshot.docs.length} docs`);
-      const newData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as RawMaterial));
-      const newDataString = JSON.stringify(newData);
-      if (newDataString !== rawMaterialsStringRef.current) {
-        rawMaterialsStringRef.current = newDataString;
-        setRawMaterials(newData);
-        console.log("✅ Insumos actualizados (Cambio real detectado)");
-      }
-    }, (e) => handlePublicError(e, OperationType.GET, 'rawMaterials'));
+
 
     console.log("[DEBUG-FIRESTORE] Subscribing to 'settings' global doc...");
     const unsubSettings = onSnapshot(doc(db, 'settings', 'global'), (docSnap) => {
@@ -124,7 +112,6 @@ export function usePublicInventory(isAuthReady: boolean) {
       unsubCampaigns();
       unsubOffers();
       unsubCourses();
-      unsubRawMaterials();
       unsubSettings();
     };
   }, [isAuthReady]);
@@ -136,6 +123,6 @@ export function usePublicInventory(isAuthReady: boolean) {
     courses,
     storeSettings,
     isSettingsLoaded,
-    rawMaterials
+    rawMaterials: []
   };
 }

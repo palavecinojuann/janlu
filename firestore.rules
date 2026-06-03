@@ -218,8 +218,7 @@ service cloud.firestore {
       allow read, write: if isAdmin() || isOwner(userId);
     }
     match /rawMaterials/{rawMaterialId} {
-      allow read: if true;
-      allow write, update, delete: if isAdmin();
+      allow read, write, update, delete: if isAdmin();
     }
     match /auditLogs/{logId} {
       allow read, write: if isAdmin();
