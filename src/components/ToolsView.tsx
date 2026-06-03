@@ -58,18 +58,32 @@ export default function ToolsView({
       const materialsToUpdate: RawMaterial[] = [];
       let updatedCount = 0;
 
+      // Track assigned product IDs to avoid assigning the same product to multiple materials
+      const assignedProductIds = new Set<string>();
+      
+      // Seed with already properly linked product IDs
+      rawMaterials.forEach(rm => {
+        if (rm.linkedProductId && rm.sellAsProduct) {
+          assignedProductIds.add(rm.linkedProductId);
+        }
+      });
+
       mirrorMaterials.forEach(rm => {
         let mirrorProduct = products.find(p => p.id === rm.linkedProductId);
         let needsRmUpdate = false;
         let updatedRm = { ...rm };
 
         if (!mirrorProduct) {
-          // Match by name (case-insensitive, trimmed)
-          mirrorProduct = products.find(p => p.name.trim().toLowerCase() === rm.name.trim().toLowerCase());
+          // Match by name, but ensure the product has not been assigned to another raw material yet
+          mirrorProduct = products.find(p => 
+            p.name.trim().toLowerCase() === rm.name.trim().toLowerCase() &&
+            !assignedProductIds.has(p.id)
+          );
           if (mirrorProduct) {
             updatedRm.linkedProductId = mirrorProduct.id;
             updatedRm.sellAsProduct = true;
             needsRmUpdate = true;
+            assignedProductIds.add(mirrorProduct.id);
           }
         } else if (!rm.sellAsProduct) {
           updatedRm.sellAsProduct = true;
@@ -77,34 +91,66 @@ export default function ToolsView({
         }
 
         if (mirrorProduct) {
-          const updatedProduct: Product = {
-            ...mirrorProduct,
-            variants: mirrorProduct.variants.map((v, idx) => idx === 0 ? {
-              ...v,
-              stock: rm.stock || 0,
-              compromisedStock: rm.compromisedStock || 0
-            } : v)
-          };
-          productsToUpdate.push(updatedProduct);
           if (needsRmUpdate) {
             materialsToUpdate.push(updatedRm);
+          } else {
+            // Only update the product directly if the raw material doesn't need to be updated.
+            // If the raw material does need update, onUpdateRawMaterials will handle the product update automatically.
+            const updatedProduct: Product = {
+              ...mirrorProduct,
+              variants: mirrorProduct.variants.map((v, idx) => idx === 0 ? {
+                ...v,
+                stock: rm.stock || 0,
+                compromisedStock: rm.compromisedStock || 0
+              } : v)
+            };
+            productsToUpdate.push(updatedProduct);
           }
           updatedCount++;
         }
       });
 
-      if (productsToUpdate.length > 0) {
-        await onUpdateProducts(productsToUpdate);
-        if (materialsToUpdate.length > 0) {
-          await onUpdateRawMaterials(materialsToUpdate);
+      // De-duplicate lists to be absolutely safe
+      const seenProductIds = new Set<string>();
+      const uniqueProductsToUpdate = productsToUpdate.filter(p => {
+        if (seenProductIds.has(p.id)) return false;
+        seenProductIds.add(p.id);
+        return true;
+      });
+
+      const seenMaterialIds = new Set<string>();
+      const uniqueMaterialsToUpdate = materialsToUpdate.filter(m => {
+        if (seenMaterialIds.has(m.id)) return false;
+        seenMaterialIds.add(m.id);
+        return true;
+      });
+
+      if (uniqueProductsToUpdate.length > 0 || uniqueMaterialsToUpdate.length > 0) {
+        if (uniqueProductsToUpdate.length > 0) {
+          await onUpdateProducts(uniqueProductsToUpdate);
         }
-        setSyncStatus({ type: 'success', message: `Sincronización exitosa: ${updatedCount} productos espejo vinculados y actualizados con su stock real.` });
+        if (uniqueMaterialsToUpdate.length > 0) {
+          await onUpdateRawMaterials(uniqueMaterialsToUpdate);
+        }
+        setSyncStatus({ type: 'success', message: `Sincronización exitosa: ${updatedCount} insumos vinculados y actualizados con su stock real.` });
       } else {
         setSyncStatus({ type: 'success', message: 'Los productos espejo de tus insumos ya están sincronizados o no se encontraron coincidencias.' });
       }
     } catch (error) {
       console.error('Error syncing stocks:', error);
-      setSyncStatus({ type: 'error', message: 'Ocurrió un error al intentar sincronizar los stocks.' });
+      // Try to parse the error message if it's JSON from handleFirestoreError
+      let errMsg = 'Ocurrió un error al intentar sincronizar los stocks.';
+      if (error instanceof Error) {
+        try {
+          const parsed = JSON.parse(error.message);
+          if (parsed && parsed.error) {
+            errMsg = `Error en la base de datos: ${parsed.error}`;
+          }
+        } catch (_) {
+          errMsg = `Error: ${error.message}`;
+        }
+      }
+      setSyncStatus({ type: 'error', message: errMsg });
     } finally {
       setIsSyncing(false);
     }

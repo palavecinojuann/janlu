@@ -117,11 +117,17 @@ export function useInventoryOperations(
   const updateMultipleProducts = async (updatedProducts: Product[]) => {
     try {
       const batch = writeBatch(db);
+      const uniqueProducts: Product[] = [];
+      const seenIds = new Set<string>();
       updatedProducts.forEach(product => {
-        batch.set(doc(db, 'products', product.id), cleanObject(product));
+        if (!seenIds.has(product.id)) {
+          seenIds.add(product.id);
+          uniqueProducts.push(product);
+          batch.set(doc(db, 'products', product.id), cleanObject(product));
+        }
       });
       await batch.commit();
-      for (const p of updatedProducts) {
+      for (const p of uniqueProducts) {
         const prev = products.find(old => old.id === p.id);
         await logAction('update_batch', 'products', p.id, p, prev);
       }
@@ -347,38 +353,50 @@ export function useInventoryOperations(
   const updateMultipleRawMaterials = async (updatedMaterials: RawMaterial[]) => {
     try {
       const batch = writeBatch(db);
+      const uniqueMaterials: RawMaterial[] = [];
+      const seenMaterialIds = new Set<string>();
+      const updatedProductIds = new Set<string>();
+      
       updatedMaterials.forEach(material => {
-        batch.set(doc(db, 'rawMaterials', material.id), cleanObject(material));
-        if (material.sellAsProduct && material.linkedProductId) {
-          const existingProduct = products.find(p => p.id === material.linkedProductId);
-          if (existingProduct) {
-            const product: Product = {
-              ...existingProduct,
-              name: material.name,
-              description: material.description || '',
-              category: material.category || 'Insumos',
-              photoUrl: material.photoUrl || '',
-              catalogType: 'insumo',
-              variants: [{
-                ...existingProduct.variants[0],
-                name: material.unit,
-                price: material.price || 0,
-                stock: material.stock || 0,
-                compromisedStock: material.compromisedStock || 0,
-                recipe: [{
-                  id: uuidv4(),
-                  rawMaterialId: material.id,
-                  quantity: toUMB(1, material.unit as Unit),
-                  unit: material.baseUnit || UMB_FOR_DIMENSION[material.dimension || (material.unit ? UNIT_DIMENSIONS[material.unit as Unit] : 'units')]
-                }] as RecipeItem[]
-              }]
-            };
-            batch.set(doc(db, 'products', product.id), cleanObject(product));
+        if (!seenMaterialIds.has(material.id)) {
+          seenMaterialIds.add(material.id);
+          uniqueMaterials.push(material);
+          batch.set(doc(db, 'rawMaterials', material.id), cleanObject(material));
+          
+          if (material.sellAsProduct && material.linkedProductId) {
+            if (!updatedProductIds.has(material.linkedProductId)) {
+              const existingProduct = products.find(p => p.id === material.linkedProductId);
+              if (existingProduct) {
+                const product: Product = {
+                  ...existingProduct,
+                  name: material.name,
+                  description: material.description || '',
+                  category: material.category || 'Insumos',
+                  photoUrl: material.photoUrl || '',
+                  catalogType: 'insumo',
+                  variants: [{
+                    ...existingProduct.variants[0],
+                    name: material.unit,
+                    price: material.price || 0,
+                    stock: material.stock || 0,
+                    compromisedStock: material.compromisedStock || 0,
+                    recipe: [{
+                      id: uuidv4(),
+                      rawMaterialId: material.id,
+                      quantity: toUMB(1, material.unit as Unit),
+                      unit: material.baseUnit || UMB_FOR_DIMENSION[material.dimension || (material.unit ? UNIT_DIMENSIONS[material.unit as Unit] : 'units')]
+                    }] as RecipeItem[]
+                  }]
+                };
+                batch.set(doc(db, 'products', product.id), cleanObject(product));
+                updatedProductIds.add(material.linkedProductId);
+              }
+            }
           }
         }
       });
       await batch.commit();
-      for (const m of updatedMaterials) {
+      for (const m of uniqueMaterials) {
         const prev = rawMaterials.find(old => old.id === m.id);
         await logAction('update_batch', 'rawMaterials', m.id, m, prev);
       }
