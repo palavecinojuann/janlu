@@ -53,3 +53,33 @@ export const getVariantStock = (variant: Variant | undefined | null, rawMaterial
   }
   return minStock === Infinity ? 0 : minStock;
 };
+
+export const updateMirrorProductVariants = (
+  variants: Variant[],
+  rawMaterialId: string,
+  stock: number,
+  compromisedStock?: number,
+  cost?: number,
+  price?: number
+): Variant[] => {
+  const hasRecipeMatch = variants.some(v => 
+    v.recipe?.some(ri => ri.rawMaterialId === rawMaterialId)
+  );
+
+  return variants.map((v, idx) => {
+    const isMatch = hasRecipeMatch
+      ? v.recipe?.some(ri => ri.rawMaterialId === rawMaterialId)
+      : idx === 0;
+
+    if (isMatch) {
+      return {
+        ...v,
+        stock,
+        compromisedStock: compromisedStock !== undefined ? compromisedStock : (v.compromisedStock || 0),
+        cost: cost !== undefined ? cost : (v.cost || 0),
+        price: price !== undefined ? price : (v.price || 0)
+      };
+    }
+    return v;
+  });
+};

@@ -6,6 +6,7 @@ import LoadTestData from './LoadTestData';
 import DynamicPricingTool from './DynamicPricingTool';
 import VolumeCalculator from './VolumeCalculator';
 import { Product, RawMaterial, Simulation, Activity } from '../types';
+import { updateMirrorProductVariants } from '../utils/stockUtils';
 
 interface ToolsViewProps {
   products: Product[];
@@ -54,7 +55,7 @@ export default function ToolsView({
         return;
       }
 
-      const productsToUpdate: Product[] = [];
+      const productsToUpdateMap = new Map<string, Product>();
       const materialsToUpdate: RawMaterial[] = [];
       let updatedCount = 0;
 
@@ -69,16 +70,18 @@ export default function ToolsView({
       });
 
       mirrorMaterials.forEach(rm => {
-        let mirrorProduct = products.find(p => p.id === rm.linkedProductId);
+        let mirrorProduct = productsToUpdateMap.get(rm.linkedProductId || '') || 
+                            products.find(p => p.id === rm.linkedProductId);
         let needsRmUpdate = false;
         let updatedRm = { ...rm };
 
         if (!mirrorProduct) {
           // Match by name, but ensure the product has not been assigned to another raw material yet
-          mirrorProduct = products.find(p => 
-            p.name.trim().toLowerCase() === rm.name.trim().toLowerCase() &&
-            !assignedProductIds.has(p.id)
-          );
+          mirrorProduct = productsToUpdateMap.get(rm.linkedProductId || '') || 
+                          products.find(p => 
+                            p.name.trim().toLowerCase() === rm.name.trim().toLowerCase() &&
+                            !assignedProductIds.has(p.id)
+                          );
           if (mirrorProduct) {
             updatedRm.linkedProductId = mirrorProduct.id;
             updatedRm.sellAsProduct = true;
@@ -96,27 +99,22 @@ export default function ToolsView({
           } else {
             // Only update the product directly if the raw material doesn't need to be updated.
             // If the raw material does need update, onUpdateRawMaterials will handle the product update automatically.
-            const updatedProduct: Product = {
+            const updatedVariants = updateMirrorProductVariants(
+              mirrorProduct.variants,
+              rm.id,
+              rm.stock || 0,
+              rm.compromisedStock || 0
+            );
+            productsToUpdateMap.set(mirrorProduct.id, {
               ...mirrorProduct,
-              variants: mirrorProduct.variants.map((v, idx) => idx === 0 ? {
-                ...v,
-                stock: rm.stock || 0,
-                compromisedStock: rm.compromisedStock || 0
-              } : v)
-            };
-            productsToUpdate.push(updatedProduct);
+              variants: updatedVariants
+            });
           }
           updatedCount++;
         }
       });
 
-      // De-duplicate lists to be absolutely safe
-      const seenProductIds = new Set<string>();
-      const uniqueProductsToUpdate = productsToUpdate.filter(p => {
-        if (seenProductIds.has(p.id)) return false;
-        seenProductIds.add(p.id);
-        return true;
-      });
+      const uniqueProductsToUpdate = Array.from(productsToUpdateMap.values());
 
       const seenMaterialIds = new Set<string>();
       const uniqueMaterialsToUpdate = materialsToUpdate.filter(m => {

@@ -6,6 +6,7 @@ import { Product, Customer, Sale, Quote, RawMaterial, FinancialDocument, Activit
 import { handleFirestoreError, cleanObject, OperationType } from '../utils/firebaseHelpers';
 import { roundFinancial, roundPrecise } from '../utils/mathUtils';
 import { toUMB, Unit, UNIT_DIMENSIONS, UMB_FOR_DIMENSION } from '../utils/units';
+import { updateMirrorProductVariants } from '../utils/stockUtils';
 import { generateNextCustomerNumber, addCustomerWithAntiMatching, grantManualBenefitToCustomer, handleSaleStatusCompleted, handleSaleStatusReverted } from '../useCustomer';
 import { User as FirebaseUser } from 'firebase/auth';
 
@@ -344,23 +345,32 @@ export function useInventoryOperations(
           catalogType: 'insumo',
           createdAt: existingProduct?.createdAt || new Date().toISOString(),
           updatedAt: new Date().toISOString(),
-          variants: [{
-            id: variantId,
-            name: updated.unit,
-            price: updated.price || 0,
-            cost: updated.costPerUnit || 0,
-            margin: 0,
-            sku: '',
-            stock: updated.stock || 0,
-            compromisedStock: updated.compromisedStock || 0,
-            isFinishedGood: false,
-            recipe: [{
-              id: uuidv4(),
-              rawMaterialId: updated.id,
-              quantity: toUMB(1, updated.unit as Unit),
-              unit: updated.baseUnit || UMB_FOR_DIMENSION[updated.dimension || (updated.unit ? UNIT_DIMENSIONS[updated.unit as Unit] : 'units')]
-            }]
-          }]
+          variants: existingProduct 
+            ? updateMirrorProductVariants(
+                existingProduct.variants,
+                updated.id,
+                updated.stock || 0,
+                updated.compromisedStock || 0,
+                updated.costPerUnit || 0,
+                updated.price || 0
+              )
+            : [{
+                id: variantId,
+                name: updated.unit,
+                price: updated.price || 0,
+                cost: updated.costPerUnit || 0,
+                margin: 0,
+                sku: '',
+                stock: updated.stock || 0,
+                compromisedStock: updated.compromisedStock || 0,
+                isFinishedGood: false,
+                recipe: [{
+                  id: uuidv4(),
+                  rawMaterialId: updated.id,
+                  quantity: toUMB(1, updated.unit as Unit),
+                  unit: updated.baseUnit || UMB_FOR_DIMENSION[updated.dimension || (updated.unit ? UNIT_DIMENSIONS[updated.unit as Unit] : 'units')]
+                }]
+              }]
         };
         batch.set(doc(db, 'products', product.id), cleanObject(product));
       } else if (linkedProductId) {
@@ -382,7 +392,6 @@ export function useInventoryOperations(
     try {
       const uniqueMaterials: RawMaterial[] = [];
       const seenMaterialIds = new Set<string>();
-      const updatedProductIds = new Set<string>();
       
       updatedMaterials.forEach(material => {
         if (!seenMaterialIds.has(material.id)) {
@@ -391,40 +400,45 @@ export function useInventoryOperations(
         }
       });
 
-      // Write each material and its mirror product individually (in parallel) to avoid batch payload size limit
-      await Promise.all(uniqueMaterials.map(async (material) => {
-        await setDoc(doc(db, 'rawMaterials', material.id), cleanObject(material));
-        
+      const productsToUpdateMap = new Map<string, Product>();
+
+      // Accumulate product updates across all raw materials
+      uniqueMaterials.forEach(material => {
         if (material.sellAsProduct && material.linkedProductId) {
-          if (!updatedProductIds.has(material.linkedProductId)) {
-            updatedProductIds.add(material.linkedProductId);
-            const existingProduct = products.find(p => p.id === material.linkedProductId);
-            if (existingProduct) {
-              const product: Product = {
-                ...existingProduct,
-                name: material.name,
-                description: material.description || '',
-                category: material.category || 'Insumos',
-                photoUrl: material.photoUrl || '',
-                catalogType: 'insumo',
-                variants: [{
-                  ...existingProduct.variants[0],
-                  name: material.unit,
-                  price: material.price || 0,
-                  stock: material.stock || 0,
-                  compromisedStock: material.compromisedStock || 0,
-                  recipe: [{
-                    id: uuidv4(),
-                    rawMaterialId: material.id,
-                    quantity: toUMB(1, material.unit as Unit),
-                    unit: material.baseUnit || UMB_FOR_DIMENSION[material.dimension || (material.unit ? UNIT_DIMENSIONS[material.unit as Unit] : 'units')]
-                  }] as RecipeItem[]
-                }]
-              };
-              await setDoc(doc(db, 'products', product.id), cleanObject(product));
-            }
+          const product = productsToUpdateMap.get(material.linkedProductId) || 
+                          products.find(p => p.id === material.linkedProductId);
+          
+          if (product) {
+            const updatedVariants = updateMirrorProductVariants(
+              product.variants,
+              material.id,
+              material.stock || 0,
+              material.compromisedStock || 0,
+              material.costPerUnit || 0,
+              material.price || 0
+            );
+            
+            productsToUpdateMap.set(material.linkedProductId, {
+              ...product,
+              name: material.name,
+              description: material.description || '',
+              category: material.category || 'Insumos',
+              photoUrl: material.photoUrl || '',
+              catalogType: 'insumo',
+              variants: updatedVariants
+            });
           }
         }
+      });
+
+      // Write each material individually (in parallel) to avoid batch payload size limit
+      await Promise.all(uniqueMaterials.map(async (material) => {
+        await setDoc(doc(db, 'rawMaterials', material.id), cleanObject(material));
+      }));
+
+      // Write each updated product individually (in parallel)
+      await Promise.all(Array.from(productsToUpdateMap.values()).map(async (product) => {
+        await setDoc(doc(db, 'products', product.id), cleanObject(product));
       }));
 
       for (const m of uniqueMaterials) {
@@ -461,11 +475,12 @@ export function useInventoryOperations(
         if (existingProduct) {
           const product: Product = {
             ...existingProduct,
-            variants: existingProduct.variants.map((v, idx) => idx === 0 ? {
-              ...v,
-              stock: updatedStock,
-              compromisedStock: material.compromisedStock || 0
-            } : v)
+            variants: updateMirrorProductVariants(
+              existingProduct.variants,
+              material.id,
+              updatedStock,
+              material.compromisedStock || 0
+            )
           };
           batch.set(doc(db, 'products', product.id), cleanObject(product));
         }
@@ -546,6 +561,7 @@ export function useInventoryOperations(
           batch.set(doc(db, 'products', updatedOldProduct.id), cleanObject(updatedOldProduct));
 
           if (oldVariant.recipe) {
+            const mirrorUpdates = new Map<string, Product>();
             oldVariant.recipe.forEach(recipeItem => {
               const m = rawMaterials.find(rm => rm.id === recipeItem.rawMaterialId);
               if (m) {
@@ -560,16 +576,24 @@ export function useInventoryOperations(
                 );
 
                 if (m.sellAsProduct && m.linkedProductId) {
-                  const mirror = products.find(p => p.id === m.linkedProductId);
+                  const mirror = mirrorUpdates.get(m.linkedProductId) || products.find(p => p.id === m.linkedProductId);
                   if (mirror) {
-                    const updatedMirror = {
+                    const updatedVariants = updateMirrorProductVariants(
+                      mirror.variants,
+                      m.id,
+                      newStock,
+                      undefined
+                    );
+                    mirrorUpdates.set(m.linkedProductId, {
                       ...mirror,
-                      variants: mirror.variants.map((v, idx) => idx === 0 ? { ...v, stock: newStock } : v)
-                    };
-                    batch.set(doc(db, 'products', mirror.id), cleanObject(updatedMirror));
+                      variants: updatedVariants
+                    });
                   }
                 }
               }
+            });
+            mirrorUpdates.forEach(updatedMirror => {
+              batch.set(doc(db, 'products', updatedMirror.id), cleanObject(updatedMirror));
             });
           }
         }
@@ -609,6 +633,7 @@ export function useInventoryOperations(
 
           const batch = writeBatch(db);
           if (newVariant.recipe) {
+            const mirrorUpdates = new Map<string, Product>();
             newVariant.recipe.forEach(recipeItem => {
               const m = rawMaterials.find(rm => rm.id === recipeItem.rawMaterialId);
               if (m) {
@@ -623,16 +648,24 @@ export function useInventoryOperations(
                 );
 
                 if (m.sellAsProduct && m.linkedProductId) {
-                  const mirror = products.find(p => p.id === m.linkedProductId);
+                  const mirror = mirrorUpdates.get(m.linkedProductId) || products.find(p => p.id === m.linkedProductId);
                   if (mirror) {
-                    const updatedMirror = {
+                    const updatedVariants = updateMirrorProductVariants(
+                      mirror.variants,
+                      m.id,
+                      newStock,
+                      undefined
+                    );
+                    mirrorUpdates.set(m.linkedProductId, {
                       ...mirror,
-                      variants: mirror.variants.map((v, idx) => idx === 0 ? { ...v, stock: newStock } : v)
-                    };
-                    batch.set(doc(db, 'products', mirror.id), cleanObject(updatedMirror));
+                      variants: updatedVariants
+                    });
                   }
                 }
               }
+            });
+            mirrorUpdates.forEach(updatedMirror => {
+              batch.set(doc(db, 'products', updatedMirror.id), cleanObject(updatedMirror));
             });
           }
 
@@ -710,6 +743,7 @@ export function useInventoryOperations(
       const batch = writeBatch(db);
 
       if (variant.recipe) {
+        const mirrorUpdates = new Map<string, Product>();
         for (const recipeItem of variant.recipe) {
           const m = rawMaterials.find(rm => rm.id === recipeItem.rawMaterialId);
           if (m) {
@@ -726,17 +760,25 @@ export function useInventoryOperations(
             );
 
             if (m.sellAsProduct && m.linkedProductId) {
-              const mirror = products.find(p => p.id === m.linkedProductId);
+              const mirror = mirrorUpdates.get(m.linkedProductId) || products.find(p => p.id === m.linkedProductId);
               if (mirror) {
-                const updatedMirror = {
+                const updatedVariants = updateMirrorProductVariants(
+                  mirror.variants,
+                  m.id,
+                  newStock,
+                  undefined
+                );
+                mirrorUpdates.set(m.linkedProductId, {
                   ...mirror,
-                  variants: mirror.variants.map((v, idx) => idx === 0 ? { ...v, stock: newStock } : v)
-                };
-                batch.set(doc(db, 'products', mirror.id), cleanObject(updatedMirror));
+                  variants: updatedVariants
+                });
               }
             }
           }
         }
+        mirrorUpdates.forEach(updatedMirror => {
+          batch.set(doc(db, 'products', updatedMirror.id), cleanObject(updatedMirror));
+        });
       }
 
       const updatedProduct = {
@@ -774,6 +816,7 @@ export function useInventoryOperations(
       const batch = writeBatch(db);
 
       if (variant.recipe) {
+        const mirrorUpdates = new Map<string, Product>();
         variant.recipe.forEach(recipeItem => {
           const m = rawMaterials.find(rm => rm.id === recipeItem.rawMaterialId);
           if (m) {
@@ -787,16 +830,24 @@ export function useInventoryOperations(
             );
 
             if (m.sellAsProduct && m.linkedProductId) {
-              const mirror = products.find(p => p.id === m.linkedProductId);
+              const mirror = mirrorUpdates.get(m.linkedProductId) || products.find(p => p.id === m.linkedProductId);
               if (mirror) {
-                const updatedMirror = {
+                const updatedVariants = updateMirrorProductVariants(
+                  mirror.variants,
+                  m.id,
+                  newStock,
+                  undefined
+                );
+                mirrorUpdates.set(m.linkedProductId, {
                   ...mirror,
-                  variants: mirror.variants.map((v, idx) => idx === 0 ? { ...v, stock: newStock } : v)
-                };
-                batch.set(doc(db, 'products', mirror.id), cleanObject(updatedMirror));
+                  variants: updatedVariants
+                });
               }
             }
           }
+        });
+        mirrorUpdates.forEach(updatedMirror => {
+          batch.set(doc(db, 'products', updatedMirror.id), cleanObject(updatedMirror));
         });
       }
 
@@ -936,6 +987,7 @@ export function useInventoryOperations(
 
   const commitStock = async (saleItems: Sale['items']) => {
     const batch = writeBatch(db);
+    const mirrorUpdates = new Map<string, Product>();
     saleItems.forEach(item => {
       const product = products.find(p => p.id === item.productId);
       const variant = product?.variants.find(v => v.id === item.variantId);
@@ -952,24 +1004,33 @@ export function useInventoryOperations(
             
             // Sincronizar espejo comercial si existe
             if (rm.sellAsProduct && rm.linkedProductId) {
-              const mirror = products.find(p => p.id === rm.linkedProductId);
+              const mirror = mirrorUpdates.get(rm.linkedProductId) || products.find(p => p.id === rm.linkedProductId);
               if (mirror) {
-                const updatedMirror = {
+                const updatedVariants = updateMirrorProductVariants(
+                  mirror.variants,
+                  rm.id,
+                  rm.stock,
+                  newCompromised
+                );
+                mirrorUpdates.set(rm.linkedProductId, {
                   ...mirror,
-                  variants: mirror.variants.map((v, idx) => idx === 0 ? { ...v, compromisedStock: newCompromised } : v)
-                };
-                batch.set(doc(db, 'products', mirror.id), cleanObject(updatedMirror));
+                  variants: updatedVariants
+                });
               }
             }
           }
         });
       }
     });
+    mirrorUpdates.forEach(updatedMirror => {
+      batch.set(doc(db, 'products', updatedMirror.id), cleanObject(updatedMirror));
+    });
     await batch.commit();
   };
 
   const releaseStock = async (saleItems: Sale['items']) => {
     const batch = writeBatch(db);
+    const mirrorUpdates = new Map<string, Product>();
     saleItems.forEach(item => {
       const product = products.find(p => p.id === item.productId);
       const variant = product?.variants.find(v => v.id === item.variantId);
@@ -986,24 +1047,33 @@ export function useInventoryOperations(
             
             // Sincronizar espejo comercial si existe
             if (rm.sellAsProduct && rm.linkedProductId) {
-              const mirror = products.find(p => p.id === rm.linkedProductId);
+              const mirror = mirrorUpdates.get(rm.linkedProductId) || products.find(p => p.id === rm.linkedProductId);
               if (mirror) {
-                const updatedMirror = {
+                const updatedVariants = updateMirrorProductVariants(
+                  mirror.variants,
+                  rm.id,
+                  rm.stock,
+                  newCompromised
+                );
+                mirrorUpdates.set(rm.linkedProductId, {
                   ...mirror,
-                  variants: mirror.variants.map((v, idx) => idx === 0 ? { ...v, compromisedStock: newCompromised } : v)
-                };
-                batch.set(doc(db, 'products', mirror.id), cleanObject(updatedMirror));
+                  variants: updatedVariants
+                });
               }
             }
           }
         });
       }
     });
+    mirrorUpdates.forEach(updatedMirror => {
+      batch.set(doc(db, 'products', updatedMirror.id), cleanObject(updatedMirror));
+    });
     await batch.commit();
   };
 
   const consumeStockDefinitively = async (saleItems: Sale['items'], deductCompromised: boolean = true) => {
     const batch = writeBatch(db);
+    const mirrorUpdates = new Map<string, Product>();
     saleItems.forEach(item => {
       const product = products.find(p => p.id === item.productId);
       const variant = product?.variants.find(v => v.id === item.variantId);
@@ -1026,24 +1096,33 @@ export function useInventoryOperations(
             
             // Sincronizar espejo comercial si existe
             if (rm.sellAsProduct && rm.linkedProductId) {
-              const mirror = products.find(p => p.id === rm.linkedProductId);
+              const mirror = mirrorUpdates.get(rm.linkedProductId) || products.find(p => p.id === rm.linkedProductId);
               if (mirror) {
-                const updatedMirror = {
+                const updatedVariants = updateMirrorProductVariants(
+                  mirror.variants,
+                  rm.id,
+                  newStock,
+                  newCompromised
+                );
+                mirrorUpdates.set(rm.linkedProductId, {
                   ...mirror,
-                  variants: mirror.variants.map((v, idx) => idx === 0 ? { ...v, stock: newStock, compromisedStock: newCompromised } : v)
-                };
-                batch.set(doc(db, 'products', mirror.id), cleanObject(updatedMirror));
+                  variants: updatedVariants
+                });
               }
             }
           }
         });
       }
     });
+    mirrorUpdates.forEach(updatedMirror => {
+      batch.set(doc(db, 'products', updatedMirror.id), cleanObject(updatedMirror));
+    });
     await batch.commit();
   };
 
   const revertConsumedStockToCommitted = async (saleItems: Sale['items']) => {
     const batch = writeBatch(db);
+    const mirrorUpdates = new Map<string, Product>();
     saleItems.forEach(item => {
       const product = products.find(p => p.id === item.productId);
       const variant = product?.variants.find(v => v.id === item.variantId);
@@ -1061,24 +1140,33 @@ export function useInventoryOperations(
             
             // Sincronizar espejo comercial si existe
             if (rm.sellAsProduct && rm.linkedProductId) {
-              const mirror = products.find(p => p.id === rm.linkedProductId);
+              const mirror = mirrorUpdates.get(rm.linkedProductId) || products.find(p => p.id === rm.linkedProductId);
               if (mirror) {
-                const updatedMirror = {
+                const updatedVariants = updateMirrorProductVariants(
+                  mirror.variants,
+                  rm.id,
+                  newStock,
+                  newCompromised
+                );
+                mirrorUpdates.set(rm.linkedProductId, {
                   ...mirror,
-                  variants: mirror.variants.map((v, idx) => idx === 0 ? { ...v, stock: newStock, compromisedStock: newCompromised } : v)
-                };
-                batch.set(doc(db, 'products', mirror.id), cleanObject(updatedMirror));
+                  variants: updatedVariants
+                });
               }
             }
           }
         });
       }
     });
+    mirrorUpdates.forEach(updatedMirror => {
+      batch.set(doc(db, 'products', updatedMirror.id), cleanObject(updatedMirror));
+    });
     await batch.commit();
   };
 
   const restorePhysicalStock = async (saleItems: Sale['items']) => {
     const batch = writeBatch(db);
+    const mirrorUpdates = new Map<string, Product>();
     saleItems.forEach(item => {
       const product = products.find(p => p.id === item.productId);
       const variant = product?.variants.find(v => v.id === item.variantId);
@@ -1095,18 +1183,26 @@ export function useInventoryOperations(
             
             // Sincronizar espejo comercial si existe
             if (rm.sellAsProduct && rm.linkedProductId) {
-              const mirror = products.find(p => p.id === rm.linkedProductId);
+              const mirror = mirrorUpdates.get(rm.linkedProductId) || products.find(p => p.id === rm.linkedProductId);
               if (mirror) {
-                const updatedMirror = {
+                const updatedVariants = updateMirrorProductVariants(
+                  mirror.variants,
+                  rm.id,
+                  newStock,
+                  undefined
+                );
+                mirrorUpdates.set(rm.linkedProductId, {
                   ...mirror,
-                  variants: mirror.variants.map((v, idx) => idx === 0 ? { ...v, stock: newStock } : v)
-                };
-                batch.set(doc(db, 'products', mirror.id), cleanObject(updatedMirror));
+                  variants: updatedVariants
+                });
               }
             }
           }
         });
       }
+    });
+    mirrorUpdates.forEach(updatedMirror => {
+      batch.set(doc(db, 'products', updatedMirror.id), cleanObject(updatedMirror));
     });
     await batch.commit();
   };
