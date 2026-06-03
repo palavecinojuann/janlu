@@ -4,6 +4,20 @@ import { collection, doc, onSnapshot, query } from 'firebase/firestore';
 import { Product, Campaign, Offer, Course, StoreSettings, RawMaterial } from '../types';
 import { OperationType } from '../utils/firebaseHelpers';
 
+const stableStringify = (obj: any): string => {
+  return JSON.stringify(obj, (key, value) => {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      return Object.keys(value)
+        .sort()
+        .reduce((sorted: any, k) => {
+          sorted[k] = value[k];
+          return sorted;
+        }, {});
+    }
+    return value;
+  });
+};
+
 export function usePublicInventory(isAuthReady: boolean) {
   const [products, setProducts] = useState<Product[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -47,7 +61,8 @@ export function usePublicInventory(isAuthReady: boolean) {
           catalogType: data.catalogType || 'vela'
         };
       });
-      const newDataString = JSON.stringify(newData);
+      newData.sort((a, b) => a.id.localeCompare(b.id));
+      const newDataString = stableStringify(newData);
 
       if (newDataString !== productsStringRef.current) {
         productsStringRef.current = newDataString;
@@ -60,7 +75,8 @@ export function usePublicInventory(isAuthReady: boolean) {
     const unsubCampaigns = onSnapshot(query(collection(db, 'campaigns')), (snapshot) => {
       console.log(`[DEBUG-FIRESTORE] 'campaigns' snapshot callback fired. Size: ${snapshot.docs.length} docs`);
       const newData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Campaign));
-      const newDataString = JSON.stringify(newData);
+      newData.sort((a, b) => a.id.localeCompare(b.id));
+      const newDataString = stableStringify(newData);
       if (newDataString !== campaignsStringRef.current) {
         campaignsStringRef.current = newDataString;
         setCampaigns(newData);
@@ -72,7 +88,8 @@ export function usePublicInventory(isAuthReady: boolean) {
     const unsubOffers = onSnapshot(query(collection(db, 'offers')), (snapshot) => {
       console.log(`[DEBUG-FIRESTORE] 'offers' snapshot callback fired. Size: ${snapshot.docs.length} docs`);
       const newData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Offer));
-      const newDataString = JSON.stringify(newData);
+      newData.sort((a, b) => a.id.localeCompare(b.id));
+      const newDataString = stableStringify(newData);
       if (newDataString !== offersStringRef.current) {
         offersStringRef.current = newDataString;
         setOffers(newData);
@@ -84,7 +101,8 @@ export function usePublicInventory(isAuthReady: boolean) {
     const unsubCourses = onSnapshot(query(collection(db, 'courses')), (snapshot) => {
       console.log(`[DEBUG-FIRESTORE] 'courses' snapshot callback fired. Size: ${snapshot.docs.length} docs`);
       const newData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Course));
-      const newDataString = JSON.stringify(newData);
+      newData.sort((a, b) => a.id.localeCompare(b.id));
+      const newDataString = stableStringify(newData);
       if (newDataString !== coursesStringRef.current) {
         coursesStringRef.current = newDataString;
         setCourses(newData);

@@ -5,6 +5,20 @@ import { Sale, Customer, RawMaterial, Quote, Activity, FinancialDocument, Produc
 import { getVariantStock } from '../utils/stockUtils';
 import { handleFirestoreError, OperationType } from '../utils/firebaseHelpers';
 
+const stableStringify = (obj: any): string => {
+  return JSON.stringify(obj, (key, value) => {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      return Object.keys(value)
+        .sort()
+        .reduce((sorted: any, k) => {
+          sorted[k] = value[k];
+          return sorted;
+        }, {});
+    }
+    return value;
+  });
+};
+
 export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, products: Product[]) {
   const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>([]);
   const rawMaterialsStringRef = useRef<string>('');
@@ -159,7 +173,8 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
       unsubRawMaterialsRef.current = onSnapshot(query(collection(db, 'rawMaterials')), (snapshot) => {
         console.log(`[DEBUG-FIRESTORE] 'rawMaterials' (admin) snapshot callback fired. Size: ${snapshot.docs.length} docs`);
         const newData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as RawMaterial));
-        const newDataString = JSON.stringify(newData);
+        newData.sort((a, b) => a.id.localeCompare(b.id));
+        const newDataString = stableStringify(newData);
         if (newDataString !== rawMaterialsStringRef.current) {
           rawMaterialsStringRef.current = newDataString;
           setRawMaterials(newData);
