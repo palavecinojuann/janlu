@@ -1056,7 +1056,7 @@ export function useInventoryOperations(
       const product = products.find(p => p.id === item.productId);
       const variant = product?.variants.find(v => v.id === item.variantId);
       if (!product || !variant) return;
-      if (variant.isFinishedGood) {
+      if (variant.isFinishedGood !== false) {
         const updatedProduct = { ...product, variants: product.variants.map(v => v.id === variant.id ? { ...v, stock: v.stock + item.quantity } : v) };
         batch.set(doc(db, 'products', product.id), cleanObject(updatedProduct), { merge: true });
       } else if (variant.recipe) {
