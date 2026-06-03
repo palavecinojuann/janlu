@@ -51,7 +51,7 @@ export function getUnitsForDimension(dimension?: Dimension, fallbackUnit?: Unit)
  */
 export function toUMB(quantity: number, unit: Unit): number {
   const factor = CONVERSION_TO_UMB[unit];
-  if (factor === undefined) throw new Error(`Unidad no soportada: ${unit}`);
+  if (factor === undefined) return quantity;
   return quantity * factor;
 }
 
@@ -61,7 +61,7 @@ export function toUMB(quantity: number, unit: Unit): number {
  */
 export function fromUMB(quantityUMB: number, targetUnit: Unit): number {
   const factor = CONVERSION_TO_UMB[targetUnit];
-  if (factor === undefined) throw new Error(`Unidad no soportada: ${targetUnit}`);
+  if (factor === undefined) return quantityUMB;
   return quantityUMB / factor;
 }
 
