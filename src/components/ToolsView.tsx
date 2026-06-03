@@ -97,10 +97,16 @@ export default function ToolsView({
               mirrorProduct.variants,
               rm.id,
               rm.stock || 0,
-              rm.compromisedStock || 0
+              rm.compromisedStock || 0,
+              rm.costPerUnit || 0,
+              rm.price && rm.price > 0 ? rm.price : undefined
             );
             productsToUpdateMap.set(mirrorProduct.id, {
               ...mirrorProduct,
+              description: mirrorProduct.description || rm.description || '',
+              category: mirrorProduct.category || rm.category || 'Insumos',
+              photoUrl: mirrorProduct.photoUrl || rm.photoUrl || '',
+              photoUrls: mirrorProduct.photoUrls || (rm.photoUrl ? [rm.photoUrl] : []),
               variants: updatedVariants
             });
           }

@@ -325,6 +325,7 @@ export function useInventoryOperations(
           description: material.description || '',
           category: material.category || 'Insumos',
           photoUrl: material.photoUrl || '',
+          photoUrls: material.photoUrl ? [material.photoUrl] : [],
           showInCatalog: true,
           catalogType: 'insumo',
           createdAt: new Date().toISOString(),
@@ -400,12 +401,14 @@ export function useInventoryOperations(
         const existingProduct = products.find(p => p.id === linkedProductId);
         const variantId = existingProduct?.variants[0]?.id || uuidv4();
         const product: Product = {
+          ...existingProduct,
           id: linkedProductId,
           name: updated.name,
-          description: updated.description || '',
-          category: updated.category || 'Insumos',
-          photoUrl: updated.photoUrl || '',
-          showInCatalog: true,
+          description: updated.description || existingProduct?.description || '',
+          category: updated.category || existingProduct?.category || 'Insumos',
+          photoUrl: updated.photoUrl || existingProduct?.photoUrl || '',
+          photoUrls: existingProduct?.photoUrls || (updated.photoUrl ? [updated.photoUrl] : []),
+          showInCatalog: existingProduct ? (existingProduct.showInCatalog !== undefined ? existingProduct.showInCatalog : true) : true,
           catalogType: 'insumo',
           createdAt: existingProduct?.createdAt || new Date().toISOString(),
           updatedAt: new Date().toISOString(),
@@ -416,7 +419,7 @@ export function useInventoryOperations(
                 updated.stock || 0,
                 updated.compromisedStock || 0,
                 updated.costPerUnit || 0,
-                updated.price || 0
+                updated.price && updated.price > 0 ? updated.price : undefined
               )
             : [{
                 id: variantId,
@@ -486,15 +489,15 @@ export function useInventoryOperations(
               material.stock || 0,
               material.compromisedStock || 0,
               material.costPerUnit || 0,
-              material.price || 0
+              material.price && material.price > 0 ? material.price : undefined
             );
             
             productsToUpdateMap.set(material.linkedProductId, {
               ...product,
               name: material.name,
-              description: material.description || '',
-              category: material.category || 'Insumos',
-              photoUrl: material.photoUrl || '',
+              description: material.description || product.description || '',
+              category: material.category || product.category || 'Insumos',
+              photoUrl: material.photoUrl || product.photoUrl || '',
               catalogType: 'insumo',
               variants: updatedVariants
             });

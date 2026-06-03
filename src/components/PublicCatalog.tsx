@@ -181,6 +181,7 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({
   
   const totalStock = product.variants.reduce((sum, v) => sum + getVariantStock(v, rawMaterials), 0);
   const isLowStock = totalStock > 0 && totalStock <= 5;
+  const displayPhotoUrl = product.photoUrl || (product.photoUrls && product.photoUrls.length > 0 ? product.photoUrls[0] : '');
 
   return (
     <div 
@@ -214,9 +215,9 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({
             className={`transition-colors duration-300 ${isFavorite ? 'fill-rose-500 text-rose-500' : 'text-stone-500'}`} 
           />
         </button>
-        {product.photoUrl ? (
+        {displayPhotoUrl ? (
           <img 
-            src={product.photoUrl} 
+            src={displayPhotoUrl} 
             alt={product.name} 
             className={`w-full h-full object-cover object-center bg-stone-50 transition-transform duration-700 ease-out ${isOutOfStock ? 'grayscale' : ''}`}
             referrerPolicy="no-referrer"
