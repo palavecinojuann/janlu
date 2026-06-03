@@ -15,6 +15,12 @@ export const getVariantStock = (variant: Variant | undefined | null, rawMaterial
   // REGLA 2: Si tiene receta pero NO hay insumos en memoria (vista del cliente público),
   // retornamos el stock físico directo precalculado de la variante (ej. velas fabricadas en stock).
   if (rms.length === 0) {
+    if (variant.recipe.length === 1 && variant.isFinishedGood !== true) {
+      const quantityRequired = variant.recipe[0].quantity || 1;
+      const availableStockUMB = (variant.stock || 0) - (variant.compromisedStock || 0);
+      const possibleUnits = Math.floor(availableStockUMB / quantityRequired);
+      return possibleUnits > 0 ? possibleUnits : 0;
+    }
     const directStock = (variant.stock || 0) - (variant.compromisedStock || 0);
     return directStock > 0 ? directStock : 0;
   }

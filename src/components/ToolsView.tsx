@@ -40,7 +40,7 @@ export default function ToolsView({
     setIsSyncing(true);
     setSyncStatus(null);
     try {
-      const mirrorMaterials = rawMaterials.filter(rm => rm.sellAsProduct && rm.linkedProductId);
+      const mirrorMaterials = rawMaterials.filter(rm => rm.sellAsProduct);
       if (mirrorMaterials.length === 0) {
         setSyncStatus({ type: 'success', message: 'No se encontraron insumos configurados para vender como producto.' });
         setIsSyncing(false);
@@ -48,10 +48,23 @@ export default function ToolsView({
       }
 
       const productsToUpdate: Product[] = [];
+      const materialsToUpdate: RawMaterial[] = [];
       let updatedCount = 0;
 
       mirrorMaterials.forEach(rm => {
-        const mirrorProduct = products.find(p => p.id === rm.linkedProductId);
+        let mirrorProduct = products.find(p => p.id === rm.linkedProductId);
+        let needsRmUpdate = false;
+        let updatedRm = { ...rm };
+
+        if (!mirrorProduct) {
+          // Fallback: match by name (case-insensitive, trimmed)
+          mirrorProduct = products.find(p => p.name.trim().toLowerCase() === rm.name.trim().toLowerCase());
+          if (mirrorProduct) {
+            updatedRm.linkedProductId = mirrorProduct.id;
+            needsRmUpdate = true;
+          }
+        }
+
         if (mirrorProduct) {
           const updatedProduct: Product = {
             ...mirrorProduct,
@@ -62,15 +75,21 @@ export default function ToolsView({
             } : v)
           };
           productsToUpdate.push(updatedProduct);
+          if (needsRmUpdate) {
+            materialsToUpdate.push(updatedRm);
+          }
           updatedCount++;
         }
       });
 
       if (productsToUpdate.length > 0) {
         await onUpdateProducts(productsToUpdate);
-        setSyncStatus({ type: 'success', message: `Sincronización exitosa: ${updatedCount} productos espejo actualizados con su stock real.` });
+        if (materialsToUpdate.length > 0) {
+          await onUpdateRawMaterials(materialsToUpdate);
+        }
+        setSyncStatus({ type: 'success', message: `Sincronización exitosa: ${updatedCount} productos espejo vinculados y actualizados con su stock real.` });
       } else {
-        setSyncStatus({ type: 'success', message: 'Los productos espejo de tus insumos ya están sincronizados.' });
+        setSyncStatus({ type: 'success', message: 'Los productos espejo de tus insumos ya están sincronizados o no se encontraron coincidencias.' });
       }
     } catch (error) {
       console.error('Error syncing stocks:', error);
