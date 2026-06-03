@@ -254,6 +254,15 @@ export default function RawMaterialList({
                   const committedStock = getCommittedStock(material.id);
                   const availableStock = Math.max(0, material.stock - committedStock);
                   const isLowStock = availableStock <= material.minStock;
+
+                  const linkedProduct = material.linkedProductId 
+                    ? products.find(p => p.id === material.linkedProductId)
+                    : undefined;
+                    
+                  const isVisible = material.showInCatalog !== undefined 
+                    ? material.showInCatalog 
+                    : (linkedProduct ? linkedProduct.showInCatalog !== false : true);
+
                   return (
                     <tr key={material.id} className="hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors group">
                       <td className="p-4">
@@ -267,11 +276,30 @@ export default function RawMaterialList({
                           )}
                           <div>
                             <div className="flex items-center">
-                              <span className="font-medium text-stone-900 dark:text-stone-100">{material.name}</span>
+                              <span className="font-medium text-stone-900 dark:text-stone-100 mr-2">{material.name}</span>
                               {material.sellAsProduct && (
-                                <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-400" title="Se vende como producto">
-                                  Producto
-                                </span>
+                                <div className="inline-flex items-center space-x-1.5">
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-400" title="Se vende como producto">
+                                    Producto
+                                  </span>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onUpdate({
+                                        ...material,
+                                        showInCatalog: !isVisible
+                                      });
+                                    }}
+                                    className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider transition-all hover:scale-105 active:scale-95 cursor-pointer ${
+                                      isVisible
+                                        ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-400 border border-emerald-200/50 hover:bg-emerald-200/50'
+                                        : 'bg-stone-100 dark:bg-stone-800 text-stone-500 dark:text-stone-400 border border-stone-200/50 hover:bg-stone-200/50'
+                                    }`}
+                                    title={isVisible ? 'Haz clic para ocultar del catálogo público' : 'Haz clic para mostrar en el catálogo público'}
+                                  >
+                                    {isVisible ? 'Visible' : 'Oculto'}
+                                  </button>
+                                </div>
                               )}
                               {isLowStock && (
                                 <AlertTriangle size={14} className="ml-2 text-rose-500 dark:text-rose-400" title="Stock disponible bajo" />

@@ -326,7 +326,7 @@ export function useInventoryOperations(
           category: material.category || 'Insumos',
           photoUrl: material.photoUrl || '',
           photoUrls: material.photoUrl ? [material.photoUrl] : [],
-          showInCatalog: true,
+          showInCatalog: material.showInCatalog !== undefined ? material.showInCatalog : true,
           catalogType: 'insumo',
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
@@ -408,7 +408,7 @@ export function useInventoryOperations(
           category: updated.category || existingProduct?.category || 'Insumos',
           photoUrl: updated.photoUrl || existingProduct?.photoUrl || '',
           photoUrls: existingProduct?.photoUrls || (updated.photoUrl ? [updated.photoUrl] : []),
-          showInCatalog: existingProduct ? (existingProduct.showInCatalog !== undefined ? existingProduct.showInCatalog : true) : true,
+          showInCatalog: updated.showInCatalog !== undefined ? updated.showInCatalog : (existingProduct ? (existingProduct.showInCatalog !== undefined ? existingProduct.showInCatalog : true) : true),
           catalogType: 'insumo',
           createdAt: existingProduct?.createdAt || new Date().toISOString(),
           updatedAt: new Date().toISOString(),
@@ -498,6 +498,7 @@ export function useInventoryOperations(
               description: material.description || product.description || '',
               category: material.category || product.category || 'Insumos',
               photoUrl: material.photoUrl || product.photoUrl || '',
+              showInCatalog: material.showInCatalog !== undefined ? material.showInCatalog : (product.showInCatalog !== undefined ? product.showInCatalog : true),
               catalogType: 'insumo',
               variants: updatedVariants
             });

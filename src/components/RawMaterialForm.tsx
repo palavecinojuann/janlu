@@ -35,6 +35,7 @@ export default function RawMaterialForm({ initialData, products, onSave, onCance
   const [description, setDescription] = useState<string>(initialData?.description || '');
   const [photoUrl, setPhotoUrl] = useState<string>(initialData?.photoUrl || '');
   const [sellAsProduct, setSellAsProduct] = useState<boolean>(initialData?.sellAsProduct || false);
+  const [showInCatalog, setShowInCatalog] = useState<boolean>(initialData?.showInCatalog !== false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -118,6 +119,7 @@ export default function RawMaterialForm({ initialData, products, onSave, onCance
       description: description,
       photoUrl: finalPhotoUrl,
       sellAsProduct: sellAsProduct,
+      showInCatalog: sellAsProduct ? showInCatalog : true,
       linkedProductId: initialData?.linkedProductId,
       createdAt: initialData?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -371,6 +373,18 @@ export default function RawMaterialForm({ initialData, products, onSave, onCance
                   className="w-full px-4 py-2 bg-white dark:bg-stone-950 border border-stone-200 dark:border-stone-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-shadow text-stone-900 dark:text-stone-100 resize-none"
                   placeholder="Descripción para el catálogo online..."
                 />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="flex items-center space-x-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showInCatalog}
+                    onChange={(e) => setShowInCatalog(e.target.checked)}
+                    className="w-5 h-5 text-indigo-600 rounded border-stone-300 focus:ring-indigo-500 dark:border-stone-600 dark:bg-stone-800"
+                  />
+                  <span className="text-stone-700 dark:text-stone-300 font-medium">Visible en Catálogo Público</span>
+                </label>
               </div>
             </div>
           )}

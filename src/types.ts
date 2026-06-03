@@ -110,6 +110,7 @@ export interface RawMaterial {
   photoUrl?: string;
   sellAsProduct?: boolean;
   linkedProductId?: string;
+  showInCatalog?: boolean;
 }
 
 export type CatalogBranch = 'vela' | 'insumo';
