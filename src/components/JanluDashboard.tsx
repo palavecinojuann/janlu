@@ -221,7 +221,8 @@ export default function JanluDashboard({
           const variant = product?.variants.find(v => v.id === item.variantId);
           return itemAcc + ((variant?.cost || 0) * item.quantity);
         }, 0);
-        return acc + (sale.amountPaid - saleCost);
+        const additionalCosts = (sale.packagingCost || 0) + (sale.shippingCost || 0) + (sale.laborCost || 0) + (sale.paymentGatewayFee || 0);
+        return acc + (sale.amountPaid - saleCost - additionalCosts);
       }, 0);
     };
 
@@ -450,7 +451,7 @@ export default function JanluDashboard({
       </div>
 
       {/* KPIs Section */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-100/50">
           <p className="text-[10px] font-serif italic text-stone-500 uppercase tracking-widest mb-3">Ventas de Hoy</p>
           <div className="flex items-baseline justify-between">
@@ -471,6 +472,15 @@ export default function JanluDashboard({
             <h3 className="text-3xl font-sans font-bold text-stone-900">{formatCurrency(filteredRevenue)}</h3>
             <div className={`flex items-center gap-1 text-[10px] font-bold ${revenueGrowth >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
               {revenueGrowth >= 0 ? '↑' : '↓'} {Math.abs(revenueGrowth).toFixed(1)}%
+            </div>
+          </div>
+        </div>
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-100/50">
+          <p className="text-[10px] font-serif italic text-stone-500 uppercase tracking-widest mb-3">Rentabilidad del Período</p>
+          <div className="flex items-baseline justify-between">
+            <h3 className="text-3xl font-sans font-bold text-stone-900">{formatCurrency(currentProfit)}</h3>
+            <div className={`flex items-center gap-1 text-[10px] font-bold ${profitGrowth >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+              {profitGrowth >= 0 ? '↑' : '↓'} {Math.abs(profitGrowth).toFixed(1)}%
             </div>
           </div>
         </div>
