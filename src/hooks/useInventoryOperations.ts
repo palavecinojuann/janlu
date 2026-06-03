@@ -9,6 +9,33 @@ import { toUMB, Unit, UNIT_DIMENSIONS, UMB_FOR_DIMENSION } from '../utils/units'
 import { generateNextCustomerNumber, addCustomerWithAntiMatching, grantManualBenefitToCustomer, handleSaleStatusCompleted, handleSaleStatusReverted } from '../useCustomer';
 import { User as FirebaseUser } from 'firebase/auth';
 
+const sanitizeForAuditLog = (obj: any): any => {
+  if (obj === null || obj === undefined) return obj;
+  if (Array.isArray(obj)) {
+    return obj.map(v => sanitizeForAuditLog(v));
+  } else if (typeof obj === 'object') {
+    const sanitized: any = {};
+    for (const [k, v] of Object.entries(obj)) {
+      if (k === 'photoUrl' || k === 'photoUrls' || k === 'photo') {
+        if (typeof v === 'string' && v.startsWith('data:')) {
+          sanitized[k] = '[Base64 Image Omitted]';
+        } else if (Array.isArray(v)) {
+          sanitized[k] = v.map(item => (typeof item === 'string' && item.startsWith('data:')) ? '[Base64 Image Omitted]' : item);
+        } else {
+          sanitized[k] = v;
+        }
+      } else {
+        sanitized[k] = sanitizeForAuditLog(v);
+      }
+    }
+    return sanitized;
+  }
+  if (typeof obj === 'string' && obj.length > 5000) {
+    return `${obj.substring(0, 100)}... [Truncated due to size]`;
+  }
+  return obj;
+};
+
 export function useInventoryOperations(
   currentUser: FirebaseUser | null,
   isAdmin: boolean,
@@ -38,8 +65,8 @@ export function useInventoryOperations(
       collection: collectionName,
       documentId,
       timestamp: new Date().toISOString(),
-      newData: newData ? JSON.parse(JSON.stringify(newData)) : null,
-      previousData: previousData ? JSON.parse(JSON.stringify(previousData)) : null,
+      newData: newData ? sanitizeForAuditLog(newData) : null,
+      previousData: previousData ? sanitizeForAuditLog(previousData) : null,
     };
     try {
       await setDoc(doc(db, 'auditLogs', logId), log);
