@@ -40,7 +40,14 @@ export default function ToolsView({
     setIsSyncing(true);
     setSyncStatus(null);
     try {
-      const mirrorMaterials = rawMaterials.filter(rm => rm.sellAsProduct);
+      const mirrorMaterials = rawMaterials.filter(rm => {
+        if (rm.sellAsProduct) return true;
+        if (rm.linkedProductId) return true;
+        // Search if there is a public product of type 'insumo' with the exact same name
+        const match = products.find(p => p.catalogType === 'insumo' && p.name.trim().toLowerCase() === rm.name.trim().toLowerCase());
+        return !!match;
+      });
+
       if (mirrorMaterials.length === 0) {
         setSyncStatus({ type: 'success', message: 'No se encontraron insumos configurados para vender como producto.' });
         setIsSyncing(false);
@@ -57,12 +64,16 @@ export default function ToolsView({
         let updatedRm = { ...rm };
 
         if (!mirrorProduct) {
-          // Fallback: match by name (case-insensitive, trimmed)
+          // Match by name (case-insensitive, trimmed)
           mirrorProduct = products.find(p => p.name.trim().toLowerCase() === rm.name.trim().toLowerCase());
           if (mirrorProduct) {
             updatedRm.linkedProductId = mirrorProduct.id;
+            updatedRm.sellAsProduct = true;
             needsRmUpdate = true;
           }
+        } else if (!rm.sellAsProduct) {
+          updatedRm.sellAsProduct = true;
+          needsRmUpdate = true;
         }
 
         if (mirrorProduct) {
