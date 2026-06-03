@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Product, Variant, RawMaterial, RecipeItem } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { Plus, Trash2, Image as ImageIcon, Upload, RefreshCw } from 'lucide-react';
-import { getUnitsForDimension, toUMB, formatUMB, UNIT_DIMENSIONS, UMB_FOR_DIMENSION, Dimension, Unit } from '../utils/units';
+import { getUnitsForDimension, toUMB, formatUMB, UNIT_DIMENSIONS, UMB_FOR_DIMENSION, Dimension, Unit, getUnitLabel } from '../utils/units';
 import { getVariantStock } from '../utils/stockUtils';
 import imageCompression from 'browser-image-compression';
 
@@ -739,7 +739,7 @@ export default function ProductForm({ product, rawMaterials, onSave, onCancel }:
                               required
                             >
                               {availableUnits.map(u => (
-                                <option key={u} value={u}>{u}</option>
+                                <option key={u} value={u}>{getUnitLabel(u)}</option>
                               ))}
                             </select>
                           ) : (

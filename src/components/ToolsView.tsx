@@ -6,7 +6,7 @@ import LoadTestData from './LoadTestData';
 import DynamicPricingTool from './DynamicPricingTool';
 import VolumeCalculator from './VolumeCalculator';
 import { Product, RawMaterial, Simulation, Activity } from '../types';
-import { updateMirrorProductVariants } from '../utils/stockUtils';
+import { updateMirrorProductVariants, getVariantStock } from '../utils/stockUtils';
 
 interface ToolsViewProps {
   products: Product[];
@@ -48,12 +48,6 @@ export default function ToolsView({
         const match = products.find(p => p.catalogType === 'insumo' && p.name.trim().toLowerCase() === rm.name.trim().toLowerCase());
         return !!match;
       });
-
-      if (mirrorMaterials.length === 0) {
-        setSyncStatus({ type: 'success', message: 'No se encontraron insumos configurados para vender como producto.' });
-        setIsSyncing(false);
-        return;
-      }
 
       const productsToUpdateMap = new Map<string, Product>();
       const materialsToUpdate: RawMaterial[] = [];
@@ -114,6 +108,29 @@ export default function ToolsView({
         }
       });
 
+      // Recalculate dynamic stocks for ALL products (including mirror ones and recipe-dependent ones)
+      const allProductsScanMap = new Map<string, Product>();
+      products.forEach(p => allProductsScanMap.set(p.id, p));
+      productsToUpdateMap.forEach(p => allProductsScanMap.set(p.id, p));
+
+      allProductsScanMap.forEach((product, productId) => {
+        let productChanged = false;
+        const updatedVariants = product.variants.map(variant => {
+          if (variant.isFinishedGood === false && variant.recipe && variant.recipe.length > 0) {
+            const newStock = getVariantStock(variant, rawMaterials);
+            if (variant.stock !== newStock) {
+              productChanged = true;
+              return { ...variant, stock: newStock };
+            }
+          }
+          return variant;
+        });
+
+        if (productChanged) {
+          productsToUpdateMap.set(productId, { ...product, variants: updatedVariants });
+        }
+      });
+
       const uniqueProductsToUpdate = Array.from(productsToUpdateMap.values());
 
       const seenMaterialIds = new Set<string>();
@@ -130,9 +147,9 @@ export default function ToolsView({
         if (uniqueMaterialsToUpdate.length > 0) {
           await onUpdateRawMaterials(uniqueMaterialsToUpdate);
         }
-        setSyncStatus({ type: 'success', message: `Sincronización exitosa: ${updatedCount} insumos vinculados y actualizados con su stock real.` });
+        setSyncStatus({ type: 'success', message: `Sincronización exitosa: ${updatedCount} insumos vinculados y stock dinámico recalculado en el catálogo público.` });
       } else {
-        setSyncStatus({ type: 'success', message: 'Los productos espejo de tus insumos ya están sincronizados o no se encontraron coincidencias.' });
+        setSyncStatus({ type: 'success', message: 'El catálogo público ya está perfectamente sincronizado con el stock actual.' });
       }
     } catch (error) {
       console.error('Error syncing stocks:', error);

@@ -5,6 +5,78 @@ import { getFirestore } from "firebase-admin/firestore";
 initializeApp();
 const db = getFirestore("ai-studio-19c9ceaa-c323-42fd-a900-048de6612687");
 
+const CONVERSION_TO_UMB: Record<string, number> = {
+  mg: 0.001,
+  g: 1,
+  kg: 1000,
+  ml: 1,
+  l: 1000,
+  mm: 1,
+  cm: 10,
+  m: 1000,
+  u: 1,
+  un: 1,
+  tu: 1
+};
+
+const UNIT_DIMENSIONS: Record<string, string> = {
+  mg: 'weight',
+  g: 'weight',
+  kg: 'weight',
+  ml: 'volume',
+  l: 'volume',
+  mm: 'length',
+  cm: 'length',
+  m: 'length',
+  u: 'units',
+  un: 'units',
+  tu: 'units'
+};
+
+const UMB_FOR_DIMENSION: Record<string, string> = {
+  weight: 'g',
+  volume: 'ml',
+  length: 'mm',
+  units: 'u'
+};
+
+function toUMB(quantity: number, unit: string): number {
+  const factor = CONVERSION_TO_UMB[unit];
+  if (factor === undefined) return quantity;
+  return quantity * factor;
+}
+
+function calculateDynamicStock(variant: any, allMaterialsMap: Map<string, any>): number {
+  if (!variant.recipe || variant.recipe.length === 0) {
+    const directStock = (variant.stock || 0) - (variant.compromisedStock || 0);
+    return directStock > 0 ? directStock : 0;
+  }
+
+  if (variant.isFinishedGood !== false) {
+    const directStock = (variant.stock || 0) - (variant.compromisedStock || 0);
+    return directStock > 0 ? directStock : 0;
+  }
+
+  let minStock = Infinity;
+  for (const item of variant.recipe) {
+    const rm = allMaterialsMap.get(item.rawMaterialId);
+    if (rm) {
+      if (item.quantity > 0) {
+        const effectiveUnit = item.unit || rm.baseUnit || UMB_FOR_DIMENSION[rm.dimension || (rm.unit ? UNIT_DIMENSIONS[rm.unit] : 'units')] || 'u';
+        const quantityRequiredInUMB = toUMB(item.quantity, effectiveUnit);
+        const availableRMStock = Math.max(0, (rm.stock || 0) - (rm.compromisedStock || 0));
+        const possibleUnits = Math.floor(availableRMStock / quantityRequiredInUMB);
+        if (possibleUnits < minStock) minStock = possibleUnits;
+      } else {
+        return 0;
+      }
+    } else {
+      return 0;
+    }
+  }
+  return minStock === Infinity ? 0 : minStock;
+}
+
 /**
  * 🚀 updateStockOnSale
  * Escucha cambios en las ventas (/sales) y descuenta o devuelve variantes de stock
@@ -88,15 +160,11 @@ export const updateStockOnSale = onDocumentWritten(
         }
 
         // Collect all IDs to read first
-        const productIds = new Set<string>();
-        const materialIds = new Set<string>();
         const courseIds = new Set<string>();
 
         for (const item of items) {
           if (item.isCourse || item.courseId) {
             courseIds.add(item.courseId || item.productId);
-          } else if (item.productId) {
-            productIds.add(item.productId);
           }
         }
 
@@ -110,39 +178,22 @@ export const updateStockOnSale = onDocumentWritten(
           }
         }
 
-        // Read all product documents
+        // Read all product documents in bulk inside transaction
         const productDocsMap = new Map<string, any>();
-        for (const pid of productIds) {
-          const docRef = db.collection("products").doc(pid);
-          const docSnap = await transaction.get(docRef);
-          if (docSnap.exists) {
-            const pData = docSnap.data();
-            productDocsMap.set(pid, pData);
-            
-            // Gather raw materials from product variants recipe
-            const saleItemsForProduct = items.filter((item: any) => item.productId === pid);
-            for (const item of saleItemsForProduct) {
-              const variant = pData.variants?.find((v: any) => v.id === item.variantId || v.name === item.variantName);
-              if (variant && variant.recipe) {
-                for (const rec of variant.recipe) {
-                  if (rec.rawMaterialId) {
-                    materialIds.add(rec.rawMaterialId);
-                  }
-                }
-              }
-            }
-          }
-        }
+        const allProductsSnapshot = await transaction.get(db.collection("products"));
+        const allProducts: any[] = [];
+        allProductsSnapshot.forEach((docSnap: any) => {
+          const data = docSnap.data();
+          allProducts.push({ ...data, id: docSnap.id });
+          productDocsMap.set(docSnap.id, data);
+        });
 
-        // Read all raw material documents
+        // Read all raw material documents in bulk inside transaction
         const materialDocsMap = new Map<string, any>();
-        for (const mid of materialIds) {
-          const docRef = db.collection("rawMaterials").doc(mid);
-          const docSnap = await transaction.get(docRef);
-          if (docSnap.exists) {
-            materialDocsMap.set(mid, docSnap.data());
-          }
-        }
+        const allMaterialsSnapshot = await transaction.get(db.collection("rawMaterials"));
+        allMaterialsSnapshot.forEach((docSnap: any) => {
+          materialDocsMap.set(docSnap.id, docSnap.data());
+        });
 
         // Track modified documents to update at the end
         const modifiedCourses = new Map<string, any>();
@@ -262,6 +313,37 @@ export const updateStockOnSale = onDocumentWritten(
 
               modifiedMaterials.set(ingredient.rawMaterialId, { ...material, stock, compromisedStock });
             }
+          }
+        }
+
+        // Merge modified materials into materialDocsMap so calculateDynamicStock uses the updated stock values
+        const allMaterialsMapForRecalc = new Map<string, any>();
+        for (const [mid, mData] of materialDocsMap.entries()) {
+          allMaterialsMapForRecalc.set(mid, { ...mData, id: mid });
+        }
+        for (const [materialId, materialData] of modifiedMaterials.entries()) {
+          allMaterialsMapForRecalc.set(materialId, { ...allMaterialsMapForRecalc.get(materialId), ...materialData });
+        }
+
+        // Recalculate dynamic stocks for all products in the database
+        for (const product of allProducts) {
+          const currentProduct = modifiedProducts.get(product.id) || product;
+          const variants = currentProduct.variants || [];
+          let productChanged = false;
+
+          const updatedVariants = variants.map((v: any) => {
+            if (v.isFinishedGood === false && v.recipe && v.recipe.length > 0) {
+              const newStock = calculateDynamicStock(v, allMaterialsMapForRecalc);
+              if (v.stock !== newStock) {
+                productChanged = true;
+                return { ...v, stock: newStock };
+              }
+            }
+            return v;
+          });
+
+          if (productChanged) {
+            modifiedProducts.set(product.id, { ...currentProduct, variants: updatedVariants });
           }
         }
 

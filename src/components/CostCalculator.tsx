@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Plus, Trash2, Calculator, Info, Save, ChevronRight, RefreshCw } from 'lucide-react';
 import { RawMaterial, Simulation } from '../types';
-import { toUMB, Unit, getUnitsForDimension, formatUMB, UNIT_DIMENSIONS, UMB_FOR_DIMENSION, Dimension } from '../utils/units';
+import { toUMB, Unit, getUnitsForDimension, formatUMB, UNIT_DIMENSIONS, UMB_FOR_DIMENSION, Dimension, getUnitLabel } from '../utils/units';
 
 interface CostCalculatorProps {
   rawMaterials: RawMaterial[];
@@ -339,7 +339,7 @@ export default function CostCalculator({
                   <div className="flex flex-col">
                     <span className="font-medium text-stone-800 dark:text-stone-200">{item.materialName || 'Insumo sin seleccionar'}</span>
                     <span className="text-xs text-stone-500 dark:text-stone-400">
-                      {item.quantity} {item.unit} {item.quantityUMB !== undefined && `(${formatUMB(item.quantityUMB, item.dimension as Dimension, item.materialUnit as Unit)})`}
+                      {item.quantity} {getUnitLabel(item.unit)} {item.quantityUMB !== undefined && `(${formatUMB(item.quantityUMB, item.dimension as Dimension, item.materialUnit as Unit)})`}
                     </span>
                   </div>
                   <span className="font-bold text-stone-700 dark:text-stone-300">

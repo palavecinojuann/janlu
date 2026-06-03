@@ -4,7 +4,7 @@ export type Unit =
   | 'mg' | 'g' | 'kg' 
   | 'ml' | 'l' 
   | 'mm' | 'cm' | 'm' 
-  | 'u'; // unidades
+  | 'u' | 'un' | 'tu'; // unidades
 
 export const UNIT_DIMENSIONS: Record<Unit, Dimension> = {
   mg: 'weight',
@@ -15,7 +15,9 @@ export const UNIT_DIMENSIONS: Record<Unit, Dimension> = {
   mm: 'length',
   cm: 'length',
   m: 'length',
-  u: 'units'
+  u: 'units',
+  un: 'units',
+  tu: 'units'
 };
 
 // Factores de conversión hacia la Unidad de Medida Base (UMB)
@@ -29,7 +31,9 @@ export const CONVERSION_TO_UMB: Record<Unit, number> = {
   mm: 1,
   cm: 10,
   m: 1000,
-  u: 1
+  u: 1,
+  un: 1,
+  tu: 1
 };
 
 export const UMB_FOR_DIMENSION: Record<Dimension, Unit> = {
@@ -90,7 +94,7 @@ export function formatUMB(quantityUMB: number, dimension?: Dimension, fallbackUn
     return `${+quantityUMB.toFixed(2)} mm`;
   }
   
-  return `${+quantityUMB.toFixed(2)} u`;
+  return `${+quantityUMB.toFixed(2)} un`;
 }
 
 /**
@@ -100,4 +104,14 @@ export function formatUMB(quantityUMB: number, dimension?: Dimension, fallbackUn
 export function calculateCostPerUMB(costPerPurchaseUnit: number, purchaseUnit: Unit): number {
   const factor = CONVERSION_TO_UMB[purchaseUnit];
   return costPerPurchaseUnit / factor;
+}
+
+/**
+ * Normaliza y devuelve una etiqueta de unidad amigable para mostrar en la interfaz.
+ */
+export function getUnitLabel(unit?: string): string {
+  if (!unit) return 'un';
+  const u = unit.toLowerCase().trim();
+  if (u === 'u' || u === 'un' || u === 'tu' || u === 'unidades') return 'un';
+  return unit;
 }
