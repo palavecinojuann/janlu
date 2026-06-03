@@ -19,7 +19,7 @@ export function useInventory() {
     auth.currentUser,
     auth.isAdmin,
     publicData.products,
-    publicData.rawMaterials,
+    adminData.rawMaterials,
     adminData.sales,
     adminData.quotes,
     adminData.customers,
