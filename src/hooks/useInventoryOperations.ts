@@ -235,6 +235,7 @@ export function useInventoryOperations(
 
   const addRawMaterial = async (material: RawMaterial) => {
     try {
+      const batch = writeBatch(db);
       let linkedProductId = material.linkedProductId;
       if (material.sellAsProduct) {
         linkedProductId = uuidv4();
@@ -255,7 +256,8 @@ export function useInventoryOperations(
             cost: material.costPerUnit || 0,
             margin: 0,
             sku: '',
-            stock: 0,
+            stock: material.stock || 0,
+            compromisedStock: material.compromisedStock || 0,
             isFinishedGood: false,
             recipe: [{
               id: uuidv4(),
@@ -265,11 +267,12 @@ export function useInventoryOperations(
             }]
           }]
         };
-        await setDoc(doc(db, 'products', product.id), cleanObject(product));
+        batch.set(doc(db, 'products', product.id), cleanObject(product));
       }
       const rounded = { ...material, linkedProductId, costPerUnit: roundPrecise(material.costPerUnit) };
       const cleaned = cleanObject(rounded);
-      await setDoc(doc(db, 'rawMaterials', material.id), cleaned);
+      batch.set(doc(db, 'rawMaterials', material.id), cleaned);
+      await batch.commit();
       await logAction('create', 'rawMaterials', material.id, cleaned);
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'rawMaterials');
@@ -291,6 +294,7 @@ export function useInventoryOperations(
 
   const updateRawMaterial = async (updated: RawMaterial) => {
     try {
+      const batch = writeBatch(db);
       let linkedProductId = updated.linkedProductId;
       if (updated.sellAsProduct) {
         if (!linkedProductId) linkedProductId = uuidv4();
@@ -313,7 +317,8 @@ export function useInventoryOperations(
             cost: updated.costPerUnit || 0,
             margin: 0,
             sku: '',
-            stock: 0,
+            stock: updated.stock || 0,
+            compromisedStock: updated.compromisedStock || 0,
             isFinishedGood: false,
             recipe: [{
               id: uuidv4(),
@@ -323,15 +328,16 @@ export function useInventoryOperations(
             }]
           }]
         };
-        await setDoc(doc(db, 'products', product.id), cleanObject(product));
+        batch.set(doc(db, 'products', product.id), cleanObject(product));
       } else if (linkedProductId) {
-        await deleteDoc(doc(db, 'products', linkedProductId));
+        batch.delete(doc(db, 'products', linkedProductId));
         linkedProductId = undefined;
       }
       const rounded = { ...updated, linkedProductId, costPerUnit: roundPrecise(updated.costPerUnit) };
       const prev = rawMaterials.find(m => m.id === updated.id);
       const cleaned = cleanObject(rounded);
-      await setDoc(doc(db, 'rawMaterials', updated.id), cleaned);
+      batch.set(doc(db, 'rawMaterials', updated.id), cleaned);
+      await batch.commit();
       await logAction('update', 'rawMaterials', updated.id, cleaned, prev);
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'rawMaterials');
@@ -357,6 +363,8 @@ export function useInventoryOperations(
                 ...existingProduct.variants[0],
                 name: material.unit,
                 price: material.price || 0,
+                stock: material.stock || 0,
+                compromisedStock: material.compromisedStock || 0,
                 recipe: [{
                   id: uuidv4(),
                   rawMaterialId: material.id,
@@ -393,9 +401,28 @@ export function useInventoryOperations(
   const restockRawMaterial = async (id: string, quantity: number, newCost?: number) => {
     const material = rawMaterials.find(m => m.id === id);
     if (!material) return;
-    const updatedMaterial = { ...material, stock: material.stock + quantity, costPerUnit: newCost || material.costPerUnit, updatedAt: new Date().toISOString() };
+    const updatedStock = material.stock + quantity;
+    const updatedMaterial = { ...material, stock: updatedStock, costPerUnit: newCost || material.costPerUnit, updatedAt: new Date().toISOString() };
     try {
-      await setDoc(doc(db, 'rawMaterials', id), cleanObject(updatedMaterial));
+      const batch = writeBatch(db);
+      batch.set(doc(db, 'rawMaterials', id), cleanObject(updatedMaterial));
+      
+      if (material.sellAsProduct && material.linkedProductId) {
+        const existingProduct = products.find(p => p.id === material.linkedProductId);
+        if (existingProduct) {
+          const product: Product = {
+            ...existingProduct,
+            variants: existingProduct.variants.map((v, idx) => idx === 0 ? {
+              ...v,
+              stock: updatedStock,
+              compromisedStock: material.compromisedStock || 0
+            } : v)
+          };
+          batch.set(doc(db, 'products', product.id), cleanObject(product));
+        }
+      }
+      await batch.commit();
+      await logAction('restock', 'rawMaterials', id, updatedMaterial, material);
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'rawMaterials');
     }
@@ -476,11 +503,23 @@ export function useInventoryOperations(
                 const effectiveUnit = recipeItem.unit || m.baseUnit || UMB_FOR_DIMENSION[m.dimension || (m.unit ? UNIT_DIMENSIONS[m.unit as Unit] : 'units')];
                 const quantityUMB = toUMB(recipeItem.quantity, effectiveUnit as Unit);
                 const returnAmount = quantityUMB * oldOrder.quantity;
+                const newStock = m.stock + returnAmount;
                 batch.set(
                   doc(db, 'rawMaterials', m.id), 
-                  { stock: increment(returnAmount) }, 
+                  { stock: newStock }, 
                   { merge: true }
                 );
+
+                if (m.sellAsProduct && m.linkedProductId) {
+                  const mirror = products.find(p => p.id === m.linkedProductId);
+                  if (mirror) {
+                    const updatedMirror = {
+                      ...mirror,
+                      variants: mirror.variants.map((v, idx) => idx === 0 ? { ...v, stock: newStock } : v)
+                    };
+                    batch.set(doc(db, 'products', mirror.id), cleanObject(updatedMirror));
+                  }
+                }
               }
             });
           }
@@ -526,11 +565,24 @@ export function useInventoryOperations(
               if (m) {
                 const effectiveUnit = recipeItem.unit || m.baseUnit || UMB_FOR_DIMENSION[m.dimension || (m.unit ? UNIT_DIMENSIONS[m.unit as Unit] : 'units')];
                 const quantityUMB = toUMB(recipeItem.quantity, effectiveUnit as Unit);
+                const discountAmount = quantityUMB * order.quantity;
+                const newStock = Math.max(0, m.stock - discountAmount);
                 batch.set(
                   doc(db, 'rawMaterials', m.id),
-                  { stock: increment(-(quantityUMB * order.quantity)) },
+                  { stock: newStock },
                   { merge: true }
                 );
+
+                if (m.sellAsProduct && m.linkedProductId) {
+                  const mirror = products.find(p => p.id === m.linkedProductId);
+                  if (mirror) {
+                    const updatedMirror = {
+                      ...mirror,
+                      variants: mirror.variants.map((v, idx) => idx === 0 ? { ...v, stock: newStock } : v)
+                    };
+                    batch.set(doc(db, 'products', mirror.id), cleanObject(updatedMirror));
+                  }
+                }
               }
             });
           }
@@ -617,11 +669,23 @@ export function useInventoryOperations(
             if (m.stock < discountAmount) {
               throw new Error(`Stock insuficiente de ${m.name}`);
             }
+            const newStock = Math.max(0, m.stock - discountAmount);
             batch.set(
               doc(db, 'rawMaterials', m.id), 
-              { stock: increment(-discountAmount) }, 
+              { stock: newStock }, 
               { merge: true }
             );
+
+            if (m.sellAsProduct && m.linkedProductId) {
+              const mirror = products.find(p => p.id === m.linkedProductId);
+              if (mirror) {
+                const updatedMirror = {
+                  ...mirror,
+                  variants: mirror.variants.map((v, idx) => idx === 0 ? { ...v, stock: newStock } : v)
+                };
+                batch.set(doc(db, 'products', mirror.id), cleanObject(updatedMirror));
+              }
+            }
           }
         }
       }
@@ -666,11 +730,23 @@ export function useInventoryOperations(
           if (m) {
             const effectiveUnit = recipeItem.unit || m.baseUnit || UMB_FOR_DIMENSION[m.dimension || (m.unit ? UNIT_DIMENSIONS[m.unit as Unit] : 'units')];
             const discountAmount = toUMB(recipeItem.quantity, effectiveUnit as Unit) * order.quantity;
+            const newStock = Math.max(0, m.stock - discountAmount);
             batch.set(
               doc(db, 'rawMaterials', m.id), 
-              { stock: increment(-discountAmount) }, 
+              { stock: newStock }, 
               { merge: true }
             );
+
+            if (m.sellAsProduct && m.linkedProductId) {
+              const mirror = products.find(p => p.id === m.linkedProductId);
+              if (mirror) {
+                const updatedMirror = {
+                  ...mirror,
+                  variants: mirror.variants.map((v, idx) => idx === 0 ? { ...v, stock: newStock } : v)
+                };
+                batch.set(doc(db, 'products', mirror.id), cleanObject(updatedMirror));
+              }
+            }
           }
         });
       }
@@ -821,7 +897,22 @@ export function useInventoryOperations(
       } else if (variant.recipe) {
         variant.recipe.forEach(recipeItem => {
           const rm = rawMaterials.find(r => r.id === recipeItem.rawMaterialId);
-          if (rm) batch.set(doc(db, 'rawMaterials', rm.id), { compromisedStock: (rm.compromisedStock || 0) + (recipeItem.quantity * item.quantity) }, { merge: true });
+          if (rm) {
+            const newCompromised = (rm.compromisedStock || 0) + (recipeItem.quantity * item.quantity);
+            batch.set(doc(db, 'rawMaterials', rm.id), { compromisedStock: newCompromised }, { merge: true });
+            
+            // Sincronizar espejo comercial si existe
+            if (rm.sellAsProduct && rm.linkedProductId) {
+              const mirror = products.find(p => p.id === rm.linkedProductId);
+              if (mirror) {
+                const updatedMirror = {
+                  ...mirror,
+                  variants: mirror.variants.map((v, idx) => idx === 0 ? { ...v, compromisedStock: newCompromised } : v)
+                };
+                batch.set(doc(db, 'products', mirror.id), cleanObject(updatedMirror));
+              }
+            }
+          }
         });
       }
     });
@@ -840,7 +931,22 @@ export function useInventoryOperations(
       } else if (variant.recipe) {
         variant.recipe.forEach(recipeItem => {
           const rm = rawMaterials.find(r => r.id === recipeItem.rawMaterialId);
-          if (rm) batch.set(doc(db, 'rawMaterials', rm.id), { compromisedStock: Math.max(0, (rm.compromisedStock || 0) - (recipeItem.quantity * item.quantity)) }, { merge: true });
+          if (rm) {
+            const newCompromised = Math.max(0, (rm.compromisedStock || 0) - (recipeItem.quantity * item.quantity));
+            batch.set(doc(db, 'rawMaterials', rm.id), { compromisedStock: newCompromised }, { merge: true });
+            
+            // Sincronizar espejo comercial si existe
+            if (rm.sellAsProduct && rm.linkedProductId) {
+              const mirror = products.find(p => p.id === rm.linkedProductId);
+              if (mirror) {
+                const updatedMirror = {
+                  ...mirror,
+                  variants: mirror.variants.map((v, idx) => idx === 0 ? { ...v, compromisedStock: newCompromised } : v)
+                };
+                batch.set(doc(db, 'products', mirror.id), cleanObject(updatedMirror));
+              }
+            }
+          }
         });
       }
     });
@@ -863,10 +969,23 @@ export function useInventoryOperations(
         variant.recipe.forEach(recipeItem => {
           const rm = rawMaterials.find(r => r.id === recipeItem.rawMaterialId);
           if (rm) {
-            const compromisedStock = deductCompromised
+            const newStock = Math.max(0, rm.stock - (recipeItem.quantity * item.quantity));
+            const newCompromised = deductCompromised
               ? Math.max(0, (rm.compromisedStock || 0) - (recipeItem.quantity * item.quantity))
               : (rm.compromisedStock || 0);
-            batch.set(doc(db, 'rawMaterials', rm.id), { stock: Math.max(0, rm.stock - (recipeItem.quantity * item.quantity)), compromisedStock }, { merge: true });
+            batch.set(doc(db, 'rawMaterials', rm.id), { stock: newStock, compromisedStock: newCompromised }, { merge: true });
+            
+            // Sincronizar espejo comercial si existe
+            if (rm.sellAsProduct && rm.linkedProductId) {
+              const mirror = products.find(p => p.id === rm.linkedProductId);
+              if (mirror) {
+                const updatedMirror = {
+                  ...mirror,
+                  variants: mirror.variants.map((v, idx) => idx === 0 ? { ...v, stock: newStock, compromisedStock: newCompromised } : v)
+                };
+                batch.set(doc(db, 'products', mirror.id), cleanObject(updatedMirror));
+              }
+            }
           }
         });
       }
@@ -886,7 +1005,23 @@ export function useInventoryOperations(
       } else if (variant.recipe) {
         variant.recipe.forEach(recipeItem => {
           const rm = rawMaterials.find(r => r.id === recipeItem.rawMaterialId);
-          if (rm) batch.set(doc(db, 'rawMaterials', rm.id), { stock: rm.stock + (recipeItem.quantity * item.quantity), compromisedStock: (rm.compromisedStock || 0) + (recipeItem.quantity * item.quantity) }, { merge: true });
+          if (rm) {
+            const newStock = rm.stock + (recipeItem.quantity * item.quantity);
+            const newCompromised = (rm.compromisedStock || 0) + (recipeItem.quantity * item.quantity);
+            batch.set(doc(db, 'rawMaterials', rm.id), { stock: newStock, compromisedStock: newCompromised }, { merge: true });
+            
+            // Sincronizar espejo comercial si existe
+            if (rm.sellAsProduct && rm.linkedProductId) {
+              const mirror = products.find(p => p.id === rm.linkedProductId);
+              if (mirror) {
+                const updatedMirror = {
+                  ...mirror,
+                  variants: mirror.variants.map((v, idx) => idx === 0 ? { ...v, stock: newStock, compromisedStock: newCompromised } : v)
+                };
+                batch.set(doc(db, 'products', mirror.id), cleanObject(updatedMirror));
+              }
+            }
+          }
         });
       }
     });
@@ -905,7 +1040,22 @@ export function useInventoryOperations(
       } else if (variant.recipe) {
         variant.recipe.forEach(recipeItem => {
           const rm = rawMaterials.find(r => r.id === recipeItem.rawMaterialId);
-          if (rm) batch.set(doc(db, 'rawMaterials', rm.id), { stock: rm.stock + (recipeItem.quantity * item.quantity) }, { merge: true });
+          if (rm) {
+            const newStock = rm.stock + (recipeItem.quantity * item.quantity);
+            batch.set(doc(db, 'rawMaterials', rm.id), { stock: newStock }, { merge: true });
+            
+            // Sincronizar espejo comercial si existe
+            if (rm.sellAsProduct && rm.linkedProductId) {
+              const mirror = products.find(p => p.id === rm.linkedProductId);
+              if (mirror) {
+                const updatedMirror = {
+                  ...mirror,
+                  variants: mirror.variants.map((v, idx) => idx === 0 ? { ...v, stock: newStock } : v)
+                };
+                batch.set(doc(db, 'products', mirror.id), cleanObject(updatedMirror));
+              }
+            }
+          }
         });
       }
     });
