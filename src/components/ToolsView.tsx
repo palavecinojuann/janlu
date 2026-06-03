@@ -33,6 +33,52 @@ export default function ToolsView({
   onAddMultipleRawMaterials
 }: ToolsViewProps) {
   const [activeTool, setActiveTool] = useState<'menu' | 'calculator' | 'bulk-update' | 'load-data' | 'dynamic-pricing' | 'volume'>('menu');
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  const handleSyncMirrorStocks = async () => {
+    setIsSyncing(true);
+    setSyncStatus(null);
+    try {
+      const mirrorMaterials = rawMaterials.filter(rm => rm.sellAsProduct && rm.linkedProductId);
+      if (mirrorMaterials.length === 0) {
+        setSyncStatus({ type: 'success', message: 'No se encontraron insumos configurados para vender como producto.' });
+        setIsSyncing(false);
+        return;
+      }
+
+      const productsToUpdate: Product[] = [];
+      let updatedCount = 0;
+
+      mirrorMaterials.forEach(rm => {
+        const mirrorProduct = products.find(p => p.id === rm.linkedProductId);
+        if (mirrorProduct) {
+          const updatedProduct: Product = {
+            ...mirrorProduct,
+            variants: mirrorProduct.variants.map((v, idx) => idx === 0 ? {
+              ...v,
+              stock: rm.stock || 0,
+              compromisedStock: rm.compromisedStock || 0
+            } : v)
+          };
+          productsToUpdate.push(updatedProduct);
+          updatedCount++;
+        }
+      });
+
+      if (productsToUpdate.length > 0) {
+        await onUpdateProducts(productsToUpdate);
+        setSyncStatus({ type: 'success', message: `Sincronización exitosa: ${updatedCount} productos espejo actualizados con su stock real.` });
+      } else {
+        setSyncStatus({ type: 'success', message: 'Los productos espejo de tus insumos ya están sincronizados.' });
+      }
+    } catch (error) {
+      console.error('Error syncing stocks:', error);
+      setSyncStatus({ type: 'error', message: 'Ocurrió un error al intentar sincronizar los stocks.' });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   const renderTool = () => {
     switch (activeTool) {
@@ -191,7 +237,34 @@ export default function ToolsView({
               Abrir herramienta <ChevronRight size={16} className="ml-1 group-hover:translate-x-1 transition-transform" />
             </div>
           </button>
+
+          {/* Sincronizar Stock Espejo Card */}
+          <button
+            onClick={handleSyncMirrorStocks}
+            disabled={isSyncing}
+            className="group flex flex-col p-6 bg-white dark:bg-stone-800 rounded-2xl border border-stone-200 dark:border-stone-700 shadow-sm hover:shadow-md hover:border-amber-500/50 transition-all text-left"
+          >
+            <div className="w-12 h-12 rounded-xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-amber-600 dark:text-amber-400 mb-4 group-hover:scale-110 transition-transform">
+              <RefreshCw className={isSyncing ? "animate-spin" : ""} size={24} />
+            </div>
+            <h3 className="text-lg font-bold text-stone-900 dark:text-white mb-2">Sincronizar Stock Espejo</h3>
+            <p className="text-sm text-stone-500 dark:text-stone-400 mb-4 flex-1">
+              Sincroniza manualmente el stock real de las materias primas y los insumos hacia el catálogo público.
+            </p>
+            <div className="flex items-center text-amber-600 dark:text-amber-400 font-medium text-sm">
+              {isSyncing ? 'Sincronizando...' : 'Ejecutar sincronización'} <ChevronRight size={16} className="ml-1 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </button>
         </div>
+
+        {syncStatus && (
+          <div className={`border rounded-xl p-4 flex gap-3 ${syncStatus.type === 'success' ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200' : 'bg-rose-50 dark:bg-rose-900/20 border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200'}`}>
+            <Info className="shrink-0 animate-pulse text-emerald-600 dark:text-emerald-400" size={20} />
+            <p className="text-sm">
+              {syncStatus.message}
+            </p>
+          </div>
+        )}
 
         <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex gap-3">
           <Info className="text-amber-600 dark:text-amber-400 shrink-0" size={20} />
