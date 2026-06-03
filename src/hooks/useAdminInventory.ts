@@ -375,6 +375,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
   }, []);
 
   const searchHistoricalSale = useCallback(async (searchQuery: string) => {
+    if (!isAdmin) return false;
     try {
       let q = query(collection(db, 'sales'));
       const orderNum = parseInt(searchQuery);
@@ -403,7 +404,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
       console.error("Error en búsqueda histórica:", error);
       return false;
     }
-  }, [updateRealtimeSales]);
+  }, [isAdmin, updateRealtimeSales]);
 
   const variantStocksAndMetrics = useMemo(() => {
     const variantDataMap = new Map<string, { cost: number; price: number; stock: number }>();

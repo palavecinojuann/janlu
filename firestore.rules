@@ -206,7 +206,8 @@ service cloud.firestore {
     }
     match /customers/{customerId} {
       allow create: if true;
-      allow read, update, delete: if isAdmin();
+      allow read, update: if isAdmin() || isOwner(customerId);
+      allow delete: if isAdmin();
     }
     match /subscribers/{subscriberId} {
       allow create: if true;
@@ -236,7 +237,8 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
     match /preAuthorizedAdmins/{email} {
-      allow read, write: if isAdmin();
+      allow read: if isAdmin() || (request.auth != null && request.auth.token.email == email);
+      allow write: if isAdmin();
     }
     match /simulations/{simulationId} {
       allow read, write: if isAdmin();
@@ -244,6 +246,9 @@ service cloud.firestore {
     match /metadata/counters {
       allow read: if true;
       allow write: if true; // Necesario para transacciones de checkout
+    }
+    match /_connection_test_/{docId} {
+      allow read: if true;
     }
   }
 }
