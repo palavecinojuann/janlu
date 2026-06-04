@@ -46,6 +46,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
   const hasFetchedSimulations = useRef(false);
   const hasFetchedRecentOrders = useRef(false);
   const hasFetchedCoupons = useRef(false);
+  const hasFetchedAllSales = useRef(false);
   
   const adminListenersMounted = useRef(false);
   const unsubCustomersRef = useRef<(() => void) | null>(null);
@@ -83,6 +84,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     if (unsubRawMaterialsRef.current) { unsubRawMaterialsRef.current(); unsubRawMaterialsRef.current = null; }
     adminListenersMounted.current = false;
     hasFetchedCoupons.current = false;
+    hasFetchedAllSales.current = false;
     
     // Limpieza de las cachés de ventas
     latestPendingSales.current.clear();
@@ -96,6 +98,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     hasFetchedSimulations.current = false;
     hasFetchedRecentOrders.current = false;
     hasFetchedCoupons.current = false;
+    hasFetchedAllSales.current = false;
     setLastVisibleLog(null);
     setHasMoreLogs(true);
     setRefreshTrigger(prev => prev + 1);
@@ -131,6 +134,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
       hasFetchedSimulations.current = false;
       hasFetchedRecentOrders.current = false;
       hasFetchedCoupons.current = false;
+      hasFetchedAllSales.current = false;
       return;
     }
 
@@ -308,6 +312,22 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     } catch (e) {
       console.warn("Error fetching coupons:", e);
       hasFetchedCoupons.current = false;
+    }
+  }, [isAdmin]);
+
+  const loadAllSales = useCallback(async () => {
+    console.log("[DEBUG-FIRESTORE] loadAllSales called. hasFetchedAllSales:", hasFetchedAllSales.current);
+    if (!isAdmin || hasFetchedAllSales.current) return;
+    hasFetchedAllSales.current = true;
+    try {
+      const salesSnap = await getDocs(query(collection(db, 'sales')));
+      console.log(`[DEBUG-FIRESTORE] getDocs 'sales' (all) returned ${salesSnap.docs.length} docs`);
+      const allSales = salesSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Sale));
+      setHistoricalSales(allSales);
+      setLastSync(new Date());
+    } catch (e) {
+      console.warn("Error fetching all sales:", e);
+      hasFetchedAllSales.current = false;
     }
   }, [isAdmin]);
 
@@ -718,6 +738,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     loadFinancialDocs,
     loadSimulations,
     loadProductionOrders,
-    loadCoupons
+    loadCoupons,
+    loadAllSales
   };
 }
