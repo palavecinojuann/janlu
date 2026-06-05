@@ -385,7 +385,17 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     if (!isAdmin || hasFetchedFinance.current) return;
     hasFetchedFinance.current = true;
     try {
-      const financialDocsSnap = await getDocs(query(collection(db, 'financialDocs')));
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const thirtyDaysAgoISO = thirtyDaysAgo.toISOString();
+
+      const financialDocsSnap = await getDocs(
+        query(
+          collection(db, 'financialDocs'),
+          where('date', '>=', thirtyDaysAgoISO),
+          orderBy('date', 'desc')
+        )
+      );
       console.log(`[DEBUG-FIRESTORE] getDocs 'financialDocs' returned ${financialDocsSnap.docs.length} docs`);
       trackClientReadRate(financialDocsSnap.docs.length || 1);
       setFinancialDocs(financialDocsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as FinancialDocument)));
