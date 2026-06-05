@@ -1,7 +1,13 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { db } from '../firebase';
-import { collection, onSnapshot, query, orderBy, where, getDocs, startAfter, DocumentSnapshot, limit } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, where, getDocs, startAfter, DocumentSnapshot, limit, getAggregateFromServer, sum, count } from 'firebase/firestore';
 import { Sale, Customer, RawMaterial, Quote, Activity, FinancialDocument, ProductionOrder, Simulation, PreAuthorizedAdmin, AuditLog, User, Coupon, Product } from '../types';
+
+export interface ServerMetrics {
+  totalSalesCount: number;
+  totalRevenueSum: number;
+  lastUpdated: Date | null;
+}
 import { getVariantStock } from '../utils/stockUtils';
 import { handleFirestoreError, OperationType, trackClientReadRate } from '../utils/firebaseHelpers';
 
@@ -20,6 +26,12 @@ const stableStringify = (obj: any): string => {
 };
 
 export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, products: Product[]) {
+  const [serverMetrics, setServerMetrics] = useState<ServerMetrics>({
+    totalSalesCount: 0,
+    totalRevenueSum: 0,
+    lastUpdated: null
+  });
+  const [isLoadingServerMetrics, setIsLoadingServerMetrics] = useState<boolean>(false);
   const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>([]);
   const rawMaterialsStringRef = useRef<string>('');
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -423,6 +435,35 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     } catch (e) {
       console.warn("Error fetching recent production orders:", e);
       hasFetchedRecentOrders.current = false;
+    }
+  }, [isAdmin]);
+
+  const fetchServerMetrics = useCallback(async () => {
+    if (!isAdmin) return;
+    setIsLoadingServerMetrics(true);
+    try {
+      console.log("[METRICS] Calculando métricas agregadas desde el servidor...");
+      const q = query(
+        collection(db, 'sales'),
+        where('status', '!=', 'cancelado')
+      );
+      const snapshot = await getAggregateFromServer(q, {
+        totalCount: count(),
+        totalRevenue: sum('totalAmount')
+      });
+      
+      const data = snapshot.data();
+      
+      setServerMetrics({
+        totalSalesCount: data.totalCount,
+        totalRevenueSum: data.totalRevenue || 0,
+        lastUpdated: new Date()
+      });
+      console.log("[METRICS] Agregación completada con éxito.");
+    } catch (error) {
+      console.error("[METRICS] Error al calcular agregaciones:", error);
+    } finally {
+      setIsLoadingServerMetrics(false);
     }
   }, [isAdmin]);
 
