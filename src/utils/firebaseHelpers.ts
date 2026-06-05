@@ -63,3 +63,25 @@ export const cleanObject = (obj: any): any => {
   }
   return obj;
 };
+
+// Client-side safeguard against query loops
+let readHistory: number[] = [];
+const RATE_LIMIT_WINDOW_MS = 10000; // 10 seconds
+const RATE_LIMIT_THRESHOLD = 80;    // 80 reads (approx. one full panel load + buffer)
+
+export function trackClientReadRate(count: number = 1) {
+  const now = Date.now();
+  for (let i = 0; i < count; i++) {
+    readHistory.push(now);
+  }
+  // Keep only timestamps within the window
+  readHistory = readHistory.filter(timestamp => now - timestamp < RATE_LIMIT_WINDOW_MS);
+  
+  if (readHistory.length > RATE_LIMIT_THRESHOLD) {
+    console.warn(
+      `[CRITICAL WARNING-FIRESTORE] High read operation rate detected: ${readHistory.length} reads in the last ${RATE_LIMIT_WINDOW_MS / 1000}s. ` +
+      `Please check for infinite render loops or uncontrolled useEffect hooks.`
+    );
+  }
+}
+

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { db } from '../firebase';
 import { collection, doc, onSnapshot, query } from 'firebase/firestore';
 import { Product, Campaign, Offer, Course, StoreSettings, RawMaterial } from '../types';
-import { OperationType } from '../utils/firebaseHelpers';
+import { OperationType, trackClientReadRate } from '../utils/firebaseHelpers';
 
 const stableStringify = (obj: any): string => {
   return JSON.stringify(obj, (key, value) => {
@@ -53,6 +53,7 @@ export function usePublicInventory(isAuthReady: boolean) {
     console.log("[DEBUG-FIRESTORE] Subscribing to 'products' collection...");
     const unsubProducts = onSnapshot(query(collection(db, 'products')), (snapshot) => {
       console.log(`[DEBUG-FIRESTORE] 'products' snapshot callback fired. Size: ${snapshot.docs.length} docs`);
+      trackClientReadRate(snapshot.docs.length || 1);
       const newData = snapshot.docs.map(doc => {
         const data = doc.data() as Product;
         return {
@@ -74,6 +75,7 @@ export function usePublicInventory(isAuthReady: boolean) {
     console.log("[DEBUG-FIRESTORE] Subscribing to 'campaigns' collection...");
     const unsubCampaigns = onSnapshot(query(collection(db, 'campaigns')), (snapshot) => {
       console.log(`[DEBUG-FIRESTORE] 'campaigns' snapshot callback fired. Size: ${snapshot.docs.length} docs`);
+      trackClientReadRate(snapshot.docs.length || 1);
       const newData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Campaign));
       newData.sort((a, b) => a.id.localeCompare(b.id));
       const newDataString = stableStringify(newData);
@@ -87,6 +89,7 @@ export function usePublicInventory(isAuthReady: boolean) {
     console.log("[DEBUG-FIRESTORE] Subscribing to 'offers' collection...");
     const unsubOffers = onSnapshot(query(collection(db, 'offers')), (snapshot) => {
       console.log(`[DEBUG-FIRESTORE] 'offers' snapshot callback fired. Size: ${snapshot.docs.length} docs`);
+      trackClientReadRate(snapshot.docs.length || 1);
       const newData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Offer));
       newData.sort((a, b) => a.id.localeCompare(b.id));
       const newDataString = stableStringify(newData);
@@ -100,6 +103,7 @@ export function usePublicInventory(isAuthReady: boolean) {
     console.log("[DEBUG-FIRESTORE] Subscribing to 'courses' collection...");
     const unsubCourses = onSnapshot(query(collection(db, 'courses')), (snapshot) => {
       console.log(`[DEBUG-FIRESTORE] 'courses' snapshot callback fired. Size: ${snapshot.docs.length} docs`);
+      trackClientReadRate(snapshot.docs.length || 1);
       const newData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Course));
       newData.sort((a, b) => a.id.localeCompare(b.id));
       const newDataString = stableStringify(newData);
@@ -115,6 +119,7 @@ export function usePublicInventory(isAuthReady: boolean) {
     console.log("[DEBUG-FIRESTORE] Subscribing to 'settings' global doc...");
     const unsubSettings = onSnapshot(doc(db, 'settings', 'global'), (docSnap) => {
       console.log(`[DEBUG-FIRESTORE] 'settings' global snapshot callback fired. Exists: ${docSnap.exists()}`);
+      trackClientReadRate(1);
       if (docSnap.exists()) {
         setStoreSettings(docSnap.data() as StoreSettings);
       }

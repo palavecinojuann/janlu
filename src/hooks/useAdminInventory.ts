@@ -3,7 +3,7 @@ import { db } from '../firebase';
 import { collection, onSnapshot, query, orderBy, where, getDocs, startAfter, DocumentSnapshot, limit } from 'firebase/firestore';
 import { Sale, Customer, RawMaterial, Quote, Activity, FinancialDocument, ProductionOrder, Simulation, PreAuthorizedAdmin, AuditLog, User, Coupon, Product } from '../types';
 import { getVariantStock } from '../utils/stockUtils';
-import { handleFirestoreError, OperationType } from '../utils/firebaseHelpers';
+import { handleFirestoreError, OperationType, trackClientReadRate } from '../utils/firebaseHelpers';
 
 const stableStringify = (obj: any): string => {
   return JSON.stringify(obj, (key, value) => {
@@ -146,24 +146,28 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
       console.log("[DEBUG-FIRESTORE] Subscribing to 'customers' collection (limit 20)...");
       unsubCustomersRef.current = onSnapshot(query(collection(db, 'customers'), limit(20)), (snapshot) => {
         console.log(`[DEBUG-FIRESTORE] 'customers' snapshot callback fired. Size: ${snapshot.docs.length} docs`);
+        trackClientReadRate(snapshot.docs.length || 1);
         setCustomers(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Customer)));
       }, (e) => handleFirestoreError(e, OperationType.GET, 'customers'));
 
       console.log("[DEBUG-FIRESTORE] Subscribing to 'quotes' collection (limit 20)...");
       unsubQuotesRef.current = onSnapshot(query(collection(db, 'quotes'), orderBy('date', 'desc'), limit(20)), (snapshot) => {
         console.log(`[DEBUG-FIRESTORE] 'quotes' snapshot callback fired. Size: ${snapshot.docs.length} docs`);
+        trackClientReadRate(snapshot.docs.length || 1);
         setQuotes(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Quote)));
       }, (e) => handleFirestoreError(e, OperationType.GET, 'quotes'));
 
       console.log("[DEBUG-FIRESTORE] Subscribing to 'activities' collection (limit 20)...");
       unsubActivitiesRef.current = onSnapshot(query(collection(db, 'activities'), orderBy('createdAt', 'desc'), limit(20)), (snapshot) => {
         console.log(`[DEBUG-FIRESTORE] 'activities' snapshot callback fired. Size: ${snapshot.docs.length} docs`);
+        trackClientReadRate(snapshot.docs.length || 1);
         setActivities(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Activity)));
       }, (e) => handleFirestoreError(e, OperationType.GET, 'activities'));
 
       console.log("[DEBUG-FIRESTORE] Subscribing to 'productionOrders' collection (status == pending)...");
       unsubOrdersActiveRef.current = onSnapshot(query(collection(db, 'productionOrders'), where('status', '==', 'pending')), (snapshot) => {
         console.log(`[DEBUG-FIRESTORE] active 'productionOrders' snapshot callback fired. Size: ${snapshot.docs.length} docs`);
+        trackClientReadRate(snapshot.docs.length || 1);
         const activeOrders = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as ProductionOrder));
         setProductionOrders(prev => {
           const merged = new Map<string, ProductionOrder>();
@@ -176,6 +180,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
       console.log("[DEBUG-FIRESTORE] Subscribing to 'rawMaterials' collection (admin)...");
       unsubRawMaterialsRef.current = onSnapshot(query(collection(db, 'rawMaterials')), (snapshot) => {
         console.log(`[DEBUG-FIRESTORE] 'rawMaterials' (admin) snapshot callback fired. Size: ${snapshot.docs.length} docs`);
+        trackClientReadRate(snapshot.docs.length || 1);
         const newData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as RawMaterial));
         newData.sort((a, b) => a.id.localeCompare(b.id));
         const newDataString = stableStringify(newData);
@@ -210,6 +215,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
 
     const unsubPending = onSnapshot(qPending, (snapshot) => {
       console.log(`[DEBUG-FIRESTORE] 'sales' (pending) snapshot callback fired. Size: ${snapshot.docs.length} docs`);
+      trackClientReadRate(snapshot.docs.length || 1);
       const pendingMap = new Map<string, Sale>();
       snapshot.docs.forEach(doc => {
         pendingMap.set(doc.id, { ...doc.data(), id: doc.id } as Sale);
@@ -220,6 +226,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
 
     const unsubRecent = onSnapshot(qRecent, (snapshot) => {
       console.log(`[DEBUG-FIRESTORE] 'sales' (recent) snapshot callback fired. Size: ${snapshot.docs.length} docs`);
+      trackClientReadRate(snapshot.docs.length || 1);
       const recentMap = new Map<string, Sale>();
       snapshot.docs.forEach(doc => {
         recentMap.set(doc.id, { ...doc.data(), id: doc.id } as Sale);
@@ -259,6 +266,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
       );
       const snapshot = await getDocs(q);
       console.log(`[DEBUG-FIRESTORE] getDocs 'auditLogs' (initial) returned ${snapshot.docs.length} docs`);
+      trackClientReadRate(snapshot.docs.length || 1);
       const fetchedLogs = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as AuditLog));
       setAuditLogs(fetchedLogs);
       
@@ -286,6 +294,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
       );
       const snapshot = await getDocs(q);
       console.log(`[DEBUG-FIRESTORE] getDocs 'auditLogs' (more) returned ${snapshot.docs.length} docs`);
+      trackClientReadRate(snapshot.docs.length || 1);
       const fetchedLogs = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as AuditLog));
       
       setAuditLogs(prev => [...prev, ...fetchedLogs]);
@@ -307,6 +316,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     try {
       const couponsSnap = await getDocs(query(collection(db, 'coupons')));
       console.log(`[DEBUG-FIRESTORE] getDocs 'coupons' returned ${couponsSnap.docs.length} docs`);
+      trackClientReadRate(couponsSnap.docs.length || 1);
       setCoupons(couponsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Coupon)));
       setLastSync(new Date());
     } catch (e) {
@@ -338,10 +348,12 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     try {
       const usersSnap = await getDocs(query(collection(db, 'users')));
       console.log(`[DEBUG-FIRESTORE] getDocs 'users' returned ${usersSnap.docs.length} docs`);
+      trackClientReadRate(usersSnap.docs.length || 1);
       setUsers(usersSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as any as User)));
 
       const preAuthSnap = await getDocs(collection(db, 'preAuthorizedAdmins'));
       console.log(`[DEBUG-FIRESTORE] getDocs 'preAuthorizedAdmins' returned ${preAuthSnap.docs.length} docs`);
+      trackClientReadRate(preAuthSnap.docs.length || 1);
       setPreAuthorizedAdmins(preAuthSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as any as PreAuthorizedAdmin)));
       setLastSync(new Date());
     } catch (e) {
@@ -357,6 +369,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     try {
       const financialDocsSnap = await getDocs(query(collection(db, 'financialDocs')));
       console.log(`[DEBUG-FIRESTORE] getDocs 'financialDocs' returned ${financialDocsSnap.docs.length} docs`);
+      trackClientReadRate(financialDocsSnap.docs.length || 1);
       setFinancialDocs(financialDocsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as FinancialDocument)));
       setLastSync(new Date());
     } catch (e) {
@@ -372,6 +385,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     try {
       const simulationsSnap = await getDocs(query(collection(db, 'simulations')));
       console.log(`[DEBUG-FIRESTORE] getDocs 'simulations' returned ${simulationsSnap.docs.length} docs`);
+      trackClientReadRate(simulationsSnap.docs.length || 1);
       setSimulations(simulationsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Simulation)));
       setLastSync(new Date());
     } catch (e) {
@@ -391,6 +405,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
 
       const ordersRecentSnap = await getDocs(query(collection(db, 'productionOrders'), where('createdAt', '>=', thirtyDaysAgoISO), orderBy('createdAt', 'desc')));
       console.log(`[DEBUG-FIRESTORE] getDocs 'productionOrders' (recent) returned ${ordersRecentSnap.docs.length} docs`);
+      trackClientReadRate(ordersRecentSnap.docs.length || 1);
       const recentOrders = ordersRecentSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as ProductionOrder));
       setProductionOrders(prev => {
         const merged = new Map<string, ProductionOrder>();
