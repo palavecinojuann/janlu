@@ -3,9 +3,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { Quote } from './types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useInventoryContext } from './contexts/InventoryContext';
-import { auth, db } from './firebase';
+import { auth } from './firebase';
 import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
-import { collection, addDoc, serverTimestamp, onSnapshot, query, where } from 'firebase/firestore';
 import { 
   LayoutDashboard, 
   Package, 
@@ -119,46 +118,46 @@ export default function App() {
   const [showAuth, setShowAuth] = useState(false);
   const [isPublicCatalog, setIsPublicCatalog] = useState(true);
 
-  // Alertas en tiempo real para nuevos pedidos
-  const [activeNewSales, setActiveNewSales] = useState<string[]>([]);
+  // Alertas en tiempo real para nuevos pedidos — derivado de `sales` ya cargadas (SIN listener adicional)
   const [seenSales, setSeenSales] = useState<Set<string>>(new Set());
   const [newOrdersCount, setNewOrdersCount] = useState(0);
   const isInitialLoad = useRef(true);
+  const prevNewSaleIdsRef = useRef<Set<string>>(new Set());
 
+  // Derivar IDs de ventas nuevas directamente de `sales` (ya cargado en el contexto)
+  const activeNewSales = useMemo(() => {
+    if (!isAdmin || !sales) return [];
+    return sales
+      .filter(s => s.status === 'nuevo' || s.status === 'pedido_recibido')
+      .map(s => s.id);
+  }, [sales, isAdmin]);
+
+  // Detectar ventas NUEVAS que no estaban antes y reproducir sonido
   useEffect(() => {
-    if (!currentUser || !isAdmin) {
-      setActiveNewSales([]);
+    if (!isAdmin || !currentUser) {
+      isInitialLoad.current = true;
+      prevNewSaleIdsRef.current = new Set();
       setNewOrdersCount(0);
       return;
     }
 
-    console.log("[DEBUG-ALERT] Suscribiéndose a alerta de nuevas ventas...");
-    const q = query(
-      collection(db, 'sales'),
-      where('status', 'in', ['nuevo', 'pedido_recibido'])
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const ids = snapshot.docs.map(doc => doc.id);
-      setActiveNewSales(ids);
-
-      snapshot.docChanges().forEach((change) => {
-        if (change.type === 'added') {
-          if (!isInitialLoad.current) {
-            const audio = new Audio('/sounds/notification.mp3');
-            audio.play().catch(err => {
-              console.log('[DEBUG-ALERT] Error al reproducir audio (Autoplay bloqueado):', err);
-            });
-          }
-        }
-      });
+    if (isInitialLoad.current) {
+      // En la carga inicial, solo registrar los IDs actuales sin reproducir sonido
+      prevNewSaleIdsRef.current = new Set(activeNewSales);
       isInitialLoad.current = false;
-    });
-
-    return () => {
-      unsubscribe();
-    };
-  }, [currentUser, isAdmin]);
+    } else {
+      // Detectar IDs que no existían antes
+      const currentIds = new Set(activeNewSales);
+      const newIds = activeNewSales.filter(id => !prevNewSaleIdsRef.current.has(id));
+      if (newIds.length > 0) {
+        const audio = new Audio('/sounds/notification.mp3');
+        audio.play().catch(err => {
+          console.log('[DEBUG-ALERT] Error al reproducir audio (Autoplay bloqueado):', err);
+        });
+      }
+      prevNewSaleIdsRef.current = currentIds;
+    }
+  }, [activeNewSales, isAdmin, currentUser]);
 
   useEffect(() => {
     const unseen = activeNewSales.filter(id => !seenSales.has(id)).length;

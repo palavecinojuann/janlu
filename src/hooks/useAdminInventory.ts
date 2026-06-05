@@ -110,8 +110,9 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     return unique.sort((a, b) => (b.orderNumber || 0) - (a.orderNumber || 0));
   }, [realtimeSales, historicalSales]);
 
+  // Efecto 1: Listeners PERSISTENTES de admin (se suscriben una única vez por sesión)
   useEffect(() => {
-    console.log("[DEBUG-FIRESTORE] useEffect useAdminInventory triggered. isAuthReady:", isAuthReady, "isAdmin:", isAdmin, "refreshTrigger:", refreshTrigger, "salesLimit:", salesLimit);
+    console.log("[DEBUG-FIRESTORE] useEffect useAdminInventory (persistent) triggered. isAuthReady:", isAuthReady, "isAdmin:", isAdmin, "refreshTrigger:", refreshTrigger);
     if (!isAuthReady || !isAdmin) {
       console.log("[DEBUG-FIRESTORE] Resetting admin state and cleaning up listeners (either not admin or auth not ready)...");
       // Reset data when not admin
@@ -191,8 +192,12 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
         }
       }, (e) => handleFirestoreError(e, OperationType.GET, 'rawMaterials'));
     }
+  }, [isAuthReady, isAdmin, refreshTrigger]);
 
-    // NOTA: Optimización de ráfaga inicial para limitar lecturas de ventas históricas cerradas.
+  // Efecto 2: Listeners de VENTAS (se re-suscriben solo cuando cambia salesLimit)
+  useEffect(() => {
+    if (!isAuthReady || !isAdmin) return;
+
     console.log(`[DEBUG-FIRESTORE] Subscribing to 'sales' collection (pending and recent limit ${salesLimit})...`);
     if (unsubSalesRef.current) {
       console.log("[DEBUG-FIRESTORE] Unsubscribing previous 'sales' listeners...");
@@ -210,8 +215,6 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
       orderBy('date', 'desc'),
       limit(salesLimit)
     );
-
-
 
     const unsubPending = onSnapshot(qPending, (snapshot) => {
       console.log(`[DEBUG-FIRESTORE] 'sales' (pending) snapshot callback fired. Size: ${snapshot.docs.length} docs`);
@@ -242,9 +245,12 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     };
 
     return () => {
-      // El desmontaje real lo maneja el efecto dedicado para evitar limpiar suscripciones válidas en renders efímeros
+      if (unsubSalesRef.current) {
+        unsubSalesRef.current();
+        unsubSalesRef.current = null;
+      }
     };
-  }, [isAuthReady, isAdmin, refreshTrigger, salesLimit, updateRealtimeSales]);
+  }, [isAuthReady, isAdmin, salesLimit, updateRealtimeSales]);
 
   // Limpieza total de listeners al desmontar el hook de inventario
   useEffect(() => {
