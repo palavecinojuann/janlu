@@ -127,20 +127,20 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     console.log("[DEBUG-FIRESTORE] useEffect useAdminInventory (persistent) triggered. isAuthReady:", isAuthReady, "isAdmin:", isAdmin, "refreshTrigger:", refreshTrigger);
     if (!isAuthReady || !isAdmin) {
       console.log("[DEBUG-FIRESTORE] Resetting admin state and cleaning up listeners (either not admin or auth not ready)...");
-      // Reset data when not admin
-      setCustomers([]);
-      setRealtimeSales([]);
-      setHistoricalSales([]);
-      setQuotes([]);
-      setActivities([]);
-      setProductionOrders([]);
-      setAuditLogs([]);
-      setCoupons([]);
-      setFinancialDocs([]);
-      setRawMaterials([]);
+      // Reset data when not admin, preserving empty array references to prevent render loops
+      setCustomers(prev => prev.length > 0 ? [] : prev);
+      setRealtimeSales(prev => prev.length > 0 ? [] : prev);
+      setHistoricalSales(prev => prev.length > 0 ? [] : prev);
+      setQuotes(prev => prev.length > 0 ? [] : prev);
+      setActivities(prev => prev.length > 0 ? [] : prev);
+      setProductionOrders(prev => prev.length > 0 ? [] : prev);
+      setAuditLogs(prev => prev.length > 0 ? [] : prev);
+      setCoupons(prev => prev.length > 0 ? [] : prev);
+      setFinancialDocs(prev => prev.length > 0 ? [] : prev);
+      setRawMaterials(prev => prev.length > 0 ? [] : prev);
       rawMaterialsStringRef.current = '';
-      setLastVisibleLog(null);
-      setHasMoreLogs(true);
+      setLastVisibleLog(prev => prev !== null ? null : prev);
+      setHasMoreLogs(prev => !prev ? true : prev);
       cleanupAllListeners();
       hasFetchedUsers.current = false;
       hasFetchedFinance.current = false;

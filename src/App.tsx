@@ -137,7 +137,7 @@ export default function App() {
     if (!isAdmin || !currentUser) {
       isInitialLoad.current = true;
       prevNewSaleIdsRef.current = new Set();
-      setNewOrdersCount(0);
+      setNewOrdersCount(prev => prev !== 0 ? 0 : prev);
       return;
     }
 
