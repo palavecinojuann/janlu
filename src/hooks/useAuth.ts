@@ -78,7 +78,8 @@ export function useAuth() {
               }
             }
 
-            setIsAdmin(resolvedIsAdmin);
+            const dbIsAdmin = role === 'admin' || role === 'superadmin' || role === 'collaborator';
+            setIsAdmin(resolvedIsAdmin || dbIsAdmin);
             setUserProfile(finalUserProfile);
           } else {
             // Si no está en users, y es admin pre-autorizado, creamos el perfil oficial
