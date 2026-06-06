@@ -42,6 +42,7 @@ export default function ProductList({
   const [producingProduct, setProducingProduct] = useState<{ product: Product, variant: Variant } | null>(null);
   const [showImportModal, setShowImportModal] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<{ type: 'product', id: string } | null>(null);
 
   const handleShareCatalog = () => {
     const url = new URL(window.location.href);
@@ -372,8 +373,7 @@ export default function ProductList({
                           <button 
                             onClick={(e) => {
                               e.stopPropagation();
-                              console.log('Delete button clicked for product:', product.id);
-                              onDelete(product.id);
+                              setConfirmAction({ type: 'product', id: product.id });
                             }}
                             className="p-2 text-stone-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-lg transition-colors"
                             title="Eliminar"
@@ -413,6 +413,39 @@ export default function ProductList({
             setProducingProduct(null);
           }}
         />
+      )}
+
+      {/* Modal de Confirmación */}
+      {confirmAction && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-2xl max-w-sm w-full p-6 border border-stone-200 dark:border-stone-800">
+            <h3 className="text-xl font-bold text-stone-800 dark:text-stone-100 mb-4">
+              Eliminar Producto
+            </h3>
+            <p className="text-stone-600 dark:text-stone-400 mb-6">
+              ¿Estás seguro de que deseas eliminar este producto? Esta acción no se puede deshacer.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setConfirmAction(null)}
+                className="px-4 py-2 text-stone-600 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-xl transition-colors font-medium"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  if (onDelete) {
+                    onDelete(confirmAction.id);
+                  }
+                  setConfirmAction(null);
+                }}
+                className="px-4 py-2 bg-rose-600 text-white rounded-xl hover:bg-rose-700 transition-colors font-medium"
+              >
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
