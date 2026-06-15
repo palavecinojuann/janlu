@@ -80,12 +80,19 @@ export function useInventoryOperations(
     try {
       const rounded = {
         ...product,
-        variants: product.variants.map(v => ({
-          ...v,
-          cost: roundFinancial(v.cost),
-          price: roundFinancial(v.price),
-          wholesalePrice: v.wholesalePrice ? roundFinancial(v.wholesalePrice) : undefined
-        }))
+        variants: product.variants.map(v => {
+          const base = {
+            ...v,
+            cost: roundFinancial(v.cost),
+            price: roundFinancial(v.price),
+            wholesalePrice: v.wholesalePrice ? roundFinancial(v.wholesalePrice) : undefined
+          };
+          // Pre-calculate dynamic stock for variants that depend on raw materials
+          if (base.isFinishedGood === false && base.recipe && base.recipe.length > 0) {
+            base.stock = getVariantStock(base, rawMaterials);
+          }
+          return base;
+        })
       };
       const cleaned = cleanObject(rounded);
       await setDoc(doc(db, 'products', product.id), cleaned);
@@ -126,12 +133,19 @@ export function useInventoryOperations(
     try {
       const rounded = {
         ...updatedProduct,
-        variants: updatedProduct.variants.map(v => ({
-          ...v,
-          cost: roundFinancial(v.cost),
-          price: roundFinancial(v.price),
-          wholesalePrice: v.wholesalePrice ? roundFinancial(v.wholesalePrice) : undefined
-        }))
+        variants: updatedProduct.variants.map(v => {
+          const base = {
+            ...v,
+            cost: roundFinancial(v.cost),
+            price: roundFinancial(v.price),
+            wholesalePrice: v.wholesalePrice ? roundFinancial(v.wholesalePrice) : undefined
+          };
+          // Pre-calculate dynamic stock for variants that depend on raw materials
+          if (base.isFinishedGood === false && base.recipe && base.recipe.length > 0) {
+            base.stock = getVariantStock(base, rawMaterials);
+          }
+          return base;
+        })
       };
       const prev = products.find(p => p.id === updatedProduct.id);
       const cleaned = cleanObject(rounded);
