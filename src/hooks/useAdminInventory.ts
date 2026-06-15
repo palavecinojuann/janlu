@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { db } from '../firebase';
-import { collection, onSnapshot, query, orderBy, where, getDocs, startAfter, DocumentSnapshot, limit, getAggregateFromServer, sum, count, doc, setDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, where, getDocs, startAfter, DocumentSnapshot, limit, getAggregateFromServer, sum, count, doc, setDoc, writeBatch } from 'firebase/firestore';
 import { Sale, Customer, RawMaterial, Quote, Activity, FinancialDocument, ProductionOrder, Simulation, PreAuthorizedAdmin, AuditLog, User, Coupon, Product } from '../types';
 
 export interface ServerMetrics {
@@ -72,6 +72,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
   const latestPendingSales = useRef<Map<string, Sale>>(new Map());
   const latestRecentSales = useRef<Map<string, Sale>>(new Map());
   const searchedSalesRef = useRef<Map<string, Sale>>(new Map());
+  const isSyncingDynamicStockRef = useRef(false);
 
   const updateRealtimeSales = useCallback(() => {
     const mergedMap = new Map<string, Sale>();
@@ -274,7 +275,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
 
   // Autocomparación y sincronización de stock dinámico en segundo plano para el administrador
   useEffect(() => {
-    if (!isAdmin || !isAuthReady || products.length === 0 || rawMaterials.length === 0) return;
+    if (!isAdmin || !isAuthReady || products.length === 0 || rawMaterials.length === 0 || isSyncingDynamicStockRef.current) return;
 
     const productsToUpdate: Product[] = [];
     products.forEach(product => {
@@ -282,7 +283,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
       const updatedVariants = product.variants.map(variant => {
         if (variant.isFinishedGood === false && variant.recipe && variant.recipe.length > 0) {
           const newStock = getVariantStock(variant, rawMaterials);
-          if (variant.stock !== newStock) {
+          if (Number(variant.stock || 0) !== Number(newStock)) {
             productChanged = true;
             return { ...variant, stock: newStock };
           }
@@ -296,16 +297,26 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     });
 
     if (productsToUpdate.length > 0) {
-      console.log(`[SELF-HEALING] Se detectaron ${productsToUpdate.length} productos con stock dinámico desactualizado. Sincronizando...`);
-      productsToUpdate.forEach(async (p) => {
+      isSyncingDynamicStockRef.current = true;
+      console.log(`[SELF-HEALING] Se detectaron ${productsToUpdate.length} productos con stock dinámico desactualizado. Sincronizando en lote...`);
+      
+      const performBatchUpdate = async () => {
         try {
-          const productRef = doc(db, 'products', p.id);
-          await setDoc(productRef, cleanObject(p));
-          console.log(`[SELF-HEALING] Producto "${p.name}" sincronizado con stock correcto.`);
+          const batch = writeBatch(db);
+          productsToUpdate.forEach(p => {
+            const productRef = doc(db, 'products', p.id);
+            batch.set(productRef, cleanObject(p));
+          });
+          await batch.commit();
+          console.log(`[SELF-HEALING] Sincronización en lote completada con éxito.`);
         } catch (err) {
-          console.error(`[SELF-HEALING] Error al sincronizar producto "${p.name}":`, err);
+          console.error(`[SELF-HEALING] Error al sincronizar stock en lote:`, err);
+        } finally {
+          isSyncingDynamicStockRef.current = false;
         }
-      });
+      };
+
+      performBatchUpdate();
     }
   }, [isAdmin, isAuthReady, products, rawMaterials]);
 
