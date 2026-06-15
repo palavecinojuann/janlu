@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { db } from '../firebase';
-import { collection, onSnapshot, query, orderBy, where, getDocs, startAfter, DocumentSnapshot, limit, getAggregateFromServer, sum, count } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, where, getDocs, startAfter, DocumentSnapshot, limit, getAggregateFromServer, sum, count, doc, setDoc } from 'firebase/firestore';
 import { Sale, Customer, RawMaterial, Quote, Activity, FinancialDocument, ProductionOrder, Simulation, PreAuthorizedAdmin, AuditLog, User, Coupon, Product } from '../types';
 
 export interface ServerMetrics {
@@ -9,7 +9,7 @@ export interface ServerMetrics {
   lastUpdated: Date | null;
 }
 import { getVariantStock } from '../utils/stockUtils';
-import { handleFirestoreError, OperationType, trackClientReadRate } from '../utils/firebaseHelpers';
+import { handleFirestoreError, OperationType, trackClientReadRate, cleanObject } from '../utils/firebaseHelpers';
 
 const stableStringify = (obj: any): string => {
   return JSON.stringify(obj, (key, value) => {
@@ -271,6 +271,43 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
       cleanupAllListeners();
     };
   }, []);
+
+  // Autocomparación y sincronización de stock dinámico en segundo plano para el administrador
+  useEffect(() => {
+    if (!isAdmin || !isAuthReady || products.length === 0 || rawMaterials.length === 0) return;
+
+    const productsToUpdate: Product[] = [];
+    products.forEach(product => {
+      let productChanged = false;
+      const updatedVariants = product.variants.map(variant => {
+        if (variant.isFinishedGood === false && variant.recipe && variant.recipe.length > 0) {
+          const newStock = getVariantStock(variant, rawMaterials);
+          if (variant.stock !== newStock) {
+            productChanged = true;
+            return { ...variant, stock: newStock };
+          }
+        }
+        return variant;
+      });
+
+      if (productChanged) {
+        productsToUpdate.push({ ...product, variants: updatedVariants });
+      }
+    });
+
+    if (productsToUpdate.length > 0) {
+      console.log(`[SELF-HEALING] Se detectaron ${productsToUpdate.length} productos con stock dinámico desactualizado. Sincronizando...`);
+      productsToUpdate.forEach(async (p) => {
+        try {
+          const productRef = doc(db, 'products', p.id);
+          await setDoc(productRef, cleanObject(p));
+          console.log(`[SELF-HEALING] Producto "${p.name}" sincronizado con stock correcto.`);
+        } catch (err) {
+          console.error(`[SELF-HEALING] Error al sincronizar producto "${p.name}":`, err);
+        }
+      });
+    }
+  }, [isAdmin, isAuthReady, products, rawMaterials]);
 
   const fetchInitialAuditLogs = useCallback(async () => {
     if (!isAdmin) return;
