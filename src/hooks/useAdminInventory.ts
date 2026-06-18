@@ -73,6 +73,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
   const latestRecentSales = useRef<Map<string, Sale>>(new Map());
   const searchedSalesRef = useRef<Map<string, Sale>>(new Map());
   const isSyncingDynamicStockRef = useRef(false);
+  const syncingStocksRef = useRef<Record<string, Record<string, number>>>({});
 
   const updateRealtimeSales = useCallback(() => {
     const mergedMap = new Map<string, Sale>();
@@ -103,6 +104,7 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
     latestPendingSales.current.clear();
     latestRecentSales.current.clear();
     searchedSalesRef.current.clear();
+    syncingStocksRef.current = {};
   };
 
   const refresh = useCallback(() => {
@@ -283,8 +285,12 @@ export function useAdminInventory(isAdmin: boolean, isAuthReady: boolean, produc
       const updatedVariants = product.variants.map(variant => {
         if (variant.isFinishedGood === false && variant.recipe && variant.recipe.length > 0) {
           const newStock = getVariantStock(variant, rawMaterials);
-          if (Number(variant.stock || 0) !== Number(newStock)) {
+          const isSyncing = syncingStocksRef.current[product.id]?.[variant.id] === newStock;
+          
+          if (!isSyncing && Number(variant.stock || 0) !== Number(newStock)) {
             productChanged = true;
+            if (!syncingStocksRef.current[product.id]) syncingStocksRef.current[product.id] = {};
+            syncingStocksRef.current[product.id][variant.id] = newStock;
             return { ...variant, stock: newStock };
           }
         }
